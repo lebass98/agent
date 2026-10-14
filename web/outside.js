@@ -785,7 +785,7 @@
       const body = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(body.detail || `주소를 찾지 못했어요 (${r.status})`);
       S.results = body.results || [];
-      if (!S.results.length) toast("주소를 찾지 못했어요. 시·구·도로명·건물 번호까지 넣어 보세요. (예: 서울 금천구 벚꽃로 298)", "warn", 6500);
+      if (!S.results.length) toast("주소를 찾지 못했어요. 시·구·도로명·건물 번호까지 넣어 보세요. (예: 서울 중구 세종대로 110)", "warn", 6500);
       else if (S.results.length === 1) choose(S.results[0]);
     } catch (e) { toast(e.message || String(e), "error"); }
     finally { S.searching = false; rerender(); }
@@ -810,7 +810,7 @@
   function row() {
     const p = S.place;
     const input = el("input", { id: "outsideQ", type: "search", value: S.q, autocomplete: "street-address", enterkeyhint: "search",
-      placeholder: "도로명 주소·건물 이름 (예: 서울 금천구 벚꽃로 298)", "aria-label": "사무실 주소",
+      placeholder: "도로명 주소·건물 이름 (예: 서울 중구 세종대로 110)", "aria-label": "사무실 주소",
       oninput: e => { S.q = e.target.value; }, onkeydown: e => { if (e.key === "Enter") { e.preventDefault(); search(); } } });
     return el("div", { class: "set-row outside-row" },
       el("div", { class: "lbl" }, "사무실 위치 · 바깥 풍경", el("small", { text: note() })),

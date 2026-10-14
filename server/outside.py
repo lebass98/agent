@@ -1,6 +1,6 @@
 """바깥 풍경: 사무실 주소 주변의 건물·도로·공원·물길·철길을 OpenStreetMap 에서 받아 3D 용으로 다듬는다.
 
-- 주소 → 좌표: Nominatim(OpenStreetMap 주소 검색). "37.48, 126.88" 처럼 좌표를 바로 넣어도 된다.
+- 주소 → 좌표: Nominatim(OpenStreetMap 주소 검색). "37.5665, 126.978" 처럼 좌표를 바로 넣어도 된다.
 - 지도: Overpass API 로 반경 r 미터 안을 받는다. 받은 원본은 cache/outside/ 에 두어 다음부터는 인터넷 없이 쓴다.
 - 결과 좌표는 사무실 기준 미터(사무실 가운데가 원점, x 오른쪽·z 앞쪽). 사무실이 들어 있는 건물(site)의 벽과
   사무실 벽이 나란하도록 지도를 rot 라디안 돌린다(rot=0 이면 +x 동쪽·+z 남쪽). 해 방향도 같은 rot 로 돌려야 맞다.
@@ -45,7 +45,7 @@ _COORD = re.compile(r"\(?\s*(-?\d{1,2}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?
 
 
 def parse_coords(text: str) -> tuple[float, float] | None:
-    """'37.4814, 126.8839' 같은 위도·경도 입력이면 (lat, lng)."""
+    """'37.5665, 126.978' 같은 위도·경도 입력이면 (lat, lng)."""
     m = _COORD.fullmatch((text or "").strip())
     if not m:
         return None
@@ -54,7 +54,7 @@ def parse_coords(text: str) -> tuple[float, float] | None:
 
 
 def _label(x: dict) -> str:
-    """Nominatim 결과 → '서울특별시 금천구 벚꽃로 298 (건물 이름)' 처럼 한국식 순서의 짧은 이름."""
+    """Nominatim 결과 → '서울특별시 중구 세종대로 110 (건물 이름)' 처럼 한국식 순서의 짧은 이름."""
     a = x.get("address") or {}
     head = a.get("city") or a.get("province") or a.get("state") or ""
     mid = a.get("borough") or a.get("county") or a.get("city_district") or a.get("town") or ""

@@ -43,7 +43,7 @@ def sample_osm() -> dict:
 
 
 def test_parse_coords():
-    assert outside.parse_coords("37.4814, 126.8839") == (37.4814, 126.8839)
+    assert outside.parse_coords("37.5665, 126.978") == (37.5665, 126.978)
     assert outside.parse_coords("(37.5 127)") == (37.5, 127.0)
     assert outside.parse_coords("서울 중구 세종대로 110") is None
     assert outside.parse_coords("95, 10") is None

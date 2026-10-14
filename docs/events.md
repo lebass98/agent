@@ -61,7 +61,7 @@
 | `POST` | `/api/ask` | `{name, message, history?: [{role: "user" 또는 "assistant", content}]}` → `{name, answer, mock}`. 선택한 팀원에게 개인 질문. 빈 질문·4,000자 초과·이력 12건/24,000자 초과 `400`, 없는 팀원 `404`, 팀 업무/응답 진행 중 `409`, 연결 실패 `502`, 180초 초과 `504`. 동일 접속 키 인증 사용. |
 | `GET` | `/api/runs` | 지난 실행 목록(최신순, 최대 50건) `[{run_id, goal, created, has_report, has_error}]` |
 | `GET` | `/api/runs/{run_id}` | `{run_id, goal, plan, tasks: [{file, content}], report, error}` — `plan` 은 plan.json(없으면 `null`), `tasks` 는 task-*.md 번호순, `report`·`error` 는 없으면 `null`. 없는 id 는 `404` |
-| `GET` | `/api/outside/geocode?q=` | 바깥 풍경: 주소·장소 검색(OpenStreetMap Nominatim) → `{results: [{lat, lng, label, kind, exact}]}`(최대 5개, `exact: false` 는 도로·지역처럼 넓은 결과). 좌표("37.48, 126.88")는 검색 없이 그대로 1개. 빈 값·200자 초과 `400`, 검색 서버 연결 실패 `502` |
+| `GET` | `/api/outside/geocode?q=` | 바깥 풍경: 주소·장소 검색(OpenStreetMap Nominatim) → `{results: [{lat, lng, label, kind, exact}]}`(최대 5개, `exact: false` 는 도로·지역처럼 넓은 결과). 좌표("37.5665, 126.978")는 검색 없이 그대로 1개. 빈 값·200자 초과 `400`, 검색 서버 연결 실패 `502` |
 | `GET` | `/api/outside/map?lat=&lng=&r=350&w=32&d=22&turn=0` | 반경 `r`(100~600m) 지도를 사무실 좌표로 다듬은 장면(형식은 `web/outside.js` 머리말). 처음 한 번 Overpass 에서 받아 `cache/outside/` 에 두고 이후는 캐시(인터넷 없이). 값 오류 `400`, 지도 서버 실패 `502` |
 | `GET`·`PUT`·`DELETE` | `/api/outside/place` | 사무실 위치 `{place: {lat, lng, label, floor, show, turn, r}}`(없으면 `null`). 휴대폰 등 다른 기기도 같은 위치를 쓴다. 형식 오류 `422` |
 
