@@ -7,6 +7,8 @@ import random
 import re
 from dataclasses import dataclass
 
+from . import cli
+
 
 # .env 의 키가 SDK 프로필 자동탐색보다 우선한다는 안내 경고는 의도된 동작이라 숨긴다
 logging.getLogger("anthropic.lib.credentials._auth").setLevel(logging.ERROR)
@@ -45,13 +47,16 @@ _KEYS = {
 
 
 def has_key(m: Member) -> bool:
+    """API provider 는 키가 있는지, CLI provider 는 해당 CLI 가 설치되어 있는지."""
+    if m.provider in cli.BINS:
+        return cli.installed(m.provider)
     names = _KEYS.get(m.provider)
     return not names or any(os.getenv(n, "").strip() for n in names)
 
 
 def _require_key(m: Member) -> None:
-    """키가 없으면 SDK 의 난해한 오류 대신 바로 원인을 알려준다."""
-    if not has_key(m):
+    """키가 없으면 SDK 의 난해한 오류 대신 바로 원인을 알려준다. (CLI provider 는 cli 모듈이 직접 안내한다)"""
+    if m.provider not in cli.BINS and not has_key(m):
         names = _KEYS[m.provider]
         raise RuntimeError(f"{m.name} 팀원의 API 키가 없습니다. .env 의 {names[0]} 를 채워 주세요.")
 
@@ -132,4 +137,5 @@ _PROVIDERS = {
     "openai": _openai,
     "google": _google,
     "mock": _mock,
+    **cli.PROVIDERS,  # claude-cli · codex-cli · gemini-cli: 구독 로그인된 CLI 호출 (API 키 불필요)
 }

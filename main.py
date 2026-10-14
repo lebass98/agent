@@ -40,7 +40,10 @@ def main() -> None:
     if args.cmd == "team":
         print(f"팀장: {team.leader.name}")
         for m in team.members.values():
-            key = "키 ✓" if m.provider == "mock" or has_key(m) else "키 없음"
+            if m.provider.endswith("-cli"):
+                key = "CLI ✓" if has_key(m) else "CLI 없음"
+            else:
+                key = "키 ✓" if m.provider == "mock" or has_key(m) else "키 없음"
             print(f"- {m.name:<7} [{m.provider}/{m.model}] ({key}) {m.role}")
         return
 

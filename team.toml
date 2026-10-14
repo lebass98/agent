@@ -1,21 +1,30 @@
 # 팀 구성 설정 — 팀원 추가/역할 변경은 이 파일만 수정하면 됩니다.
-# provider: anthropic | openai | google | mock(테스트용)
-# model 값은 각 사의 최신 모델명으로 바꿔 사용하세요.
+#
+# provider 종류
+#   CLI (구독 로그인, API 키·크레딧 불필요):
+#     claude-cli  → `claude -p`   Claude Code 의 claude.ai 로그인(Max/Pro). model: opus | sonnet | haiku
+#     codex-cli   → `codex exec`  Codex CLI 의 ChatGPT 로그인.            model: default (CLI 기본) 또는 codex 가 허용하는 이름
+#     gemini-cli  → `gemini -p`   Gemini CLI 의 Google 로그인(무료 사용량). model: default 또는 gemini-2.5-pro 등
+#   API (키 필요, .env):  anthropic | openai | google
+#   mock: 테스트용 (--mock 으로 전체 전환)
+#
+# 처음 한 번은 각 CLI 로 로그인: `claude` / `codex login` / `gemini`
+# API 로 돌리려면 provider 를 바꾸고 model 을 실제 API 모델명으로 적는다 (예: anthropic + claude-opus-5-5)
 
 [leader]
 member = "claude"   # 업무 분배·검수·최종 보고 담당
 
 [members.claude]
-provider = "anthropic"
-model = "claude-opus-5-5"
+provider = "claude-cli"
+model = "opus"
 role = "팀장 겸 퍼블리셔. 업무 분해·배정, 결과 검수, HTML/CSS 마크업, 문서화"
 
 [members.gpt]
-provider = "openai"
-model = "gpt-5"
+provider = "codex-cli"
+model = "default"
 role = "개발자. 코드 구현, 리팩터링, 자동화 스크립트 작성"
 
 [members.gemini]
-provider = "google"
-model = "gemini-flash-latest"   # 무료 사용량. Pro 는 Google AI Studio 결제 등록 필요
+provider = "gemini-cli"
+model = "default"
 role = "분석가. 긴 문서·대용량 자료 분석, 리서치, 요약"

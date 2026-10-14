@@ -37,6 +37,14 @@
   → '휴대폰에서도 접속' 을 고르면 `--lan`: 터미널에 휴대폰 주소·QR 코드·접속 키 표시 (같은 Wi-Fi). 키를 모르는 기기는 화면의 '키 입력' 에 붙여 넣는다
 - 메뉴 없이: `start-mac.command --mock --lan --port 8000 --no-browser`
 
+## 팀원 연결 방식 (team.toml 의 provider)
+- 기본은 **CLI 구독 로그인**: `claude-cli`(claude -p, Max/Pro) · `codex-cli`(codex exec, ChatGPT) · `gemini-cli`(gemini -p, Google 무료).
+  API 키·크레딧 없이 각 CLI 의 로그인 세션을 쓴다. 구현은 `agentteam/cli.py` (빈 임시 폴더에서 도구 없이 1턴 호출, 환경의 API 키는 넘기지 않음).
+- CLI 모델명: claude-cli 는 `opus`/`sonnet`/`haiku` 별칭(전체 모델 ID 는 거부됨), codex-cli 와 gemini-cli 는 `default`(CLI 기본값) 권장.
+- Gemini CLI 는 관리자 권한 없이 `npm i -g --prefix ~/.npm-global @google/gemini-cli` 로 설치한다. `cli.py` 가 `~/.npm-global/bin` 도 찾는다.
+- 사용량은 각 구독 한도(Claude 5시간·주간 한도 등)에서 차감된다. 다른 사람에게 이 방식으로 접근을 제공하면 안 된다(개인 사용만).
+- API 로 바꾸려면 provider 를 `anthropic`/`openai`/`google` 로 두고 `.env` 에 키를 넣는다.
+
 ## API 키 참고
 - Gemini 무료 사용량은 Flash 모델만 된다(`gemini-flash-latest`). Pro 는 Google AI Studio 결제 등록 필요.
 - Anthropic 조직 단위 키는 `.env` 의 `ANTHROPIC_WORKSPACE_ID`(wrkspc_...) 가 필요하다.

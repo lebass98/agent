@@ -323,5 +323,7 @@ pytest -v
 - 개발 모드 추가: `web/` 파일을 저장하면 열린 브라우저가 자동 새로고침(정적 파일 캐시 금지), `*.py`·`team.toml` 저장 시 서버 자동 재시작 (`serve.py` 기본 켜짐, `--no-dev`로 끔)
 - 작업 완료 절차 스크립트 `scripts/finish.py` 추가: 금지 파일 검사 → README 이력 누적 → 한글 커밋 → `git pull --rebase` → `git push`
 - 캐릭터 시트 명세 `docs/characters.md` 추가, `docs/events.md`에 개발 모드 채널(`/__dev/ws`) 설명 추가, 개발 모드 테스트 5건 추가
+- API 키·크레딧 없이 구독 로그인된 CLI(`claude -p`, `codex exec`, `gemini -p`)를 호출하는 provider 추가 (`agentteam/cli.py`, 가짜 CLI 테스트 8건)
+- `team.toml` 기본값을 CLI 방식으로 변경 (Claude `opus`, Codex·Gemini `default`), `main.py team` 에 CLI 설치 상태 표시, Gemini CLI 는 `~/.npm-global` 설치 지원
 
 
