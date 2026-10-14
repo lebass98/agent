@@ -400,6 +400,7 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
 .set-row:last-child { border-bottom: 0; }
 .set-row .lbl { flex: 1; min-width: 160px; font-weight: 600; }
 .set-row .lbl small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.office-light { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } /* 설정 '사무실 조명': 일출·일몰/화면 테마 + 위치 맞추기 */
 .seg { display: flex; padding: 3px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); flex: none; }
 .seg button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .seg button .ic { width: 15px; height: 15px; }

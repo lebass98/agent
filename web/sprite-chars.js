@@ -47,14 +47,13 @@
     return (blobTex = new T.CanvasTexture(cv));
   }
   const mats = new Set(); // 테마 색조를 맞출 재질들
-  let dark = false;
+  let night = 0; // 사무실 밤 정도 0(낮) ~ 1(밤) — app.js 가 해를 따라 알려 준다
   const TINT = { light: 0xffffff, dark: 0xf1e7dc }, SHADE = { light: .32, dark: .55 };
-  function theme(d) {
-    dark = !!d;
-    for (const m of mats) {
-      if (m.userData.blob) m.opacity = SHADE[dark ? "dark" : "light"];
-      else m.color.setHex(TINT[dark ? "dark" : "light"]);
-    }
+  const tint = () => new T.Color(TINT.light).lerp(new T.Color(TINT.dark), night), shade = () => SHADE.light + (SHADE.dark - SHADE.light) * night;
+  function theme(n) {
+    night = typeof n === "number" ? Math.min(1, Math.max(0, n)) : n ? 1 : 0;
+    const c = tint(), o = shade();
+    for (const m of mats) { if (m.userData.blob) m.opacity = o; else m.color.copy(c); }
   }
 
   function build(def, name) {
@@ -64,10 +63,10 @@
     const group = new T.Group();
     const pivot = new T.Group(); group.add(pivot); // 카메라 쪽으로 도는 축(발 중심)
     const geo = new T.PlaneGeometry(1, 1); geo.translate(0, .5, 0); // 아래 가운데가 원점
-    const mat = new T.MeshBasicMaterial({ map: atlas(key), alphaTest: .12, color: TINT[dark ? "dark" : "light"] });
+    const mat = new T.MeshBasicMaterial({ map: atlas(key), alphaTest: .12, color: tint() });
     mat.alphaToCoverage = true; // MSAA 로 가장자리를 부드럽게(정렬 문제 없는 불투명 패스)
     const mesh = new T.Mesh(geo, mat); pivot.add(mesh);
-    const shadowMat = new T.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false, opacity: SHADE[dark ? "dark" : "light"] });
+    const shadowMat = new T.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false, opacity: shade() });
     shadowMat.userData.blob = true;
     const shadow = new T.Mesh(new T.PlaneGeometry(1, 1), shadowMat);
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = .014; shadow.renderOrder = 1; group.add(shadow);

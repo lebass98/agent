@@ -12,6 +12,8 @@
 - `web/sprite-chars.js` : 그림 캐릭터(시트 그림을 세운 2.5D 빌보드)·표정 아바타. 시트에 없는 팀원은 `characters.js` 의 3D 캐릭터
 - `web/sprites/` : 캐릭터 시트에서 자른 아틀라스·표정 띠·좌표표(`sprites.js`). `scripts/sprites/cut.py` 가 만든다(직접 고치지 말 것, docs/characters.md)
 - `docs/ref/` : 사용자 제공 참고 이미지(캐릭터 시트·다크 모드 사무실)
+- 사무실 조명(낮↔밤)은 기본으로 실제 일출·일몰을 따른다: `web/decor.js` 의 `Decor.sun`(해 고도 +5°→-5° 사이 약 40~50분에 걸쳐 섞임, 위치는 설정의 '현재 위치' 또는 기기 시간대 대표 도시).
+  화면(패널) 테마와는 따로이며, 설정 '사무실 조명'에서 '화면 테마'를 고르면 예전처럼 테마를 따른다. 점검: 브라우저 콘솔에서 `OFFICE.now = new Date("2026-10-14T17:55:00+09:00"); applyTheme(true)`
 - `scripts/launch.py` : 실행 메뉴(모든 OS 공용), `scripts/bootstrap.sh` : macOS·Linux 가상환경 준비
 - `docs/events.md` : 서버 ↔ 웹 UI 이벤트 프로토콜 (변경 시 서버·UI 함께 수정)
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)

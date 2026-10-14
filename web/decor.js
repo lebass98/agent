@@ -222,7 +222,62 @@
     return t0 < t1;
   }
 
+  /* ───────── 해: 일출·일몰과 사무실 '밤 정도' ─────────
+     태양 적위·시간각으로 해의 고도·방위와 일출·일몰 시각을 구한다(SunCalc·NOAA 와 같은 천문 근사, 오차 1~2분).
+     사무실은 해 고도 +5° 부터 어두워지기 시작해 -5° 에서 완전히 밤이 된다(일몰 앞뒤 약 40~50분 동안 하늘·램프가 서서히 바뀐다).
+     위치는 app.js 가 정한다(설정에서 맞춘 좌표 > 기기 시간대의 대표 도시 zone()). */
+  const SUN = (() => {
+    const rad = Math.PI / 180, DAY = 864e5, J1970 = 2440588, J2000 = 2451545, OBL = rad * 23.4397, J0 = .0009;
+    const days = d => d.valueOf() / DAY - .5 + J1970 - J2000;
+    const fromJ = j => new Date((j + .5 - J1970) * DAY);
+    const anomaly = d => rad * (357.5291 + .98560028 * d);
+    const ecliptic = M => M + rad * (1.9148 * Math.sin(M) + .02 * Math.sin(2 * M) + .0003 * Math.sin(3 * M)) + rad * 102.9372 + Math.PI;
+    const decl = L => Math.asin(Math.sin(OBL) * Math.sin(L));
+    /** 해의 고도·방위(라디안). 방위는 남쪽 0, 서쪽이 + */
+    function position(when, lat, lng) {
+      const lw = -lng * rad, phi = lat * rad, d = days(when), L = ecliptic(anomaly(d)), dec = decl(L);
+      const H = rad * (280.16 + 360.9856235 * d) - lw - Math.atan2(Math.sin(L) * Math.cos(OBL), Math.cos(L));
+      return {
+        altitude: Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)),
+        azimuth: Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi)),
+      };
+    }
+    /** 그날의 일출·일몰(해 윗가장자리가 지평선에 걸리는 고도 -0.833°). 백야·극야면 null */
+    function times(when, lat, lng) {
+      const lw = -lng * rad, phi = lat * rad, n = Math.round(days(when) - J0 - lw / (2 * Math.PI));
+      const ds = J0 + lw / (2 * Math.PI) + n, M = anomaly(ds), L = ecliptic(M), dec = decl(L);
+      const transit = a => J2000 + a + .0053 * Math.sin(M) - .0069 * Math.sin(2 * L);
+      const c = (Math.sin(-.833 * rad) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec));
+      if (c < -1 || c > 1) return null;
+      const noon = transit(ds), set = transit(J0 + (Math.acos(c) + lw) / (2 * Math.PI) + n);
+      return { sunrise: fromJ(noon - (set - noon)), sunset: fromJ(set) };
+    }
+    /** 사무실 밤 정도 0(낮)~1(밤): 해 고도 +5° → -5° 를 부드럽게(smoothstep) 잇는다 */
+    function night(when, lat, lng) {
+      const t = Math.min(1, Math.max(0, (5 - position(when, lat, lng).altitude / rad) / 10));
+      return t * t * (3 - 2 * t);
+    }
+    // 기기 시간대 → 대표 도시 [위도, 경도, 이름]. 목록에 없으면 시간대 오프셋으로 경도를 어림한다
+    const ZONES = {
+      "Asia/Seoul": [37.5665, 126.978, "서울"], "Asia/Tokyo": [35.6762, 139.6503, "도쿄"], "Asia/Shanghai": [31.2304, 121.4737, "상하이"],
+      "Asia/Hong_Kong": [22.3193, 114.1694, "홍콩"], "Asia/Taipei": [25.033, 121.5654, "타이베이"], "Asia/Singapore": [1.3521, 103.8198, "싱가포르"],
+      "Asia/Bangkok": [13.7563, 100.5018, "방콕"], "Asia/Ho_Chi_Minh": [10.8231, 106.6297, "호찌민"], "Asia/Kolkata": [28.6139, 77.209, "뉴델리"],
+      "Australia/Sydney": [-33.8688, 151.2093, "시드니"], "Europe/London": [51.5074, -.1278, "런던"], "Europe/Paris": [48.8566, 2.3522, "파리"],
+      "Europe/Berlin": [52.52, 13.405, "베를린"], "America/New_York": [40.7128, -74.006, "뉴욕"], "America/Chicago": [41.8781, -87.6298, "시카고"],
+      "America/Denver": [39.7392, -104.9903, "덴버"], "America/Los_Angeles": [34.0522, -118.2437, "로스앤젤레스"],
+      "America/Toronto": [43.6532, -79.3832, "토론토"], "America/Vancouver": [49.2827, -123.1207, "밴쿠버"],
+    };
+    function zone() {
+      let tz = "";
+      try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch { /* Intl 없음 */ }
+      if (Object.hasOwn(ZONES, tz)) { const [lat, lng, label] = ZONES[tz]; return { lat, lng, label }; }
+      return { lat: 37.5, lng: -new Date().getTimezoneOffset() / 4, label: "기기 시간대" };
+    }
+    return { position, times, night, zone };
+  })();
+
   const Decor = {
+    sun: SUN,
     OW, OD, WALL_H, PART_H, rooms, walls: wallDefs, wallRects, obstacles: furniture, navRects, slots, spots, spareDesks, nav,
     ENTRANCE, TABLE, WHITEBOARD, BOARD_FACE, COUNTER, COFFEE, EXEC_DESK, EXEC_SEAT, REPORT_SPOT, MEET_SEATS, PANTRY_TABLE, LOBBY_DOOR, TV,
     walkable: (x, z) => nav.walkable(x, z), segHits,
@@ -275,13 +330,16 @@
     }
   }
   /** 정점 색 메시를 테마 다시 칠하기 목록에 올리고 지금 테마로 칠한다. */
-  function tint(m) { themed.tinted.push(m); paint(m, themed.dark); }
-  const _c = new T.Color();
-  function paint(m, dark) {
+  function tint(m) { themed.tinted.push(m); paint(m, themed.n); }
+  const _c = new T.Color(), _c2 = new T.Color();
+  /** n(0 = 낮 ~ 1 = 밤)만큼 라이트 색에서 DARK 표의 색으로 섞어 칠한다(표에 없는 색은 그대로) */
+  function paint(m, n) {
     const attr = m.geometry.attributes.color, a = attr.array;
-    for (const [hex, s, n] of m.userData.runs) {
-      _c.setHex(dark && DARK.has(hex) ? DARK.get(hex) : hex);
-      for (let i = s; i < s + n; i++) { a[i * 3] = _c.r; a[i * 3 + 1] = _c.g; a[i * 3 + 2] = _c.b; }
+    for (const [hex, s, cnt] of m.userData.runs) {
+      if (n <= 0 || !DARK.has(hex)) _c.setHex(hex);
+      else if (n >= 1) _c.setHex(DARK.get(hex));
+      else _c.setHex(hex).lerp(_c2.setHex(DARK.get(hex)), n);
+      for (let i = s; i < s + cnt; i++) { a[i * 3] = _c.r; a[i * 3 + 1] = _c.g; a[i * 3 + 2] = _c.b; }
     }
     attr.needsUpdate = true;
   }
@@ -403,6 +461,9 @@
 
   /* ───────── 장면 구성 ───────── */
   const themed = { mats: {}, lights: [], dyn: [], dark: false, chips: [], doors: [], skyline: null, skyTex: {}, glass: null, bulbs: null, shades: null, camera: null,
+    n: 0,          // 지금 밤 정도(0 = 낮 ~ 1 = 밤). 해 질 녘에는 그 사이 값
+    painted: null, // 가구 색을 마지막으로 칠한 밤 정도(조금씩 바뀔 때 매번 다시 칠하지 않게)
+    skyDusk: null, skyNight: null, // 창밖 노을·야경 층(낮 하늘 위에 겹쳐 섞는다)
     tinted: [],    // 정점 색 메시(테마마다 DARK 표로 다시 칠한다)
     night: null,   // 다크 전용 연출(LED 띠·빛 웅덩이·벽 조명) 묶음
     nightDyn: [],  // 책상마다 붙는 다크 전용 연출(팀을 다시 놓으면 바뀐다)
@@ -414,30 +475,37 @@
     // 원목·검은 가구(DARK 표). 바닥은 덜 거칠게 해서 점광원 반사가 보이게 한다
     dark: { floor: 0x35343b, slab: 0x15171c, wall: 0x26272c, trim: 0x131417, carpet: 0x2b2a2f, execCarpet: 0x3b2f27, rug: 0x3a3029, glass: 0xa9bed4, glassOp: .1, bulb: 1.8, light: 1.6, sky: "night", rough: .42, metal: .12, band: .05, shade: 0x3a332c, shadeGlow: .45 },
   };
-  /** 도시 스카이라인(낮/밤) 캔버스. 뒷벽 창 밖에 둔다. */
-  function skylineTex(night) {
+  /** 도시 스카이라인 캔버스(day 낮 · dusk 노을 · night 밤). 뒷벽 창 밖에 겹쳐 둔다. */
+  function skylineTex(kind) {
+    const night = kind === "night", dusk = kind === "dusk", dark = night || dusk;
     const cv = canvas(2048, 256), c = cv.getContext("2d"), W = cv.width, H = cv.height;
     const sky = c.createLinearGradient(0, 0, 0, H);
-    if (night) { sky.addColorStop(0, "#060a18"); sky.addColorStop(.6, "#121a36"); sky.addColorStop(1, "#2a2440"); } else { sky.addColorStop(0, "#bfe0ff"); sky.addColorStop(1, "#eaf4ff"); }
+    if (night) { sky.addColorStop(0, "#060a18"); sky.addColorStop(.6, "#121a36"); sky.addColorStop(1, "#2a2440"); }
+    else if (dusk) { sky.addColorStop(0, "#1f2b58"); sky.addColorStop(.38, "#5a4677"); sky.addColorStop(.72, "#e07a58"); sky.addColorStop(1, "#ffc27a"); }
+    else { sky.addColorStop(0, "#bfe0ff"); sky.addColorStop(1, "#eaf4ff"); }
     c.fillStyle = sky; c.fillRect(0, 0, W, H);
     if (night) {
       c.fillStyle = "rgba(255,255,255,.7)"; for (let i = 0; i < 90; i++) c.fillRect(rnd() * W, rnd() * H * .45, 1.5, 1.5);
       const haze = c.createLinearGradient(0, H * .45, 0, H); // 지평선의 따뜻한 도시 불빛
       haze.addColorStop(0, "rgba(255,150,80,0)"); haze.addColorStop(1, "rgba(255,150,80,.22)");
       c.fillStyle = haze; c.fillRect(0, H * .45, W, H * .55);
-    }
-    else { c.fillStyle = "rgba(255,255,255,.8)"; for (let i = 0; i < 7; i++) { const x = rnd() * W, y = 20 + rnd() * 60; c.beginPath(); c.ellipse(x, y, 60 + rnd() * 60, 14, 0, 0, 7); c.fill(); } }
+    } else if (dusk) { // 지평선에 걸린 해의 번짐
+      const g = c.createRadialGradient(W * .78, H * .95, 0, W * .78, H * .95, H * 1.1);
+      g.addColorStop(0, "rgba(255,226,160,.95)"); g.addColorStop(.25, "rgba(255,170,100,.55)"); g.addColorStop(1, "rgba(255,140,90,0)");
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    } else { c.fillStyle = "rgba(255,255,255,.8)"; for (let i = 0; i < 7; i++) { const x = rnd() * W, y = 20 + rnd() * 60; c.beginPath(); c.ellipse(x, y, 60 + rnd() * 60, 14, 0, 0, 7); c.fill(); } }
     let s = 7;
     const r = () => ((s = (s * 48271) % 2147483647) - 1) / 2147483646;
-    for (const [layer, col, hmin, hmax] of [[0, night ? "#141b33" : "#c9d8ec", 60, 130], [1, night ? "#0b1024" : "#aebfd9", 90, 200]]) {
+    const fills = night ? ["#141b33", "#0b1024"] : dusk ? ["#3b3150", "#272038"] : ["#c9d8ec", "#aebfd9"];
+    for (const [layer, col, hmin, hmax] of [[0, fills[0], 60, 130], [1, fills[1], 90, 200]]) {
       for (let x = -20; x < W; ) {
         const w = 30 + r() * 70, h = hmin + r() * (hmax - hmin);
         c.fillStyle = col; c.fillRect(x, H - h, w, h);
         if (r() > .6) c.fillRect(x + w * .3, H - h - 18, w * .4, 18);
         const cols = Math.max(1, Math.floor(w / 9)), rows = Math.floor(h / 11);
         for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
-          const lit = r() < (night ? .5 + layer * .1 : .15);
-          c.fillStyle = night ? (lit ? (r() < .62 ? "#ffcf7d" : "#a9d4ff") : "rgba(255,255,255,.04)") : (lit ? "rgba(255,255,255,.65)" : "rgba(40,60,100,.12)");
+          const lit = r() < (night ? .5 + layer * .1 : dusk ? .22 + layer * .08 : .15);
+          c.fillStyle = dark ? (lit ? (r() < .62 ? "#ffcf7d" : "#a9d4ff") : "rgba(255,255,255,.04)") : (lit ? "rgba(255,255,255,.65)" : "rgba(40,60,100,.12)");
           c.fillRect(x + 3 + i * 9, H - h + 4 + j * 11, 5, 6);
         }
         x += w + 3 + r() * 10;
@@ -515,9 +583,14 @@
     floor.onBeforeRender = (r, s, cam) => { themed.camera = cam; tick(); }; // 매 프레임: 문·방 이름표
 
     // 뒷벽: 바닥부터 천장까지 유리창 + 멀리언 + 바깥 스카이라인
-    themed.skyTex.day = skylineTex(false);
+    themed.skyTex.day = skylineTex("day");
     const sky = themed.skyline = new T.Mesh(new T.PlaneGeometry(OW + 2, WALL_H + .4), new T.MeshBasicMaterial({ map: themed.skyTex.day }));
     sky.position.set(0, WALL_H / 2, Z0 - .45); scene.add(sky);
+    const skyLayer = (kind, dz) => { // 낮 하늘 바로 앞에 겹치는 층(theme() 가 투명도로 섞는다)
+      const m = new T.Mesh(new T.PlaneGeometry(OW + 2, WALL_H + .4), new T.MeshBasicMaterial({ map: themed.skyTex[kind] = skylineTex(kind), transparent: true, opacity: 0, depthWrite: false }));
+      m.position.set(0, WALL_H / 2, Z0 - .45 + dz); m.renderOrder = 1; m.visible = false; scene.add(m); return m;
+    };
+    themed.skyDusk = skyLayer("dusk", .004); themed.skyNight = skyLayer("night", .008);
     glassGeo.box(OW, WALL_H, .04, 0xffffff, 0, WALL_H / 2, Z0 - .05);
     for (let x = X0; x <= X1 + .01; x += 2) frames.box(.12, WALL_H, .14, C.frame, x, WALL_H / 2, Z0 - .05);
     for (const y of [.06, 2.9, WALL_H - .05]) frames.box(OW + .12, .1, .14, C.frame, 0, y, Z0 - .05);
@@ -736,8 +809,8 @@
           const m = mb.mesh(parent, glowMat(kind), false);
           if (m) { m.renderOrder = 4; out.push(m); }
         }
-        const l = leds.mesh(parent, new T.MeshBasicMaterial({ vertexColors: true }), false);
-        if (l) out.push(l);
+        const l = leds.mesh(parent, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: T.AdditiveBlending, depthWrite: false }), false);
+        if (l) { l.renderOrder = 4; out.push(l); }
         return out;
       },
     };
@@ -803,7 +876,7 @@
     if (lampAt) kit.pool(lampAt.x, lampAt.z + .2, .75, WARM, .5, topY + .006);
     kit.pool(x, z + .9, 1.5, WARM, .13);
     const out = kit.done(group);
-    for (const m of out) { m.visible = themed.dark; themed.nightDyn.push(m); }
+    for (const m of out) { glow(m, themed.n); themed.nightDyn.push(m); }
     return out;
   }
   /** 책상 세트(팀원·대표). group 에 넣고 { screen, mug, bulb, mesh, dispose } 를 돌려준다(두 화면 재질은 mats[0..1]).
@@ -839,7 +912,7 @@
       bulb = new T.Mesh(new T.SphereGeometry(.04, 10, 6), themed.mats.bulb || new T.MeshStandardMaterial({ color: 0xfff1d6 }));
       bulb.position.set(b.x + .02, b.y - .03, b.z); group.add(bulb);
       if (light) { // 다크 테마용 따뜻한 점광원(책상 램프). 전체 4개 한도는 theme() 에서 센다
-        const pl = new T.PointLight(0xffb86b, themed.dark ? TH.dark.light : 0, 8, 2); pl.position.set(b.x, b.y + .1, b.z + .2); group.add(pl); themed.dyn.push(pl); owned.lights.push(pl);
+        const pl = new T.PointLight(0xffb86b, TH.dark.light * themed.n, 8, 2); pl.position.set(b.x, b.y + .1, b.z + .2); group.add(pl); themed.dyn.push(pl); owned.lights.push(pl);
       }
     }
     if (exec && label) { // 명패(팀원 색 + 왕관)
@@ -866,28 +939,38 @@
     return { screen: screens[0], mug, bulb, mesh, dispose };
   }
 
-  /* ───────── 테마 ───────── */
+  /* ───────── 테마: n = 0(낮) ~ 1(밤). 해 질 녘처럼 중간값이면 낮과 밤을 섞는다(true/false 도 받는다) ───────── */
+  const _a = new T.Color(), _b = new T.Color();
+  const mixHex = (a, b, t) => _a.setHex(a).lerp(_b.setHex(b), t).getHex();
   function theme(dark) {
-    const t = TH[dark ? "dark" : "light"], M = themed.mats;
+    const n = typeof dark === "number" ? Math.min(1, Math.max(0, dark)) : dark ? 1 : 0;
+    const L = TH.light, K = TH.dark, M = themed.mats;
     if (!M.floor) return;
-    M.floor.color.setHex(t.floor); M.slab.color.setHex(t.slab); M.wall.color.setHex(t.wall); M.trim.color.setHex(t.trim);
-    M.carpet.color.setHex(t.carpet); M.execCarpet.color.setHex(t.execCarpet); M.rug.color.setHex(t.rug);
-    M.glass.color.setHex(t.glass); M.glass.opacity = t.glassOp;
-    M.bulb.emissiveIntensity = t.bulb; M.shade.color.setHex(t.shade); M.shade.emissiveIntensity = t.shadeGlow;
-    M.floor.roughness = t.rough; M.floor.metalness = t.metal; M.band.opacity = t.band;
-    themed.dark = !!dark;
-    if (themed.night) themed.night.visible = !!dark;
+    const num = k => L[k] + (K[k] - L[k]) * n;
+    for (const k of ["floor", "slab", "wall", "trim", "carpet", "execCarpet", "rug", "glass", "shade"]) M[k].color.setHex(mixHex(L[k], K[k], n));
+    M.glass.opacity = num("glassOp"); M.bulb.emissiveIntensity = num("bulb"); M.shade.emissiveIntensity = num("shadeGlow");
+    M.floor.roughness = num("rough"); M.floor.metalness = num("metal"); M.band.opacity = num("band");
+    themed.n = n; themed.dark = n >= .5;
+    // 밤 연출(LED 띠·빛 웅덩이·벽 조명)은 가산 혼합이라 색 밝기를 n 배로 하면 서서히 켜진다
     themed.nightDyn = themed.nightDyn.filter(o => o.parent); // 책상이 다시 놓이며 사라진 연출은 버린다
-    for (const o of themed.nightDyn) o.visible = !!dark;
+    for (const o of [themed.night, ...themed.nightDyn]) if (o) glow(o, n);
+    // 가구 색은 정점마다 다시 칠하므로 2% 넘게 바뀌었을 때만(해 질 녘 천천히 바뀌는 동안 매번 칠하지 않게)
     themed.tinted = themed.tinted.filter(m => m.parent);
-    for (const m of themed.tinted) paint(m, !!dark);
-    themed.dyn = themed.dyn.filter(l => l.parent); // 책상이 다시 놓이며 사라진 램프는 버린다
-    let n = 0;
-    for (const l of [...themed.lights, ...themed.dyn]) l.intensity = n++ < (small ? 4 : 7) ? t.light : 0; // 점광원 개수 한도(셰이더 유니폼·성능)
-    if (themed.skyline) {
-      if (!themed.skyTex[t.sky]) themed.skyTex[t.sky] = skylineTex(t.sky === "night");
-      themed.skyline.material.map = themed.skyTex[t.sky]; themed.skyline.material.needsUpdate = true;
+    if (themed.painted == null || Math.abs(themed.painted - n) >= .02 || ((n === 0 || n === 1) && themed.painted !== n)) {
+      for (const m of themed.tinted) paint(m, n);
+      themed.painted = n;
     }
+    themed.dyn = themed.dyn.filter(l => l.parent); // 책상이 다시 놓이며 사라진 램프는 버린다
+    let i = 0;
+    for (const l of [...themed.lights, ...themed.dyn]) l.intensity = i++ < (small ? 4 : 7) ? K.light * n : 0; // 점광원 개수 한도(셰이더 유니폼·성능)
+    // 창밖: 낮 하늘 위에 노을(해 질 녘 한가운데서 가장 짙다)과 야경을 겹쳐 섞는다
+    const dusk = Math.max(0, 1 - Math.abs(2 * n - 1) * 1.15) * .95;
+    for (const [m, op] of [[themed.skyDusk, dusk], [themed.skyNight, n]]) if (m) { m.material.opacity = op; m.visible = op > .01; }
+  }
+  /** 밤 연출 묶음(Group 또는 Mesh)의 밝기: 0 이면 숨긴다 */
+  function glow(o, n) {
+    o.visible = n > .005;
+    o.traverse(m => { if (m.material?.color) m.material.color.setScalar(n); });
   }
 
   /* ───────── 매 프레임: 미닫이문·방 이름표 ───────── */

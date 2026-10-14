@@ -353,16 +353,99 @@ const THEMES = {
   // 나머지 빛(램프·LED 띠·빛 웅덩이)은 decor.js 가 맡는다. 휴대폰 크기에서도 가구가 구분되게 하늘빛을 너무 낮추지 않는다
   dark: { clear: 0x0c0f16, floor: 0x2c2c33, wall: 0x26272c, side: 0x1d1e23, base: 0x131417, sky: 0x7a7f9c, ground: 0x33271c, hemi: .74, sun: .38, sunColor: 0xffd6aa },
 };
-function applyTheme() {
+/* 사무실 조명(낮 ↔ 밤). 기본은 실제 해를 따른다(decor.js 의 Decor.sun): 해 고도 +5° 에서 어두워지기 시작해 -5° 에서 완전히 밤이 되고
+   (일몰·일출 앞뒤 약 40~50분), 낮에는 그림자가 실제 해의 방위를 따라 돈다. 설정의 '사무실 조명'에서 '화면 테마'를 고르면 예전처럼
+   화면 테마(라이트·다크)를 따른다. 화면(패널) 테마와는 따로 움직이며, 3D 바깥 배경색만 화면 테마를 따른다.
+   위치는 설정에서 맞춘 좌표(agentOffice.place) > 기기 시간대의 대표 도시. 사무실은 +z 가 남쪽, +x 가 동쪽이다(뒷벽 창은 북향). */
+const OFFICE = { mode: store.get("agentOffice.officeLight") === "theme" ? "theme" : "sun", n: null, tween: null, now: null }; // now: 점검용 가상 시각
+const useSun = () => OFFICE.mode === "sun" && HAS_DECOR && !!Decor.sun;
+function sunPlace() {
+  try { const p = JSON.parse(store.get("agentOffice.place") || "null"); if (p && Number.isFinite(p.lat) && Number.isFinite(p.lng)) return p; } catch { /* 잘못 저장된 값 */ }
+  return HAS_DECOR && Decor.sun ? Decor.sun.zone() : { lat: 37.5665, lng: 126.978, label: "서울" };
+}
+/** 지금 사무실의 밤 정도: 0(낮) ~ 1(밤) */
+function officeNight() {
+  if (!useSun()) return isDark() ? 1 : 0;
+  const p = sunPlace();
+  return Decor.sun.night(OFFICE.now || new Date(), p.lat, p.lng);
+}
+/** 사무실 조명을 다시 맞춘다. 크게 바뀌면(설정·테마 변경) 1.2초에 걸쳐, 해를 따라 조금씩 바뀔 때는 바로 */
+function applyTheme(instant) {
   if (!HAS3D) return;
-  const dark = typeof isDark === "function" ? !!isDark() : mqDark.matches;
-  const t = THEMES[dark ? "dark" : "light"];
-  renderer.setClearColor(t.clear);
-  for (const k in themed) if (t[k] != null && themed[k]?.material?.color) themed[k].material.color.setHex(t[k]);
-  hemi.color.setHex(t.sky); hemi.groundColor.setHex(t.ground); hemi.intensity = t.hemi;
-  sun.intensity = t.sun; sun.color.setHex(t.sunColor);
-  if (HAS_DECOR && typeof Decor.theme === "function") Decor.theme(dark);
-  window.SpriteChars?.theme(dark);
+  const to = officeNight();
+  if (OFFICE.n == null || instant || mqReduce.matches || document.hidden || Math.abs(to - OFFICE.n) < .05) { OFFICE.tween = null; setOfficeLight(to); }
+  else OFFICE.tween = { from: OFFICE.n, to, t0: performance.now() };
+}
+function stepOffice(now) {
+  const tw = OFFICE.tween;
+  if (!tw) return;
+  const k = Math.min(1, (now - tw.t0) / 1200);
+  setOfficeLight(tw.from + (tw.to - tw.from) * k * k * (3 - 2 * k));
+  if (k === 1) OFFICE.tween = null;
+}
+const _ca = HAS3D ? new THREE.Color() : null, _cb = HAS3D ? new THREE.Color() : null;
+/** 밤 정도 n 으로 하늘빛·햇빛·사무실 장식(Decor.theme)을 섞어 칠한다 */
+function setOfficeLight(n) {
+  OFFICE.n = n;
+  const L = THEMES.light, K = THEMES.dark, num = k => L[k] + (K[k] - L[k]) * n;
+  const mix = k => _ca.setHex(L[k]).lerp(_cb.setHex(K[k]), n);
+  renderer.setClearColor(isDark() ? K.clear : L.clear); // 사무실 바깥(빈 공간)은 화면 테마 색
+  for (const k in themed) if (L[k] != null && themed[k]?.material?.color) themed[k].material.color.copy(mix(k));
+  hemi.color.copy(mix("sky")); hemi.groundColor.copy(mix("ground")); hemi.intensity = num("hemi");
+  // 햇빛: 낮에는 실제 해의 방위·고도(그림자가 하루 동안 돈다, 너무 길어지지 않게 고도 20° 아래로는 낮추지 않는다).
+  // 해가 낮을수록 노을빛으로 약해지고, 밤에는 위쪽의 따뜻한 조명(예전 고정 위치)으로 바뀐다
+  let x = 10, y = 18, z = 8, warm = 0;
+  if (useSun()) {
+    const p = sunPlace(), s = Decor.sun.position(OFFICE.now || new Date(), p.lat, p.lng), alt = Math.max(.35, s.altitude);
+    x = -Math.sin(s.azimuth) * Math.cos(alt) * 24; y = Math.sin(alt) * 24; z = Math.cos(s.azimuth) * Math.cos(alt) * 24;
+    warm = Math.min(1, Math.max(0, 1 - s.altitude / (20 * Math.PI / 180)));
+  }
+  sun.position.set(x + (10 - x) * n, y + (18 - y) * n, z + (8 - z) * n);
+  sun.color.copy(_ca.setHex(L.sunColor).lerp(_cb.setHex(0xffb27a), warm * .8)).lerp(_cb.setHex(K.sunColor), n);
+  sun.intensity = L.sun * (1 - warm * .35) * (1 - n) + K.sun * n;
+  if (HAS_DECOR && typeof Decor.theme === "function") Decor.theme(n);
+  window.SpriteChars?.theme(n);
+}
+setInterval(() => { if (useSun() && !OFFICE.tween) applyTheme(); }, 30000); // 해를 따라 30초마다(가구 색은 2% 넘게 바뀔 때만 다시 칠한다)
+document.addEventListener("visibilitychange", () => { if (!document.hidden && useSun()) applyTheme(true); });
+function setOfficeMode(m) {
+  OFFICE.mode = m === "theme" ? "theme" : "sun";
+  store.set("agentOffice.officeLight", OFFICE.mode);
+  applyTheme();
+  if (VIEW.name === "settings") scheduleView();
+}
+/** 설정의 '현재 위치로 맞추기': 브라우저 위치(https·localhost 에서만)로 일출·일몰을 계산한다. 못 받으면 기기 시간대 기준 그대로 */
+function locateSun() {
+  if (!navigator.geolocation || !window.isSecureContext) {
+    toast(`이 주소(${location.protocol}//${location.host})에서는 브라우저가 위치를 주지 않아요. ${sunPlace().label} 기준으로 계산합니다.`, "warn", 6500);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    store.set("agentOffice.place", JSON.stringify({ lat: +pos.coords.latitude.toFixed(3), lng: +pos.coords.longitude.toFixed(3), label: "현재 위치" }));
+    applyTheme(); toast("현재 위치의 일출·일몰 시각으로 맞췄어요.");
+    if (VIEW.name === "settings") scheduleView();
+  }, () => toast(`위치를 가져오지 못했어요. ${sunPlace().label} 기준으로 계산합니다.`, "warn", 6500), { timeout: 10000, maximumAge: 864e5 });
+}
+function resetSunPlace() {
+  store.set("agentOffice.place", "");
+  applyTheme(); if (VIEW.name === "settings") scheduleView();
+}
+/** 설정 행 설명: 모드 + 오늘 일출·일몰(위치 기준) */
+function officeLightNote() {
+  if (!HAS_DECOR || !Decor.sun) return "화면 테마(라이트·다크)에 맞춰 밝기가 바뀌어요.";
+  const p = sunPlace(), t = Decor.sun.times(new Date(), p.lat, p.lng);
+  const hm = d => d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const today = t ? `오늘 일출 ${hm(t.sunrise)} · 일몰 ${hm(t.sunset)} (${p.label} 기준)` : `오늘은 해가 뜨거나 지지 않아요 (${p.label} 기준)`;
+  return OFFICE.mode === "sun" ? `해 뜨고 지는 시각에 맞춰 사무실이 서서히 밝아지고 어두워져요(앞뒤 약 40분). ${today}` : `화면 테마(라이트·다크)를 따라요. ${today}`;
+}
+function officeLightControl() {
+  const custom = !!store.get("agentOffice.place");
+  return el("div", { class: "office-light" },
+    el("div", { class: "seg office-seg", role: "group", "aria-label": "사무실 조명" },
+      ...[["sun", "sun", "일출·일몰"], ["theme", "monitor", "화면 테마"]].map(([m, ic, label]) =>
+        el("button", { type: "button", "data-mode": m, "aria-pressed": String(OFFICE.mode === m), onclick: () => setOfficeMode(m) }, icon(ic), label))),
+    el("button", { class: "tbtn", type: "button", onclick: locateSun }, icon("house"), custom ? "현재 위치 다시 맞추기" : "현재 위치로 맞추기"),
+    custom ? el("button", { class: "tbtn", type: "button", onclick: resetSunPlace }, "시간대 기준으로") : null);
 }
 
 /* 카메라: 사무실이 실제로 '보이는 영역'에 들어오도록 정사영 크기와 중심을 계산한다.
@@ -1507,6 +1590,7 @@ function settingsView() {
     ["팀장", memberDef(D.leader).label], ["팀원", D.names.map(n => memberDef(n).label).join(", ") || "—"], ["서버 주소", location.host || "(파일로 열림)"]];
   return [
     row("테마", "시스템 설정을 따르거나 라이트·다크로 고정해요.", themeControl()),
+    HAS3D ? row("사무실 조명", officeLightNote(), officeLightControl()) : null,
     row("기본 연출 속도", "말풍선·이동 연출의 빠르기. 상단 바에서도 바꿀 수 있어요.", speedControl()),
     row("움직임 줄이기", "카메라 이동과 전환 애니메이션을 최소화해요. 시스템의 '동작 줄이기' 설정은 항상 따릅니다.", switchControl(PREF.reduce, setReduce, "움직임 줄이기")),
     HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·대표님실·회의실 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
@@ -2670,6 +2754,7 @@ function loop(now) {
   last = now;
   if (document.hidden) return;
   stepTween(now);
+  stepOffice(now);
   controls.update();
   camera.updateMatrixWorld();
   const w = innerWidth, h = innerHeight;
