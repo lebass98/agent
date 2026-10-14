@@ -239,20 +239,30 @@ let strokeN = 0, strokeAt = 0;
 function showStroke() { if (strokeN < strokes.length) strokes[strokeN++].visible = true; strokeAt = performance.now(); }
 function clearStrokes() { strokes.forEach(s => (s.visible = false)); strokeN = 0; }
 
-function desk(x, z, w) {
+/** 책상 + 큰 모니터(팀장 자리처럼 넓으면 듀얼) + 키보드·머그·의자. 모니터 화면은 팀원별 캔버스(Screen)가 칠한다. */
+function desk(x, z, w, mat2) {
   const g = teamGroup;
   box(w, .1, 1.2, 0xc8a47e, x, .78, z, g);
   for (const dx of [-w / 2 + .1, w / 2 - .1]) for (const dz of [-.5, .5]) box(.08, .78, .08, 0x8d7660, x + dx, .39, z + dz, g);
-  box(.6, .4, .05, 0x2b2f38, x, 1.2, z - .3, g);
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(.54, .34), new THREE.MeshBasicMaterial({ color: 0x3a4150 }));
-  screen.position.set(x, 1.2, z - .27); g.add(screen);
-  box(.06, .25, .06, 0x2b2f38, x, .95, z - .32, g);
-  box(.5, .03, .18, 0xe8eaef, x, .845, z + .1, g);
-  box(.2, .18, .2, 0xffffff, x + w / 2 - .35, .92, z - .2, g);
+  const dual = w >= 2.9, s = Math.min(1, (w - .3) / 1.1);
+  const monitors = dual ? [[-.56, .22], [.56, -.22]] : [[0, 0]];
+  const screens = monitors.map(([dx, rot]) => {
+    const m = new THREE.Group();
+    m.position.set(x + dx, 0, z - .36); m.rotation.y = rot; m.scale.setScalar(s); g.add(m);
+    box(1.08, .68, .05, 0x23262f, 0, 1.38, 0, m);              // 베젤
+    box(.07, .34, .06, 0x2b2f38, 0, .99, -.03, m);             // 목
+    box(.34, .02, .2, 0x2b2f38, 0, .845, -.02, m);              // 받침
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(1, .6), mat2);
+    scr.position.set(0, 1.38, .027); m.add(scr);
+    return scr;
+  });
+  box(.62, .03, .2, 0xe8eaef, x - .05, .845, z + .14, g);       // 키보드
+  box(.1, .03, .15, 0xe8eaef, x + .42, .845, z + .16, g);       // 마우스
+  const mug = cyl(.075, .065, .16, 0xffffff, x + w / 2 - .3, .91, z + .2, g, 14);
   cyl(.32, .32, .1, 0x40465a, x, .5, z + 1.1, g);
   box(.6, .55, .08, 0x40465a, x, .85, z + 1.42, g);
   cyl(.04, .04, .45, 0x777e90, x, .25, z + 1.1, g);
-  return screen;
+  return { screen: screens[0], mug };
 }
 /** 1~9명: 책상은 뒷벽을 따라 한 줄(7명부터는 좁은 책상), 회의 의자는 원탁 둘레, 커피 자리는 카운터 앞. 0번이 팀장.
     3D 가 없으면 위치만 계산한다(screen 없음). */
@@ -265,9 +275,10 @@ function layout(order, leaderColor) {
   const spots = order.map((_, i) => {
     const x = x0 + i * sp, a = Math.PI + i * 2 * Math.PI / n;
     const meet = { x: TABLE.x + Math.cos(a) * 1.9, z: TABLE.z + Math.sin(a) * 1.9 };
-    const spot = { seat: { x, z: DESK_Z + 1.1 }, meet, coffee: COFFEE[i % COFFEE.length], screen: null };
+    const spot = { seat: { x, z: DESK_Z + 1.1 }, meet, coffee: COFFEE[i % COFFEE.length], screen: null, mug: null, tv: null };
     if (HAS3D) {
-      spot.screen = desk(x, DESK_Z, width(i));
+      spot.tv = new Screen();
+      Object.assign(spot, desk(x, DESK_Z, width(i), spot.tv.material));
       cyl(.3, .3, .08, 0x9aa6c2, meet.x, .5, meet.z, teamGroup);
     }
     return spot;
@@ -410,7 +421,175 @@ function route(from, to) {
   return [...head, ...mid, ...tail];
 }
 
-/* ───────────────────────── 캐릭터 ───────────────────────── */
+/* ───────────────────────── 모니터 화면 ─────────────────────────
+   팀원마다 캔버스 하나를 텍스처로 쓴다(듀얼 모니터는 같은 화면을 공유).
+   업무 중: 역할별 작업 화면(코드·분석·디자인) / 자리에서 쉴 때: 브라우저·메신저·바탕화면 / 자리 비움: 잠금화면 */
+const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+const SCREEN_FPS = { code: 12, chart: 10, design: 10, browse: 6, chat: 4, desktop: 1, lock: 1 };
+function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); c.fill(); }
+const hhmm = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+
+class Screen {
+  constructor() {
+    this.W = SMALL ? 256 : 384; this.H = Math.round(this.W * .6);
+    this.canvas = Object.assign(document.createElement("canvas"), { width: this.W, height: this.H });
+    this.c = this.canvas.getContext("2d");
+    this.tex = new THREE.CanvasTexture(this.canvas);
+    this.tex.minFilter = THREE.LinearFilter; this.tex.generateMipmaps = false;
+    this.material = new THREE.MeshBasicMaterial({ map: this.tex });
+    this.state = ""; this.at = 0;
+  }
+  dispose() { this.tex.dispose(); this.material.dispose(); }
+  draw(state, now, a) {
+    if (state === this.state && now - this.at < 1000 / (SCREEN_FPS[state] || 2)) return;
+    this.state = state; this.at = now;
+    const { c, W, H } = this, t = now / 1000, col = a.def.color;
+    c.save();
+    (SCREENS[state] || SCREENS.desktop)(c, W, H, t, col, a);
+    c.restore();
+    this.tex.needsUpdate = true;
+  }
+}
+
+const SCREENS = {
+  /** 개발: 코드가 아래에서 위로 쓰여 올라가는 편집기 */
+  code(c, W, H, t, col) {
+    c.fillStyle = "#1b1f2b"; c.fillRect(0, 0, W, H);
+    c.fillStyle = "#232838"; c.fillRect(0, 0, W, H * .1);
+    c.fillStyle = col; c.fillRect(W * .03, H * .015, W * .2, H * .085);
+    c.fillStyle = "#2c3245"; c.fillRect(W * .24, H * .025, W * .16, H * .075);
+    c.fillStyle = "#20253a"; c.fillRect(W * .86, H * .1, W * .14, H);          // 미니맵
+    const lh = H * .072, top = H * .12, speed = 1.6, scroll = t * speed, base = Math.floor(scroll), frac = scroll - base;
+    const pal = [col, "#7aa2f7", "#9ece6a", "#e0af68", "#bb9af7", "#c0caf5", "#7dcfff"];
+    c.beginPath(); c.rect(0, top, W * .85, H - top); c.clip();
+    const rows = Math.ceil((H - top) / lh) + 1;
+    for (let r = 0; r <= rows; r++) {
+      const n = base + r, y = top + (r - frac) * lh;
+      c.fillStyle = "#3b4256"; c.fillRect(W * .015, y + lh * .32, W * .035, lh * .32);
+      if (hash(n * 3.1) < .13) continue; // 빈 줄
+      let x = W * .08 + Math.floor(hash(n * 7.7) * 4) * W * .035;
+      const k = 1 + Math.floor(hash(n) * 4), last = r === rows - 1;
+      const limit = last ? x + (W * .7) * frac : W * .83; // 맨 아래 줄은 지금 타이핑 중
+      for (let i = 0; i < k && x < limit; i++) {
+        const w = Math.min(W * (.04 + hash(n * 13 + i) * .13), limit - x);
+        c.fillStyle = pal[Math.floor(hash(n * 5 + i * 9) * pal.length)];
+        c.fillRect(x, y + lh * .25, w, lh * .45);
+        x += w + W * .014;
+      }
+      if (last && Math.floor(t * 3) % 2) { c.fillStyle = "#f5f7ff"; c.fillRect(x + 2, y + lh * .15, 2, lh * .65); }
+    }
+  },
+  /** 분석: 막대·선 그래프가 갱신되는 대시보드 + 읽는 중인 문서 */
+  chart(c, W, H, t, col) {
+    c.fillStyle = "#f4f6fb"; c.fillRect(0, 0, W, H);
+    c.fillStyle = col; c.fillRect(0, 0, W, H * .1);
+    c.fillStyle = "rgba(255,255,255,.85)"; c.fillRect(W * .03, H * .035, W * .2, H * .035);
+    c.fillStyle = "#fff"; rr(c, W * .03, H * .14, W * .45, H * .5, 6); rr(c, W * .52, H * .14, W * .45, H * .5, 6);
+    for (let i = 0; i < 7; i++) {
+      const h = H * .38 * (.25 + .75 * (.5 + .5 * Math.sin(t * 1.2 + i * 1.3)) * (.5 + hash(i) * .5));
+      c.fillStyle = i === Math.floor(t) % 7 ? col : "#c9d2e8";
+      c.fillRect(W * (.06 + i * .057), H * .6 - h, W * .04, h);
+    }
+    c.strokeStyle = col; c.lineWidth = 2.5; c.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const x = W * (.55 + i * .0165), y = H * (.42 - .14 * Math.sin(i * .5 + t * 1.5) - .06 * Math.sin(i * 1.3 - t));
+      i ? c.lineTo(x, y) : c.moveTo(x, y);
+    }
+    c.stroke();
+    c.fillStyle = "#fff"; rr(c, W * .03, H * .68, W * .94, H * .28, 6);
+    const hl = Math.floor(t * .8) % 4;
+    for (let i = 0; i < 4; i++) {
+      if (i === hl) { c.fillStyle = "rgba(255,214,102,.55)"; c.fillRect(W * .05, H * (.715 + i * .06), W * .85, H * .04); }
+      c.fillStyle = "#b7bfd2"; c.fillRect(W * .06, H * (.725 + i * .06), W * (.55 + hash(i + 3) * .3), H * .022);
+    }
+  },
+  /** 퍼블리싱: 와이어프레임 시안 위를 커서가 돌아다니며 요소를 고른다 */
+  design(c, W, H, t, col) {
+    c.fillStyle = "#e9edf4"; c.fillRect(0, 0, W, H);
+    c.fillStyle = "#fff"; c.fillRect(W * .04, H * .06, W * .66, H * .88);
+    c.fillStyle = "#f7f8fb"; c.fillRect(W * .73, H * .06, W * .23, H * .88);
+    const boxes = [[.06, .1, .62, .08], [.06, .22, .62, .26], [.06, .53, .19, .3], [.275, .53, .19, .3], [.49, .53, .19, .3]];
+    boxes.forEach(([x, y, w, h], i) => { c.fillStyle = i === 1 ? col + "33" : "#e3e8f2"; c.fillRect(W * x, H * y, W * w, H * h); });
+    c.fillStyle = col; c.fillRect(W * .1, H * .29, W * .3, H * .05); c.fillRect(W * .1, H * .38, W * .14, H * .05);
+    const sel = Math.floor(t / 1.6) % boxes.length, [sx, sy, sw, sh] = boxes[sel];
+    c.strokeStyle = col; c.lineWidth = 2; c.strokeRect(W * sx - 2, H * sy - 2, W * sw + 4, H * sh + 4);
+    for (let i = 0; i < 7; i++) { c.fillStyle = i === sel ? col : "#c3cad9"; c.fillRect(W * .75, H * (.12 + i * .1), W * (.08 + hash(i + sel) * .1), H * .03); }
+    const p = (t / 1.6) % 1, [nx, ny, nw, nh] = boxes[(sel + 1) % boxes.length], e = p < .7 ? 0 : (p - .7) / .3;
+    const cx = W * (sx + sw * .6 + (nx + nw * .6 - sx - sw * .6) * e), cy = H * (sy + sh * .6 + (ny + nh * .6 - sy - sh * .6) * e);
+    c.fillStyle = "#1d2433"; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx, cy + 16); c.lineTo(cx + 5, cy + 12); c.lineTo(cx + 11, cy + 12); c.closePath(); c.fill();
+  },
+  /** 쉬는 중: 웹 페이지를 천천히 스크롤 */
+  browse(c, W, H, t, col) {
+    c.fillStyle = "#ffffff"; c.fillRect(0, 0, W, H);
+    const off = (t * 18) % (H * 1.2), top = H * .14;
+    c.save(); c.beginPath(); c.rect(0, top, W, H - top); c.clip();
+    for (let k = -1; k < 3; k++) {
+      const y0 = top + k * H * 1.2 - off;
+      c.fillStyle = col + "2e"; rr(c, W * .08, y0 + H * .05, W * .84, H * .32, 6);
+      for (let i = 0; i < 6; i++) { c.fillStyle = "#cfd5e2"; c.fillRect(W * .08, y0 + H * (.44 + i * .07), W * (.5 + hash(k * 9 + i) * .34), H * .025); }
+      c.fillStyle = "#e8ecf4"; rr(c, W * .08, y0 + H * .9, W * .4, H * .22, 5); rr(c, W * .52, y0 + H * .9, W * .4, H * .22, 5);
+    }
+    c.restore();
+    c.fillStyle = "#e4e8f0"; c.fillRect(0, 0, W, top);
+    ["#ff6b6b", "#ffd166", "#06d6a0"].forEach((f, i) => { c.fillStyle = f; c.beginPath(); c.arc(W * (.03 + i * .03), top / 2, H * .018, 0, 7); c.fill(); });
+    c.fillStyle = "#fff"; rr(c, W * .14, top * .22, W * .72, top * .56, top * .28);
+  },
+  /** 쉬는 중: 메신저 말풍선이 하나씩 올라온다 */
+  chat(c, W, H, t, col) {
+    c.fillStyle = "#f3f5f9"; c.fillRect(0, 0, W, H);
+    c.fillStyle = "#e4e8f0"; c.fillRect(0, 0, W * .26, H);
+    for (let i = 0; i < 5; i++) { c.fillStyle = i === 1 ? "#fff" : "#d5dbe7"; rr(c, W * .02, H * (.05 + i * .17), W * .22, H * .13, 5); }
+    const n = Math.floor(t / 1.4) % 7;
+    for (let i = 0; i < 6; i++) {
+      const k = n - (5 - i); if (k < 0) continue;
+      const mine = hash(k * 4.2) > .5, w = W * (.2 + hash(k) * .3), y = H * (.08 + i * .145);
+      c.fillStyle = mine ? col : "#ffffff"; rr(c, mine ? W * .96 - w : W * .3, y, w, H * .1, 8);
+    }
+  },
+  /** 바탕화면: 팀원 색 배경 + 시계 + 독 */
+  desktop(c, W, H, t, col, a) {
+    const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, col); g.addColorStop(1, "#1d2433");
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = "rgba(255,255,255,.9)"; c.font = `600 ${H * .16}px "Noto Sans KR", system-ui, sans-serif`; c.textAlign = "right";
+    c.fillText(hhmm(), W * .95, H * .24);
+    c.fillStyle = "rgba(255,255,255,.22)"; rr(c, W * .2, H * .82, W * .6, H * .13, 10);
+    for (let i = 0; i < 5; i++) { c.fillStyle = ["#fff", "#ffd166", "#06d6a0", "#7aa2f7", "#ff8fab"][i]; rr(c, W * (.24 + i * .11), H * .845, W * .07, H * .085, 6); }
+    c.fillStyle = "rgba(255,247,190,.95)"; c.fillRect(W * .06, H * .1, W * .2, H * .28);
+    c.fillStyle = "rgba(0,0,0,.25)"; for (let i = 0; i < 3; i++) c.fillRect(W * .08, H * (.16 + i * .07), W * .15, H * .02);
+  },
+  /** 자리 비움: 잠금화면 */
+  lock(c, W, H, t, col, a) {
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0f1424"); g.addColorStop(1, "#1f2740");
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = col; c.globalAlpha = .55;
+    c.beginPath(); c.arc(W * (.5 + .35 * Math.sin(t * .3)), H * (.5 + .3 * Math.cos(t * .23)), H * .05, 0, 7); c.fill();
+    c.globalAlpha = 1; c.textAlign = "center"; c.fillStyle = "#e8ecf7";
+    c.font = `600 ${H * .2}px "Noto Sans KR", system-ui, sans-serif`; c.fillText(hhmm(), W / 2, H * .52);
+    c.font = `500 ${H * .075}px "Noto Sans KR", system-ui, sans-serif`; c.fillStyle = "#9aa6c2"; c.fillText(`${a.def.label} · 자리 비움`, W / 2, H * .68);
+  },
+};
+/** 역할 이름으로 업무 화면 종류를 고른다. */
+const workScreen = role => /개발|코드|엔지니어|dev/i.test(role) ? "code" : /분석|리서치|데이터|research/i.test(role) ? "chart" : "design";
+
+/* ───────────────────────── 캐릭터 ─────────────────────────
+   앉아 있거나 커피를 마실 때는 몇 초마다 '행동'을 바꾼다(타이핑·스크롤·생각·한 모금·기지개·두리번·기대기·의자 돌리기·머리 긁기).
+   [이름, 가중치, 최소 초, 최대 초] */
+const ACTS = {
+  type: [["typing", 7, 3, 7], ["scroll", 2, 2, 4], ["think", 2, 2, 4], ["sip", 1.2, 2.6, 3.4], ["lean", 1, 2, 3]],
+  sit: [["browse", 3, 3, 6], ["sip", 2.5, 2.6, 3.4], ["typing", 1.5, 2, 4], ["relax", 2, 3, 6], ["look", 2, 2, 4], ["swivel", 1.5, 2.5, 4],
+    ["stretch", 1, 2.2, 3], ["think", 1, 2, 3], ["scratch", .7, 1.5, 2.5]],
+  lounge: [["look", 2, 2, 4], ["sip", 2, 2.6, 3.4], ["relax", 1.5, 3, 5], ["think", 1, 2, 3], ["scratch", .5, 1.5, 2.5]],
+  coffee: [["hold", 3, 2, 4], ["sip", 2.5, 2.6, 3.4], ["look", 1.5, 2, 3]],
+};
+function pickAct(list, prev) {
+  for (let tries = 0; tries < 3; tries++) {
+    let r = Math.random() * list.reduce((s, a) => s + a[1], 0);
+    for (const a of list) if ((r -= a[1]) <= 0) { if (a[0] !== prev || tries === 2) return [a[0], a[2] + Math.random() * (a[3] - a[2])]; break; }
+  }
+  return [list[0][0], list[0][2]];
+}
+/** 0→1→0 으로 올라갔다 내려오는 동작 곡선(올리기 25% · 유지 · 내리기 20%) */
+const env = p => (p < .25 ? p / .25 : p > .8 ? Math.max(0, (1 - p) / .2) : 1);
 const SKIN = 0xf1c7a3;
 let SAY_Z = 1; // 가장 최근에 말한 팀원의 라벨을 맨 위로
 /** 팀원 캐릭터. 3D 가 없거나 3D 자리가 없는 팀원은 '유령'(ghost): 위치만 있고 그리지 않으며 이동은 즉시 끝난다. */

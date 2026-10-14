@@ -14,11 +14,19 @@
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)
 - `runs/<시각>/` : plan.json, task-*.md, report.md (Git 제외)
 
-## 규칙
+## 규칙 (3개 AI 공통: Claude · Gemini · GPT)
+- **작업 완료 시 자동화 워크플로우 (필수 준수)**:
+  - 제미나이, 클로드, 지피티 모두 작업 완료 시 다음 절차를 차례대로 자동 수행합니다:
+    1. **README 작업 내역 누적**: 작업 완료 시 `README.md` 제일 하단 `## 📝 변경 및 작업 이력` 섹션에 **해당 날짜(YYYY-MM-DD)**별로 작업 내용을 간략하게 누적하여 기록합니다.
+    2. **한글 번역 및 정리**: 작업 결과 설명, 커밋 메시지, 주요 변경 요약은 한국어로 명확히 번역/작성합니다.
+    3. **클린 커밋 검증**: `git status`로 `.DS_Store`, `.env`, 임시 파일이 포함되지 않았는지 점검합니다.
+    4. **자동 커밋 (Auto Commit)**: Conventional Commits 접두사(`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`)를 준수하여 명확한 한글 커밋 메시지로 커밋합니다.
+    5. **원격 동기화 (Pull & Push)**: 충돌 방지 및 최신 형상 유지를 위해 `git pull --rebase`를 먼저 수행한 뒤 `git push`로 원격 저장소에 반영합니다.
 - API 키는 `.env` 에만 두고 절대 커밋하지 않는다.
 - 새 provider 추가 시 `providers.py` 의 `_PROVIDERS` 에 등록하고 `team.toml` 에서 사용한다.
 - 변경 후 `python main.py --mock run "테스트"` 로 흐름을 검증한다.
 - 서버 변경 후 `.venv/bin/python -m pytest -q` 를 통과시킨다 (개발 의존성: `pip install -r requirements-dev.txt`).
+
 
 ## 실행 (더블클릭)
 - macOS `start-mac.command` · Linux `./start-linux.sh` · Windows `start-windows.bat`
