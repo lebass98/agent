@@ -14,6 +14,10 @@
 - `docs/ref/` : 사용자 제공 참고 이미지(캐릭터 시트·다크 모드 사무실)
 - 사무실 조명(낮↔밤)은 기본으로 실제 일출·일몰을 따른다: `web/decor.js` 의 `Decor.sun`(해 고도 +5°→-5° 사이 약 40~50분에 걸쳐 섞임, 위치는 설정의 '현재 위치' 또는 기기 시간대 대표 도시).
   화면(패널) 테마와는 따로이며, 설정 '사무실 조명'에서 '화면 테마'를 고르면 예전처럼 테마를 따른다. 점검: 브라우저 콘솔에서 `OFFICE.now = new Date("2026-10-14T17:55:00+09:00"); applyTheme(true)`
+- 바깥 풍경: 설정 '사무실 위치'에 주소를 넣으면 실제 주변 건물·도로·공원·철길(OpenStreetMap)을 사무실 둘레에 3D 로 세운다.
+  `server/outside.py`(주소 검색·지도 받기·사무실 좌표로 다듬기) → `/api/outside/*`(docs/events.md) → `web/outside.js`·`outside.css`.
+  사무실을 확대해 보면 숨고(예전 모습), 축소하면 건물이 솟아오른다. outside.js 는 app.js 를 고치지 않고 전역 이름·`setOfficeLight`·`VIEWS.settings` 를 감싸 붙는다.
+  지도 원본·사무실 위치(실제 주소)는 `cache/outside/`(Git 제외)에만 둔다. 실제 주소를 커밋·문서·테스트에 넣지 말 것
 - `scripts/launch.py` : 실행 메뉴(모든 OS 공용), `scripts/bootstrap.sh` : macOS·Linux 가상환경 준비
 - `docs/events.md` : 서버 ↔ 웹 UI 이벤트 프로토콜 (변경 시 서버·UI 함께 수정)
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)

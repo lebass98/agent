@@ -12,3 +12,4 @@ node_modules/
 *.pyc
 .vercel
 .env*
+cache/

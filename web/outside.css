@@ -1,0 +1,18 @@
+/* 바깥 풍경(outside.js): 설정 '사무실 위치 · 바깥 풍경' 행 · 지도 출처 · 사무실 화면의 '동네' 버튼 */
+.outside-row .outside-ctl { display: grid; gap: 8px; flex: 1 1 340px; min-width: 0; }
+.outside-search { display: flex; gap: 8px; }
+.outside-search .search-input { min-width: 0; }
+.outside-hits { display: grid; gap: 4px; }
+.outside-hit { display: flex; align-items: baseline; gap: 8px; text-align: left; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 13px; }
+.outside-hit:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.outside-hit small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.outside-opts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.outside-floor { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2, var(--muted)); }
+.outside-floor input { width: 64px; height: 34px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); }
+.outside-credit { position: absolute; right: 12px; bottom: 48px; font-size: 10px; color: var(--muted); background: color-mix(in srgb, var(--panel) 85%, transparent); padding: 2px 7px; border-radius: 6px; pointer-events: auto; }
+.outside-credit a { color: inherit; }
+.office-tools .outside-zoom { width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; }
+@media (max-width: 760px) { /* 휴대폰: 도구 줄이 꽉 차므로 '동네'는 그 위에, 출처는 오른쪽 위(팀 활동 버튼 아래)에 */
+  .office-tools .outside-zoom { position: absolute; right: 0; bottom: calc(100% + 6px); height: 28px; }
+  .outside-credit { bottom: auto; top: 50px; right: 8px; }
+}

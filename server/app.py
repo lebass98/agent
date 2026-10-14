@@ -17,7 +17,9 @@ from typing import Literal
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, WebSocket
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from . import outside
 
 log = logging.getLogger("server")
 
@@ -243,10 +245,25 @@ class AskIn(BaseModel):
     history: list[ChatMessage] = []
 
 
+class PlaceIn(BaseModel):
+    """사무실 위치(설정의 '사무실 위치'): 일출·일몰 계산과 바깥 풍경에 함께 쓴다."""
+    lat: float = Field(ge=-85, le=85)
+    lng: float = Field(ge=-180, le=180)
+    label: str = Field("", max_length=200)
+    floor: int = Field(1, ge=1, le=200)       # 사무실 층(2층이면 1층 높이만큼 띄운다)
+    show: bool = True                          # 바깥 풍경 보이기
+    turn: int = Field(0, ge=0, le=3)           # 사무실 방향 90°씩 돌리기
+    r: int = Field(350, ge=outside.R_MIN, le=outside.R_MAX)  # 지도 반경(m)
+
+
 # ── 앱 ────────────────────────────────────────────────
-def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False) -> FastAPI:
-    """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일)."""
+def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False,
+               cache_dir: Path | None = None) -> FastAPI:
+    """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일).
+    cache_dir: 바깥 풍경 지도 원본·사무실 위치를 두는 곳(기본: runs 옆 cache/outside, Git 제외)."""
     runs_dir, web_dir = Path(runs_dir), Path(web_dir)
+    out_dir = Path(cache_dir) if cache_dir else runs_dir.parent / "cache" / "outside"
+    map_lock = asyncio.Lock()
     hub = Hub()
     dev_hub = DevReload() if dev else None
 
@@ -348,6 +365,41 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
                 "tasks": [{"file": f.name, "content": _read(f)}
                           for f in sorted(d.glob("task-*.md"), key=_task_key)],
                 "report": _read(d / "report.md"), "error": _read(d / "error.txt")}
+
+    # ── 바깥 풍경: 주소 검색 · 주변 지도(OpenStreetMap) · 사무실 위치 ──
+    @api.get("/outside/geocode")
+    async def outside_geocode(q: str = ""):
+        q = q.strip()
+        if not 1 <= len(q) <= 200:
+            raise HTTPException(400, "주소를 1~200자로 입력하세요.")
+        try:
+            return {"results": await asyncio.to_thread(outside.geocode, q)}
+        except outside.OutsideError as e:
+            raise HTTPException(502, str(e))
+
+    @api.get("/outside/map")
+    async def outside_map(lat: float, lng: float, r: int = 350, w: float = 32, d: float = 22, turn: int = 0):
+        if not (-85 <= lat <= 85 and -180 <= lng <= 180 and outside.R_MIN <= r <= outside.R_MAX
+                and 4 <= w <= 200 and 4 <= d <= 200):
+            raise HTTPException(400, "위치·범위 값이 올바르지 않습니다.")
+        async with map_lock:  # 같은 지역을 동시에 두 번 받지 않게(처음 한 번만 인터넷에서 받고 이후는 캐시)
+            try:
+                osm = await asyncio.to_thread(outside.fetch_osm, lat, lng, r, out_dir)
+            except outside.OutsideError as e:
+                raise HTTPException(502, str(e))
+        return await asyncio.to_thread(outside.build_scene, osm, lat, lng, r, (w, d), turn % 4)
+
+    @api.get("/outside/place")
+    def get_place():
+        return {"place": outside.load_place(out_dir)}
+
+    @api.put("/outside/place")
+    def put_place(body: PlaceIn):
+        return {"place": outside.save_place(out_dir, body.model_dump())}
+
+    @api.delete("/outside/place")
+    def delete_place():
+        return {"place": outside.save_place(out_dir, None)}
 
     app.include_router(api)
 
