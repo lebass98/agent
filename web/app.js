@@ -36,10 +36,11 @@ const store = {
 
 /* 테마 설정(시스템/라이트/다크)과 '움직임 줄이기'. <html data-theme> 로 강제하고, 3D 테마(applyTheme)는 isDark() 를 읽는다. */
 const PREF = {
-  theme: ["system", "light", "dark"].includes(store.get("agentOffice.theme")) ? store.get("agentOffice.theme") : "system",
+  theme: ["system", "light", "dark"].includes(store.get("agentOffice.theme")) ? store.get("agentOffice.theme") : "dark",
   reduce: store.get("agentOffice.reduce") === "1", rooms: store.get("agentOffice.rooms") !== "0", lastDark: null,
 };
 if (PREF.theme !== "system") document.documentElement.dataset.theme = PREF.theme;
+else delete document.documentElement.dataset.theme;
 if (PREF.reduce) document.body.classList.add("reduce-motion");
 if (!PREF.rooms) document.body.classList.add("no-roomtags");
 /** 지금 화면이 다크인지(강제 테마 > 시스템 설정). 3D 쪽 applyTheme() 도 이 값을 쓴다. */
@@ -371,6 +372,8 @@ function applyTheme() {
    - 태블릿 가로·데스크톱(패널이 양옆): 활동 영역이 좌우 패널 사이에 보이게 하되, 사무실 전체(outer)도 패널 밑으로 들어가지 않게 */
 const cam = { view: 15, tween: null };
 function visibleArea() {
+  const viewport = $("officeFrame")?.getBoundingClientRect();
+  if (viewport?.width) return { top: viewport.top + 42, bottom: viewport.bottom - 34, left: viewport.left + 16, right: viewport.right - 16, pts: OFFICE_PTS };
   const w = innerWidth, h = innerHeight, top = $("topbar").getBoundingClientRect().bottom;
   if (mqSide.matches) return { top: top + 4, bottom: h - 8, left: 8, right: Math.max(160, $("dock").getBoundingClientRect().left - 8), pts: OFFICE_PTS };
   if (mqMobile.matches) return { top: top + 4, bottom: Math.max(top + 140, $("dock").getBoundingClientRect().top - 4), left: 8, right: w - 8, pts: OFFICE_PTS };
@@ -381,11 +384,12 @@ function visibleArea() {
   return { top: top + 8, bottom: $("command").getBoundingClientRect().top - 8, left, right,
     pts: ACT_PTS.length ? ACT_PTS : OFFICE_PTS, outer: { top: top * .55, bottom: h - 30, left: L.right, right: R.left } }; // 외곽도 패널 사이에만
 }
-function frame(animate, zoom) {
+function frame(animate, zoom, points) {
   if (!HAS3D) return;
   const w = innerWidth, h = innerHeight;
   if (!w || !h) return; // 숨겨진 창(크기 0)에서는 계산하지 않는다
   const area = visibleArea();
+  if (points?.length) area.pts = points;
   const fwd = controls.target.clone().sub(camera.position).normalize();
   const right = new THREE.Vector3().crossVectors(fwd, camera.up).normalize();
   const up = new THREE.Vector3().crossVectors(right, fwd);
@@ -438,6 +442,7 @@ function resetView() {
   frame(true, 1);
 }
 function resize() {
+  window.Dashboard?.layout();
   if (HAS3D) { renderer.setSize(innerWidth, innerHeight); renderer.clear(); } // 크기가 바뀌면 캔버스가 비워지므로 첫 프레임 전에도 배경색이 보이게 한다
   UI.focused = null; frame(false);
 }
@@ -1099,6 +1104,7 @@ function tickMember(a) {
   if (s) a.card.time.textContent = s.t0 ? (s.approx && !s.t1 ? "≥" : "") + fmtDur((s.t1 || performance.now()) - s.t0) : "";
 }
 function renderSummary() {
+  window.Dashboard?.schedule();
   const groups = Object.create(null);
   for (const n of D.names) {
     const st = A(n).card?.st.status;
@@ -1142,6 +1148,7 @@ function renderBoard() {
         el("span", { class: "sdot" }), el("span", { class: "ttl", text: t.title }), el("span", { class: "mchip", text: d.label }), val);
     }));
   }
+  window.Dashboard?.schedule();
   renderBoardLink();
   if (VIEW.name === "board") scheduleView();
   scheduleProgress();
@@ -2684,6 +2691,7 @@ setPhase("대기 중", false);
 updateInput();
 tickClock();
 markNav();
+window.Dashboard?.init();
 resize();
 if (HAS3D) requestAnimationFrame(loop);
 else if (mqMobile.matches && !mqSide.matches) setDock(true); // 목록 모드 휴대폰: 시트를 열어 둔다
