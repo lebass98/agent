@@ -364,6 +364,13 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
   width: 36px; height: 36px; border-radius: 11px; background: var(--c); color: #fff; flex: none;
   display: grid; place-items: center; font-weight: 800; font-size: 13px;
 }
+/* 그림 캐릭터의 표정 아바타: 표정 띠(sprites/<이름>-faces.png, 가로 --fn 칸) 중 --fi 번째 칸 — 팀원 카드·활동 로그·3D 이름표(labels.css) */
+.face, .avatar.face, .lrow .lav.face {
+  background-color: #f3eee9; background-image: var(--face); background-repeat: no-repeat;
+  background-size: calc(var(--fn) * 100%) 100%; background-position: calc(var(--fi) / (var(--fn) - 1) * 100%) 0;
+}
+.avatar.face { border-radius: 50%; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--c) 75%, transparent); }
+.lrow .lav.face { border-radius: 50%; }
 .who { display: flex; flex-direction: column; min-width: 0; }
 .name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .role { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

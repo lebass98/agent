@@ -9,6 +9,9 @@
 - `serve.py` : 웹 서버 실행기 (`--mock`, `--lan`, `--host`, `--port`, `--config`)
 - `web/` : 웹 UI (index.html, app.js, style.css). 서버가 없으면 데모 모드, 3D 를 못 쓰면 목록 모드
 - `web/vendor/` : three.js r128 · OrbitControls(0.128.0) · marked 12.0.2 · DOMPurify 3.1.6 고정 사본 (인터넷 없는 Wi-Fi 에서도 동작. CDN 으로 바꾸지 말 것)
+- `web/sprite-chars.js` : 그림 캐릭터(시트 그림을 세운 2.5D 빌보드)·표정 아바타. 시트에 없는 팀원은 `characters.js` 의 3D 캐릭터
+- `web/sprites/` : 캐릭터 시트에서 자른 아틀라스·표정 띠·좌표표(`sprites.js`). `scripts/sprites/cut.py` 가 만든다(직접 고치지 말 것, docs/characters.md)
+- `docs/ref/` : 사용자 제공 참고 이미지(캐릭터 시트·다크 모드 사무실)
 - `scripts/launch.py` : 실행 메뉴(모든 OS 공용), `scripts/bootstrap.sh` : macOS·Linux 가상환경 준비
 - `docs/events.md` : 서버 ↔ 웹 UI 이벤트 프로토콜 (변경 시 서버·UI 함께 수정)
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)
@@ -25,6 +28,8 @@
   - 위 1~5 는 `python scripts/finish.py "feat: 한글 커밋 메시지" -n "작업 요약 1" -n "작업 요약 2"` 한 번으로 실행한다
     (금지 파일 검사 → README 이력 누적 → 커밋 → pull --rebase → push). 다른 AI 세션이 같은 저장소에 동시에 커밋할 수 있으니
     커밋 전 `git log --oneline -5` 로 최근 이력을 확인하고, 다른 에이전트가 편집 중인 파일은 `--paths` 로 제외한다.
+- **`._*` 파일은 보이는 즉시 모두 지운다.** 외장하드(exFAT)에서 macOS 가 자동으로 만드는 숨김 파일(AppleDouble)이다.
+  작업 시작·끝, 패키지 설치나 서버 실행 뒤에 `find "/Volumes/외장하드/App/Agent" -name '._*' -exec rm -rf {} +` 로 지운다 (`.venv` 안에 생기면 pip 경고의 원인이 된다).
 - API 키는 `.env` 에만 두고 절대 커밋하지 않는다.
 - 새 provider 추가 시 `providers.py` 의 `_PROVIDERS` 에 등록하고 `team.toml` 에서 사용한다.
 - 변경 후 `python main.py --mock run "테스트"` 로 흐름을 검증한다.

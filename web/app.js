@@ -308,9 +308,20 @@ function layout(order, leaderColor) {
     }
     return spot;
   });
+  // 팀 책상이 없는 줄은 빈 책상으로 채운다(모니터는 켜 둔 고정 화면). 길 찾기 격자에도 들어간다(Decor.navRects)
+  if (HAS3D && HAS_DECOR && typeof Decor.spareDesks === "function") for (const d of Decor.spareDesks(n)) desk(d.x, d.z, d.w, spareScreens(), { cols: d.cols, col: d.col });
   if (HAS_DECOR) { Decor.nav.build(Decor.navRects(n)); navDebug(); }
   if (HAS3D) ACT_PTS = activityPts(plan);
   return spots;
+}
+/** 빈 책상 모니터 두 장의 재질(코드 편집기·대시보드를 한 번 그린 고정 화면). layout() 이 팀 가구를 치울 때 재질도 정리되므로 매번 새로 만든다 */
+function spareScreens() {
+  const who = { def: { color: "#4f7cf7", label: "" }, name: "" };
+  return ["code", "chart"].map((kind, i) => {
+    const s = new Screen();
+    try { s.draw(kind, 12000 + i * 777, who); } catch { s.draw("desktop", 0, who); }
+    return s.material;
+  });
 }
 /** decor.js 가 없을 때의 자리(같은 평면 기준): 팀장은 대표님실, 나머지는 업무 공간 3줄, 회의 자리는 테이블 둘레 타원. */
 function fallbackSpots(n) {
@@ -337,8 +348,9 @@ function activityPts(plan) {
 // 테마(라이트/다크): 배경·하늘빛·햇빛은 여기서, 바닥·벽·창 밖·램프는 decor.js(Decor.theme) 가 맞춘다. isDark() 는 공통 도구(없으면 시스템 설정)
 const THEMES = {
   light: { clear: 0xf4f6fb, floor: 0xf1efea, wall: 0xffffff, side: 0xfafafc, base: 0xd9dee8, sky: 0xffffff, ground: 0xc9d2e3, hemi: .78, sun: .8, sunColor: 0xfff6e8 },
-  // 다크는 '램프 빛이 도는 네이비': 휴대폰·태블릿 크기에서도 캐릭터·가구가 구분되게 하늘빛·햇빛을 너무 낮추지 않는다
-  dark: { clear: 0x0b1020, floor: 0x1c2546, wall: 0x242f55, side: 0x181f3a, base: 0x111733, sky: 0x8593d6, ground: 0x1a2140, hemi: .75, sun: .45, sunColor: 0x9fb0ff },
+  // 다크는 참고 이미지(docs/ref/office-dark.png)의 '밤의 사무실': 숯색 배경, 낮은 하늘빛, 그림자를 만드는 따뜻한 위쪽 조명.
+  // 나머지 빛(램프·LED 띠·빛 웅덩이)은 decor.js 가 맡는다. 휴대폰 크기에서도 가구가 구분되게 하늘빛을 너무 낮추지 않는다
+  dark: { clear: 0x0c0f16, floor: 0x2c2c33, wall: 0x26272c, side: 0x1d1e23, base: 0x131417, sky: 0x7a7f9c, ground: 0x33271c, hemi: .74, sun: .38, sunColor: 0xffd6aa },
 };
 function applyTheme() {
   if (!HAS3D) return;
@@ -349,6 +361,7 @@ function applyTheme() {
   hemi.color.setHex(t.sky); hemi.groundColor.setHex(t.ground); hemi.intensity = t.hemi;
   sun.intensity = t.sun; sun.color.setHex(t.sunColor);
   if (HAS_DECOR && typeof Decor.theme === "function") Decor.theme(dark);
+  window.SpriteChars?.theme(dark);
 }
 
 /* 카메라: 사무실이 실제로 '보이는 영역'에 들어오도록 정사영 크기와 중심을 계산한다.
@@ -660,6 +673,10 @@ function pickAct(list, prev) {
   }
   return [list[0][0], list[0][2]];
 }
+/** 그림 캐릭터(sprite-chars.js)의 표정 띠. 시트에 있는 팀원(claude·gpt·gemini)만, 없으면 null */
+const facesOf = n => window.SpriteChars?.faces(n) || null;
+/** 표정 아바타 CSS 변수: 띠 이미지·칸 수·보여 줄 칸(style.css 의 .face) */
+const faceVars = (f, expr = "기본") => ({ "--face": `url("${f.src}")`, "--fn": f.n, "--fi": f.index(expr) });
 /** 0→1→0 으로 올라갔다 내려오는 동작 곡선(올리기 25% · 유지 · 내리기 20%) */
 const env = p => (p < .25 ? p / .25 : p > .8 ? Math.max(0, (1 - p) / .2) : 1);
 const SKIN = 0xf1c7a3;
@@ -674,11 +691,15 @@ class Agent {
       this.group = { position: { x: this.seat.x, y: 0, z: this.seat.z, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, rotation: { y: Math.PI } };
       return;
     }
-    // characters.js 가 있으면 프리셋 캐릭터(docs/characters.md), 없으면 단순 도형 캐릭터. 둘 다 같은 rig 계약:
+    // 캐릭터 시트에 있는 팀원은 그림 캐릭터(sprite-chars.js, 2.5D 빌보드), 그 밖에는 characters.js 의 3D 프리셋 캐릭터(docs/characters.md),
+    // 둘 다 없으면 단순 도형 캐릭터. 모두 같은 rig 계약:
     // group(위치·방향) ─ legs(+knees) / body(엉덩이 축으로 기울기) ─ torso·arms(+elbows·hands)·head(목 축으로 고개)·cup·props
+    // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
     let rig = null;
-    try { rig = window.Characters && Characters.build(def, name); } // 프리셋 오류가 팀 전체 구성을 막지 않게
+    try { rig = window.SpriteChars?.build(def, name) || null; }
+    catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
+    try { rig = rig || (window.Characters && Characters.build(def, name)); } // 프리셋 오류가 팀 전체 구성을 막지 않게
     catch (e) { console.warn(`캐릭터 생성 실패(${name}), 기본 모양으로 대체:`, e); }
     rig = this.rig = rig || this.primitiveRig(def);
     Object.assign(this, { group: rig.group, legs: rig.legs, body: rig.body, arms: rig.arms, head: rig.head, cup: rig.cup });
@@ -724,7 +745,9 @@ class Agent {
   makeLabel() {
     const d = this.def;
     this.bubble = el("div", { class: "bubble" });
-    this.tag = el("div", { class: "nametag" }, el("i", { class: "dot" }), el("b", { text: d.label }), d.leader ? el("span", { class: "crown", title: "팀장", text: "★" }) : null);
+    const f = this.rig?.faceStrip;
+    this.faceEl = f ? el("i", { class: "face", style: faceVars(f) }) : null; // 그림 캐릭터: 색 점 대신 지금 표정의 얼굴
+    this.tag = el("div", { class: "nametag" }, this.faceEl || el("i", { class: "dot" }), el("b", { text: d.label }), d.leader ? el("span", { class: "crown", title: "팀장", text: "★" }) : null);
     this.role = d.role ? el("div", { class: "roletag", text: d.role }) : null;
     this.label = el("div", { class: "tagwrap", style: { "--c": d.color } }, this.bubble, this.tag, this.role);
     this.ly = 0; // declutter() 가 겹친 이름표를 위로 밀어 올린 양(px)
@@ -738,7 +761,11 @@ class Agent {
   }
   /** 잠깐 짓는 표정(말할 때 웃음, 새 업무·오류에 놀람). ms 는 연출 시간 기준 */
   emote(expr, ms = 1500) { this.emoteExpr = expr; this.emoteUntil = this.t + ms / 1000; }
-  setFace(expr) { if (expr !== this.expr && this.rig?.setFace) { this.expr = expr; this.rig.setFace(expr); } }
+  setFace(expr) {
+    if (expr === this.expr || !this.rig?.setFace) return;
+    this.expr = expr; this.rig.setFace(expr);
+    if (this.faceEl) this.faceEl.style.setProperty("--fi", this.rig.faceStrip.index(expr));
+  }
   say(text, ms = 2600) {
     this.lastSay = performance.now();
     if (this.ghost) return;
@@ -791,7 +818,7 @@ class Agent {
   update(dt) {
     this.t += dt;
     const g = this.group;
-    if (this.mode === "walk" && this.path.length) {
+    if (this.mode === "walk" && this.path.length && !this.rig.sprite?.hold(this, dt)) { // 그림 캐릭터는 자리에서 일어나는 동안 멈춘다
       const p = this.path[0], dx = p.x - g.position.x, dz = p.z - g.position.z, dist = Math.hypot(dx, dz), step = this.speed * dt;
       if (dist > 1e-3) this.targetRot = Math.atan2(dx, dz);
       if (dist <= step) { g.position.x = p.x; g.position.z = p.z; this.path.shift(); }
@@ -814,6 +841,7 @@ class Agent {
     this.yaw += (pose.yaw - this.yaw) * k;
     let d = this.targetRot + this.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
     g.rotation.y += d * Math.min(1, dt * 10);
+    if (R.sprite) { R.sprite.update(this, dt, seated, camera); return; } // 그림 캐릭터: 뼈대 대신 방향·자세에 맞는 그림을 고른다
     lerp(this.legs[0].rotation, "x", pose.legL); lerp(this.legs[1].rotation, "x", pose.legR);
     lerp(this.legs[0].rotation, "z", pose.legLz); lerp(this.legs[1].rotation, "z", pose.legRz);
     if (R.knees) { lerp(R.knees[0].rotation, "x", pose.kneeL); lerp(R.knees[1].rotation, "x", pose.kneeR); }
@@ -1041,7 +1069,7 @@ function buildMembers() {
     const title = a.ghost ? `${d.label}${HAS3D ? " (3D 자리 없음)" : ""}` : `${d.label} 쪽으로 카메라 이동`;
     MEMBERS_EL.append(el("button", { class: "member", type: "button", style: { "--c": d.color }, title, onclick: () => { closeView(); focusAgent(n); } },
       el("span", { class: "row" },
-        el("span", { class: "avatar", text: d.initial }),
+        facesOf(n) ? el("span", { class: "avatar face", style: faceVars(facesOf(n)), "aria-hidden": "true" }) : el("span", { class: "avatar", text: d.initial }),
         el("span", { class: "who" },
           el("span", { class: "name" }, d.label, d.leader ? el("span", { title: "팀장", text: " 👑" }) : null),
           el("span", { class: "role", text: d.role })),
@@ -1144,7 +1172,7 @@ function logRow(e) {
   const d = e.name ? memberDef(e.name) : null;
   return el("div", { class: `lrow ${e.cls}`, style: d ? { "--c": d.color } : null },
     el("time", { text: hhmm(e.at, true), datetime: e.at.toISOString() }),
-    d ? el("span", { class: "lav", text: d.initial || d.label[0] }) : el("span", { class: "lav sys" }, icon("bot")),
+    d ? (facesOf(e.name) ? el("span", { class: "lav face", style: faceVars(facesOf(e.name)) }) : el("span", { class: "lav", text: d.initial || d.label[0] })) : el("span", { class: "lav sys" }, icon("bot")),
     el("b", { class: d ? "mc" : "muted", text: d ? d.label : "시스템" }),
     el("span", { class: "lmsg", text: e.msg }));
 }
