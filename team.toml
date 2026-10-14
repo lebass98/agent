@@ -1,0 +1,21 @@
+# 팀 구성 설정 — 팀원 추가/역할 변경은 이 파일만 수정하면 됩니다.
+# provider: anthropic | openai | google | mock(테스트용)
+# model 값은 각 사의 최신 모델명으로 바꿔 사용하세요.
+
+[leader]
+member = "claude"   # 업무 분배·검수·최종 보고 담당
+
+[members.claude]
+provider = "anthropic"
+model = "claude-opus-5-5"
+role = "팀장 겸 퍼블리셔. 업무 분해·배정, 결과 검수, HTML/CSS 마크업, 문서화"
+
+[members.gpt]
+provider = "openai"
+model = "gpt-5"
+role = "개발자. 코드 구현, 리팩터링, 자동화 스크립트 작성"
+
+[members.gemini]
+provider = "google"
+model = "gemini-flash-latest"   # 무료 사용량. Pro 는 Google AI Studio 결제 등록 필요
+role = "분석가. 긴 문서·대용량 자료 분석, 리서치, 요약"

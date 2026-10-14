@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+runs/
+.DS_Store
+._*
+Thumbs.db
+.venv-win/
+.pytest_cache/
+node_modules/
+.vercel/
+*.pyc

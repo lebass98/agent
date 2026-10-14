@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#eef1f7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#10141c">
+<title>Agent Office</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage"></div>
+<div id="labels" aria-hidden="true"></div>
+
+<header class="topbar" id="topbar">
+  <div class="brand">Agent Office<small id="brandSub">멀티 에이전트 팀</small></div>
+  <span class="conn" id="conn" role="status"><i></i><span id="connText">연결 중…</span></span>
+  <span class="grow"></span>
+  <div class="phase"><span class="dot" id="phaseDot"></span><b id="phaseText">대기 중</b></div>
+  <button class="tbtn key" id="keyBtn" type="button" hidden aria-label="접속 키 입력">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 20 3"/><path d="m16 7 3 3"/><path d="m18 5 2 2"/></svg>
+    <span>키 입력</span>
+  </button>
+  <button class="tbtn" id="historyBtn" type="button" hidden aria-label="지난 업무 보기">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+    <span>지난 업무</span>
+  </button>
+  <div class="speed" id="speed" role="group" aria-label="연출 속도">
+    <button type="button" data-s="1">1×</button><button type="button" data-s="2">2×</button><button type="button" data-s="4">4×</button>
+  </div>
+  <button class="speed-cycle" id="speedCycle" type="button">1×</button>
+  <div class="clock" id="clock">--:--</div>
+</header>
+
+<section class="dock" id="dock" data-tab="members" aria-label="팀 현황">
+  <button class="dock-handle" id="dockHandle" type="button" aria-expanded="false" aria-controls="panes">
+    <span class="grabber" aria-hidden="true"></span>
+    <span class="summary"><span class="dot" id="sumDot"></span><span id="summary">대기 중</span></span>
+  </button>
+  <div class="tabs" id="tabs" role="tablist" aria-label="보기 전환">
+    <button type="button" role="tab" data-tab="members" aria-selected="true">팀원</button>
+    <button type="button" role="tab" data-tab="board" aria-selected="false">업무<em id="tabCount"></em></button>
+    <button type="button" role="tab" data-tab="log" aria-selected="false">로그</button>
+  </div>
+  <div class="panes" id="panes">
+    <aside class="panel left" data-pane="members" aria-label="팀원">
+      <h3>팀원 <span id="memberCount">0명</span></h3>
+      <div class="scroll" id="members"></div>
+    </aside>
+    <aside class="panel right">
+      <section class="pane" data-pane="board" aria-label="업무 보드">
+        <h3>업무 보드 <span id="taskCount">0건</span></h3>
+        <div class="board scroll" id="board"></div>
+      </section>
+      <section class="pane" data-pane="log" aria-label="활동 로그">
+        <h3>활동 로그 <span>실시간</span></h3>
+        <div class="log scroll" id="log"></div>
+      </section>
+    </aside>
+  </div>
+  <form class="command" id="command" autocomplete="off">
+    <button class="report-btn" id="reportBtn" type="button" hidden aria-label="최근 보고서 보기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+      <span>최근 보고서 보기</span>
+    </button>
+    <input id="goal" name="goal" maxlength="4000" enterkeyhint="send" aria-label="팀에게 맡길 목표">
+    <button id="runBtn" type="submit">업무 지시</button>
+  </form>
+</section>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="modal" id="modal" hidden>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+</div>
+
+<!-- 라이브러리는 web/vendor 에 고정 버전으로 둔다(인터넷 없는 Wi-Fi 에서도 동작). 3D 가 없으면 app.js 가 목록 모드로 동작한다 -->
+<script src="vendor/three.min.js"></script><!-- three.js r128 -->
+<script src="vendor/OrbitControls.js"></script><!-- three@0.128.0 examples/js -->
+<script src="vendor/marked.min.js"></script><!-- marked 12.0.2 -->
+<script src="vendor/purify.min.js"></script><!-- DOMPurify 3.1.6 -->
+<script src="app.js"></script>
+</body>
+</html>

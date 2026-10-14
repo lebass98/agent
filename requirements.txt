@@ -1,0 +1,7 @@
+anthropic
+openai
+google-genai
+python-dotenv
+fastapi
+uvicorn[standard]
+qrcode
