@@ -79,3 +79,15 @@ LAN 공개 시 서버가 접속 키를 쓴다(`.env` 의 `ACCESS_KEY`, 없으면
 - HTTP `/api/*` 는 `X-Access-Key` 헤더로만 인증한다(`?key=` 는 받지 않음). 없거나 틀리면 `401`.
 - WebSocket 은 `/ws?key=...` 로만 인증한다(헤더는 받지 않음). 없거나 틀리면 접속 후 바로 `4401` 로 닫는다.
 - 정적 파일(`web/`)은 키 없이 열린다. 로컬(127.0.0.1) 전용 실행 시에는 키가 없다.
+
+## 개발 모드 채널 (`serve.py` 기본 켜짐, `--no-dev` 로 끔)
+
+작업 중 바뀐 파일이 항상 바로 보이게 하는 장치. 웹 UI 코드(app.js)는 관여하지 않는다.
+
+- 서버가 `/`·`/index.html` 을 줄 때 `</body>` 앞에 `<script src="/__dev/livereload.js"></script>` 를 끼워 넣는다.
+- WebSocket `/__dev/ws` (접속 키 불필요, 수신 전용):
+  - 접속 즉시 `{"type": "hello", "boot": "<서버 프로세스 식별자>"}`
+  - `web/` 안의 파일이 바뀌면 `{"type": "reload", "files": ["app.js", …]}` → 페이지가 `location.reload()`
+  - 끊기면 0.8초 간격으로 재접속하고, 다시 받은 `boot` 가 이전과 다르면(서버 재시작) 새로고침한다.
+- 모든 HTTP 응답에 `Cache-Control: no-store` 를 붙여 브라우저가 옛 파일을 쓰지 않게 한다.
+- `*.py`·`team.toml` 이 바뀌면 uvicorn 이 서버를 재시작한다(진행 중이던 업무는 중단, `/ws` 는 1012 로 닫힘 → 클라이언트가 재접속).

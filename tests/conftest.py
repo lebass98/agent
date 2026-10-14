@@ -24,9 +24,9 @@ def make_client(tmp_path, runs_dir, monkeypatch):
     web.mkdir()
     (web / "index.html").write_text("<h1>web</h1>", encoding="utf-8")
 
-    def make(access_key: str | None = None) -> TestClient:
+    def make(access_key: str | None = None, dev: bool = False) -> TestClient:
         team = Team(ROOT / "team.toml", mock=True)
-        return TestClient(create_app(team, access_key, runs_dir, web))
+        return TestClient(create_app(team, access_key, runs_dir, web, dev=dev))
 
     return make
 

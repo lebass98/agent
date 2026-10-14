@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, WebSocket
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -120,6 +121,76 @@ def _dump(event: dict) -> str:
     return json.dumps(event, ensure_ascii=False)
 
 
+# ── 개발 모드: 자동 새로고침 ────────────────────────────
+# web/ 안의 파일이 바뀌면 열려 있는 모든 페이지를 새로고침시킨다. 페이지에는 서버가 index.html 을 줄 때
+# /__dev/livereload.js 를 끼워 넣고, 그 스크립트가 /__dev/ws 로 'reload' 신호를 받는다(접속 키 불필요).
+# 서버 코드가 바뀌어 재시작되면 boot 값이 달라지므로 페이지가 알아서 다시 읽는다.
+DEV_SCRIPT = """(() => {
+  const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/__dev/ws";
+  let boot = "", timer = 0;
+  const reload = () => { clearTimeout(timer); timer = setTimeout(() => location.reload(), 150); };
+  const connect = () => {
+    const ws = new WebSocket(url);
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.type === "hello") { if (boot && boot !== m.boot) reload(); boot = m.boot; }
+      else if (m.type === "reload") reload();
+    };
+    ws.onclose = () => setTimeout(connect, 800);
+    ws.onerror = () => ws.close();
+  };
+  connect();
+})();
+"""
+
+
+class DevReload:
+    """개발 모드 새로고침 허브. notify() 가 접속한 모든 페이지에 reload 를 보낸다."""
+
+    def __init__(self):
+        self.clients: set[asyncio.Queue] = set()
+        self.boot = secrets.token_hex(4)  # 서버 프로세스마다 다른 값
+
+    def connect(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(50)
+        q.put_nowait(_dump({"type": "hello", "boot": self.boot}))
+        self.clients.add(q)
+        return q
+
+    def disconnect(self, q: asyncio.Queue) -> None:
+        self.clients.discard(q)
+
+    def notify(self, files=()) -> None:
+        names = sorted({f for f in files if f not in (".", "")})  # 폴더 자체의 변경은 이름에서 뺀다
+        text = _dump({"type": "reload", "files": names[:20]})
+        for q in list(self.clients):
+            with contextlib.suppress(asyncio.QueueFull):
+                q.put_nowait(text)
+
+    async def watch(self, web_dir: Path) -> None:
+        """web/ 를 감시한다. 폴더가 아직 없으면 생길 때까지 기다린다."""
+        from watchfiles import awatch
+
+        while True:
+            while not web_dir.is_dir():
+                await asyncio.sleep(1)
+            try:
+                async for changes in awatch(web_dir, debounce=300, step=100):
+                    self.notify(_rel(web_dir, p) for _, p in changes)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # 폴더가 지워지는 등 감시 실패: 잠시 뒤 다시 시작
+                log.warning("web/ 감시 중단, 다시 시작합니다: %s", e)
+                await asyncio.sleep(1)
+
+
+def _rel(root: Path, p: str) -> str:
+    try:
+        return str(Path(p).relative_to(root))
+    except ValueError:
+        return Path(p).name
+
+
 # ── 실행 기록(runs/) ───────────────────────────────────
 def _read(path: Path) -> str | None:
     return path.read_text(encoding="utf-8", errors="replace") if path.is_file() else None
@@ -161,19 +232,24 @@ class RunIn(BaseModel):
 
 
 # ── 앱 ────────────────────────────────────────────────
-def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path) -> FastAPI:
+def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False) -> FastAPI:
+    """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일)."""
     runs_dir, web_dir = Path(runs_dir), Path(web_dir)
     hub = Hub()
+    dev_hub = DevReload() if dev else None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        watcher = asyncio.create_task(dev_hub.watch(web_dir)) if dev_hub else None
         yield
+        if watcher:
+            watcher.cancel()
         if (task := app.state.task) and not task.done():  # 서버 종료 시 진행 중 업무 취소
             task.cancel()
             await asyncio.wait({task}, timeout=5)
 
     app = FastAPI(title="멀티 에이전트 팀", lifespan=lifespan)
-    app.state.hub, app.state.task = hub, None
+    app.state.hub, app.state.task, app.state.dev = hub, None, dev_hub
 
     def key_ok(key: str | None) -> bool:
         return not access_key or secrets.compare_digest((key or "").encode(), access_key.encode())
@@ -257,6 +333,47 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path) -> F
         finally:
             hub.disconnect(q)
             pump.cancel()
+
+    if dev_hub:
+        @app.middleware("http")
+        async def no_store(request, call_next):
+            resp = await call_next(request)
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+
+        @app.get("/__dev/livereload.js", include_in_schema=False)
+        def livereload_js():
+            return Response(DEV_SCRIPT, media_type="application/javascript")
+
+        @app.get("/", include_in_schema=False)
+        @app.get("/index.html", include_in_schema=False)
+        def dev_index():
+            html = _read(web_dir / "index.html")
+            if html is None:
+                raise HTTPException(404, "web/index.html 이 없습니다.")
+            tag = '<script src="/__dev/livereload.js"></script>'
+            html = html.replace("</body>", f"{tag}\n</body>", 1) if "</body>" in html else html + tag
+            return HTMLResponse(html)
+
+        @app.websocket("/__dev/ws")
+        async def ws_dev(ws: WebSocket):
+            await ws.accept()
+            q = dev_hub.connect()
+
+            async def pump():
+                with contextlib.suppress(Exception):
+                    while True:
+                        await ws.send_text(await q.get())
+
+            sender = asyncio.create_task(pump())
+            try:
+                while (await ws.receive())["type"] != "websocket.disconnect":
+                    pass
+            except RuntimeError:
+                pass
+            finally:
+                dev_hub.disconnect(q)
+                sender.cancel()
 
     # API 라우트 뒤에 마운트해야 가려지지 않는다. check_dir=False: 서버 실행 뒤 web/ 이 생겨도 재시작 없이 제공
     app.mount("/", StaticFiles(directory=web_dir, html=True, check_dir=False), name="web")

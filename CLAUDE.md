@@ -22,6 +22,9 @@
     3. **클린 커밋 검증**: `git status`로 `.DS_Store`, `.env`, 임시 파일이 포함되지 않았는지 점검합니다.
     4. **자동 커밋 (Auto Commit)**: Conventional Commits 접두사(`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`)를 준수하여 명확한 한글 커밋 메시지로 커밋합니다.
     5. **원격 동기화 (Pull & Push)**: 충돌 방지 및 최신 형상 유지를 위해 `git pull --rebase`를 먼저 수행한 뒤 `git push`로 원격 저장소에 반영합니다.
+  - 위 1~5 는 `python scripts/finish.py "feat: 한글 커밋 메시지" -n "작업 요약 1" -n "작업 요약 2"` 한 번으로 실행한다
+    (금지 파일 검사 → README 이력 누적 → 커밋 → pull --rebase → push). 다른 AI 세션이 같은 저장소에 동시에 커밋할 수 있으니
+    커밋 전 `git log --oneline -5` 로 최근 이력을 확인하고, 다른 에이전트가 편집 중인 파일은 `--paths` 로 제외한다.
 - API 키는 `.env` 에만 두고 절대 커밋하지 않는다.
 - 새 provider 추가 시 `providers.py` 의 `_PROVIDERS` 에 등록하고 `team.toml` 에서 사용한다.
 - 변경 후 `python main.py --mock run "테스트"` 로 흐름을 검증한다.
@@ -43,4 +46,5 @@
 - `python serve.py --mock` : API 없이 모의 실행 (MOCK_DELAY 기본 3초) → http://127.0.0.1:8000
 - `python serve.py` : 실제 API 사용, 이 컴퓨터에서만 접속 (접속 키 없음)
 - `python serve.py --lan` : 같은 Wi-Fi 휴대폰에서 접속. 접속 키(`.env` 의 `ACCESS_KEY`, 없으면 자동 생성)가 붙은 주소와 QR 코드를 출력한다
+- 개발 모드(기본 켜짐): `web/` 파일을 저장하면 열린 브라우저가 자동 새로고침되고(캐시 없음), `*.py`·`team.toml` 을 저장하면 서버가 자동 재시작된다. 끄려면 `--no-dev`. 구조는 `docs/events.md` 의 '개발 모드 채널'
 - 업무는 한 번에 1개만 실행된다 (진행 중 `POST /api/run` 은 409).
