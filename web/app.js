@@ -795,7 +795,7 @@ class Agent {
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
     let rig = null;
-    const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
+    const use3DChar = store.get("agentOffice.char3d") !== "0" && !/[?&]char=2d\b/.test(location.search);
     if (!use3DChar) {
       try { rig = window.SpriteChars?.build(def, name) || null; }
       catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
@@ -945,14 +945,25 @@ class Agent {
     g.rotation.y += d * Math.min(1, dt * 10);
     if (R.sprite) { R.sprite.update(this, dt, seated, camera); return; } // 그림 캐릭터: 뼈대 대신 방향·자세에 맞는 그림을 고른다
     lerp(this.legs[0].rotation, "x", pose.legL); lerp(this.legs[1].rotation, "x", pose.legR);
+    lerp(this.legs[0].rotation, "y", pose.legLy || 0); lerp(this.legs[1].rotation, "y", pose.legRy || 0);
     lerp(this.legs[0].rotation, "z", pose.legLz); lerp(this.legs[1].rotation, "z", pose.legRz);
     if (R.knees) { lerp(R.knees[0].rotation, "x", pose.kneeL); lerp(R.knees[1].rotation, "x", pose.kneeR); }
     lerp(this.arms[0].rotation, "x", pose.armL); lerp(this.arms[1].rotation, "x", pose.armR);
+    lerp(this.arms[0].rotation, "y", pose.armLy || 0); lerp(this.arms[1].rotation, "y", pose.armRy || 0);
     lerp(this.arms[0].rotation, "z", pose.armLz); lerp(this.arms[1].rotation, "z", pose.armRz);
     if (R.elbows) { lerp(R.elbows[0].rotation, "x", pose.elbL ?? autoElbow(pose.armL)); lerp(R.elbows[1].rotation, "x", pose.elbR ?? autoElbow(pose.armR)); }
-    if (R.hands) { R.hands[0].visible = !pose.pocketL; R.hands[1].visible = !pose.pocketR; }
-    lerp(this.head.rotation, "x", pose.headX); lerp(this.head.rotation, "y", pose.headY);
-    lerp(this.body.rotation, "x", pose.lean);
+    if (R.wrists) {
+      const wL = pose.wristL || [0, 0, 0], wR = pose.wristR || [0, 0, 0];
+      lerp(R.wrists[0].rotation, "x", wL[0]); lerp(R.wrists[0].rotation, "y", wL[1]); lerp(R.wrists[0].rotation, "z", wL[2]);
+      lerp(R.wrists[1].rotation, "x", wR[0]); lerp(R.wrists[1].rotation, "y", wR[1]); lerp(R.wrists[1].rotation, "z", wR[2]);
+    }
+    if (R.hands) {
+      R.hands[0].visible = !pose.pocketL; R.hands[1].visible = !pose.pocketR;
+      const cupHand = R.hands[pose.cupHand === "L" ? 0 : 1];
+      if (cupHand && this.cup.parent !== cupHand) cupHand.add(this.cup);
+    }
+    lerp(this.head.rotation, "x", pose.headX); lerp(this.head.rotation, "y", pose.headY); lerp(this.head.rotation, "z", pose.headZ || 0);
+    lerp(this.body.rotation, "x", pose.lean); lerp(this.body.rotation, "y", pose.bodyY || 0);
     this.cup.visible = pose.cup;
     if (this.mug) this.mug.visible = !(pose.cup && atDesk);
     const targetY = seated && R.seatOffset != null ? R.seatOffset + pose.y + .43 : pose.y + (seated ? .02 : 0);
