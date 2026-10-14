@@ -27,7 +27,7 @@
     loading: false, pending: false, nextTry: 0, tries: 0, status: "", error: "",
     q: "", results: null, searching: false,
     lit: [], glow: [], glowMeshes: [], tint: [], traffic: null, trains: null, saved: null, credit: null, btn: null,
-    tall: null, k: -1, shown: null, ui: new T.Color(),  // 솟는 묶음 · 드러난 정도(0 숨김 ~ 1) · 지금 보이나 · 화면 테마 배경색
+    tall: null, k: -1, shown: null, ui: new T.Color(), baked: undefined,  // 솟는 묶음 · 드러난 정도(0 숨김 ~ 1) · 지금 보이나 · 화면 테마 배경색
   };
 
   /* ───────── 작은 도구 ───────── */
@@ -730,6 +730,18 @@
     rerender();
   }
   /** 서버에 저장된 위치를 한 번 받아 온다(다른 기기에서 정한 주소). 서버에 없고 이 브라우저에만 있으면 올린다 */
+  /** 서버 없는 배포본: scripts/outside-bake.py 가 넣은 outside/baked.json({place, map}). 없으면 바깥 풍경 없이 */
+  async function loadBaked() {
+    S.baked = null;
+    try {
+      const r = await fetch("outside/baked.json", { cache: "no-store" });
+      if (!r.ok) return;
+      const b = await r.json();
+      if (!b?.place || !b?.map) return;
+      S.baked = b;
+      if (!S.place) setPlace({ ...b.place, show: true }, false);
+    } catch { /* 넣어 둔 지도 없음 */ }
+  }
   async function syncPlace() {
     S.synced = true;
     try {
@@ -750,14 +762,15 @@
       return;
     }
     if (S.loading) { S.pending = true; return; }
-    if (NET.mode !== "live") return;                   // 서버가 있어야 지도를 받는다(연결되면 tick 이 다시 부른다)
+    const fixed = NET.mode !== "live" && S.baked?.map;  // 서버 없는 배포본(데모): 배포 때 넣어 둔 지도(outside/baked.json)
+    if (NET.mode !== "live" && !fixed) return;          // 서버가 있어야 지도를 받는다(연결되면 tick 이 다시 부른다)
     S.loading = true; S.status = "loading"; rerender();
     const slow = setTimeout(() => toast("동네 지도를 받는 중이에요. 처음 한 번은 1~2분 걸릴 수 있어요.", "info", 6000), 2500);
     try {
       const qs = new URLSearchParams({ lat: p.lat, lng: p.lng, r: p.r, w: OW, d: OD, turn: p.turn });
-      const res = await api(`/api/outside/map?${qs}`);
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || `지도를 받지 못했어요 (${res.status})`);
+      const res = fixed ? null : await api(`/api/outside/map?${qs}`);
+      const body = fixed ? S.baked.map : await res.json().catch(() => ({}));
+      if (res && !res.ok) throw new Error(body.detail || `지도를 받지 못했어요 (${res.status})`);
       if (S.place === p) {
         S.floor = p.floor; build(body, p); S.key = key;
         S.status = "ok"; S.tries = 0; S.error = "";
@@ -873,7 +886,8 @@
     const s = store.get(LOCAL) || "";
     if (s !== S.seen) { S.seen = s; S.place = readLocal(); push(); S.tries = 0; S.nextTry = 0; refresh(); rerender(); } // '현재 위치로 맞추기'·'시간대 기준으로'
     if (!S.synced && NET.mode === "live") syncPlace();
-    if (S.place?.show && !S.group && !S.loading && NET.mode === "live" && Date.now() >= S.nextTry) refresh();
+    if (NET.mode === "demo" && S.baked === undefined) loadBaked();
+    if (S.place?.show && !S.group && !S.loading && (NET.mode === "live" || S.baked?.map) && Date.now() >= S.nextTry) refresh();
   }, 1000);
   renderer.getClearColor(S.ui);
   S.seen = store.get(LOCAL) || "";
