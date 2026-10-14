@@ -427,7 +427,6 @@ function route(from, to) {
 const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 const SCREEN_FPS = { code: 12, chart: 10, design: 10, browse: 6, chat: 4, desktop: 1, lock: 1 };
 function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); c.fill(); }
-const hhmm = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 
 class Screen {
   constructor() {
