@@ -602,25 +602,36 @@ class Agent {
       this.group = { position: { x: this.seat.x, y: 0, z: this.seat.z, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, rotation: { y: Math.PI } };
       return;
     }
+    // group(위치·방향) ─ legs / body(엉덩이 축으로 기울기) ─ torso·arms·head(목 축으로 고개)
     const g = this.group = new THREE.Group(), color = new THREE.Color(def.color);
     this.legs = [-.12, .12].map(x => {
       const pivot = new THREE.Group(); pivot.position.set(x, .55, 0); g.add(pivot);
       box(.17, .55, .17, 0x2f3446, 0, -.27, 0, pivot); return pivot;
     });
-    cyl(.26, .3, .6, color, 0, .85, 0, g);
+    this.body = new THREE.Group(); this.body.position.y = .55; g.add(this.body);
+    const torso = new THREE.Group(); torso.position.y = -.55; this.body.add(torso);
+    cyl(.26, .3, .6, color, 0, .85, 0, torso);
     this.arms = [-.36, .36].map(x => {
-      const pivot = new THREE.Group(); pivot.position.set(x, 1.1, 0); g.add(pivot);
+      const pivot = new THREE.Group(); pivot.position.set(x, 1.1, 0); torso.add(pivot);
       box(.13, .5, .13, color, 0, -.22, 0, pivot);
       box(.12, .1, .12, SKIN, 0, -.5, 0, pivot); return pivot;
     });
+    // 손에 드는 컵(한 모금·커피 코너에서만 보인다)
+    this.cup = new THREE.Group(); this.cup.position.set(0, -.56, .06); this.arms[1].add(this.cup);
+    cyl(.065, .055, .14, 0xffffff, 0, 0, 0, this.cup, 12);
+    cyl(.067, .067, .03, color, 0, .03, 0, this.cup, 12);
+    this.cup.visible = false;
+    this.head = new THREE.Group(); this.head.position.y = 1.18; torso.add(this.head);
     const head = new THREE.Mesh(new THREE.SphereGeometry(.25, 24, 16), mat(SKIN));
-    head.position.y = 1.42; head.castShadow = true; g.add(head);
+    head.position.y = .24; head.castShadow = true; this.head.add(head);
     const hair = new THREE.Mesh(new THREE.SphereGeometry(.265, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), mat(def.hair));
-    hair.position.y = 1.45; hair.rotation.x = -.25; g.add(hair);
+    hair.position.y = .27; hair.rotation.x = -.25; this.head.add(hair);
     for (const x of [-.09, .09]) {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(.03, 8, 8), mat(0x1d2433));
-      eye.position.set(x, 1.44, .22); g.add(eye);
+      eye.position.set(x, .26, .22); this.head.add(eye);
     }
+    this.workKind = workScreen(def.role);
+    this.act = ""; this.actMode = ""; this.actAt = 0; this.actDur = 0; this.yaw = 0;
     g.position.set(this.seat.x, 0, this.seat.z);
     g.rotation.y = Math.PI;
     scene.add(g);
@@ -634,6 +645,7 @@ class Agent {
   }
   dispose() {
     this._settle(false); clearTimeout(this._bt);
+    this.tv?.dispose();
     if (this.ghost) return;
     scene.remove(this.group); dispose(this.group); this.label.remove();
   }
@@ -686,32 +698,89 @@ class Agent {
       else { g.position.x += dx / dist * step; g.position.z += dz / dist * step; }
       if (!this.path.length) { this.mode = "stand"; this._settle(true); }
     }
-    let d = this.targetRot - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
-    g.rotation.y += d * Math.min(1, dt * 10);
-    const s = Math.sin(this.t * 10), seated = this.mode === "sit" || this.mode === "type";
-    const pose = { legL: 0, legR: 0, armL: 0, armR: 0, y: 0 };
+    const seated = this.mode === "sit" || this.mode === "type";
+    const pose = { legL: 0, legR: 0, armL: 0, armR: 0, armLz: 0, armRz: 0, headX: 0, headY: 0, lean: 0, yaw: 0, y: 0, cup: false };
+    const t = this.t, s = Math.sin(t * 10);
     if (this.mode === "walk") Object.assign(pose, { legL: s * .6, legR: -s * .6, armL: -s * .5, armR: s * .5, y: Math.abs(s) * .05 });
-    else if (seated) {
-      Object.assign(pose, { legL: -1.45, legR: -1.45, y: -.02 });
-      if (this.mode === "type") { pose.armL = -1.1 + Math.sin(this.t * 22) * .12; pose.armR = -1.1 + Math.cos(this.t * 19) * .12; }
-      else pose.armL = pose.armR = -.5;
-    } else if (this.mode === "talk") { pose.armR = -.6 + Math.sin(this.t * 4) * .4; pose.y = Math.abs(Math.sin(this.t * 3)) * .02; }
-    else if (this.mode === "write") pose.armR = -2.2 + Math.sin(this.t * 8) * .25;
-    else if (this.mode === "coffee") { pose.armR = -1.3; pose.y = Math.sin(this.t * 1.5) * .01; }
-    else pose.y = Math.sin(this.t * 1.5) * .01;
-    const k = Math.min(1, dt * 12);
-    this.legs[0].rotation.x += (pose.legL - this.legs[0].rotation.x) * k;
-    this.legs[1].rotation.x += (pose.legR - this.legs[1].rotation.x) * k;
-    this.arms[0].rotation.x += (pose.armL - this.arms[0].rotation.x) * k;
-    this.arms[1].rotation.x += (pose.armR - this.arms[1].rotation.x) * k;
+    else if (seated || this.mode === "coffee") this.doAct(pose, seated);
+    else if (this.mode === "talk") Object.assign(pose, { armR: -.6 + Math.sin(t * 4) * .4, headY: Math.sin(t * 1.3) * .25, y: Math.abs(Math.sin(t * 3)) * .02 });
+    else if (this.mode === "write") Object.assign(pose, { armR: -2.2 + Math.sin(t * 8) * .25, headX: -.12, headY: Math.sin(t * 2) * .1 });
+    else Object.assign(pose, { y: Math.sin(t * 1.5) * .01, headY: Math.sin(t * .7) * .3 });
+    if (seated) { pose.legL = pose.legR = -1.45; pose.y = -.02; }
+
+    const k = Math.min(1, dt * 10), lerp = (o, key, v) => (o[key] += (v - o[key]) * k);
+    this.yaw += (pose.yaw - this.yaw) * k;
+    let d = this.targetRot + this.yaw - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
+    g.rotation.y += d * Math.min(1, dt * 10);
+    lerp(this.legs[0].rotation, "x", pose.legL); lerp(this.legs[1].rotation, "x", pose.legR);
+    lerp(this.arms[0].rotation, "x", pose.armL); lerp(this.arms[1].rotation, "x", pose.armR);
+    lerp(this.arms[0].rotation, "z", pose.armLz); lerp(this.arms[1].rotation, "z", pose.armRz);
+    lerp(this.head.rotation, "x", pose.headX); lerp(this.head.rotation, "y", pose.headY);
+    lerp(this.body.rotation, "x", pose.lean);
+    this.cup.visible = pose.cup;
+    if (this.mug) this.mug.visible = !(pose.cup && this.atDesk());
     g.position.y = pose.y + (seated ? .02 : 0);
   }
+  atDesk() { const p = this.group.position; return Math.hypot(p.x - this.seat.x, p.z - this.seat.z) < .35; }
+  /** 앉아 있거나 커피 코너에 있을 때의 자연스러운 행동. 몇 초마다 ACTS 에서 하나를 고른다. */
+  doAct(pose, seated) {
+    const list = this.mode === "coffee" ? "coffee" : this.mode === "type" ? "type" : this.atDesk() ? "sit" : "lounge";
+    if (list !== this.actMode || this.t - this.actAt > this.actDur) {
+      [this.act, this.actDur] = list !== this.actMode && list === "type" ? ["typing", 3 + Math.random() * 3] : pickAct(ACTS[list], this.act);
+      this.actMode = list; this.actAt = this.t;
+    }
+    const t = this.t, p = (t - this.actAt) / this.actDur, u = env(p), rest = seated ? -.55 : 0;
+    Object.assign(pose, { armL: rest, armR: rest });
+    switch (this.act) {
+      case "typing":
+        Object.assign(pose, { armL: -1.1 + Math.sin(t * 22) * .12, armR: -1.1 + Math.cos(t * 19) * .12, armLz: .1, armRz: -.1, headX: .2 + Math.sin(t * 2.3) * .04, lean: .06 });
+        break;
+      case "scroll": case "browse":
+        Object.assign(pose, { armR: -1.05 + Math.sin(t * 3) * .05, armRz: -.04 + Math.sin(t * 1.7) * .07, armL: -.65, headX: .1, headY: Math.sin(t * .8) * .1 });
+        if (this.act === "browse") pose.lean = -.05;
+        break;
+      case "think":
+        Object.assign(pose, { armR: -2.35, armRz: -.42, armL: -.85, armLz: .12, headX: .02, headY: .18 + Math.sin(t * .6) * .05 });
+        break;
+      case "sip": {
+        const drink = p > .3 && p < .75;
+        Object.assign(pose, { armR: rest + (-2.25 - rest) * u, armRz: -.5 * u, headX: drink ? -.2 : 0, cup: true });
+        if (seated) pose.armL = -.6;
+        break;
+      }
+      case "hold":
+        Object.assign(pose, { armR: -1.25, armRz: -.25, headY: Math.sin(t * .9) * .25, cup: true });
+        break;
+      case "stretch":
+        Object.assign(pose, { armL: rest + (-3 - rest) * u, armR: rest + (-3 - rest) * u, armLz: .25 * u, armRz: -.25 * u, lean: -.14 * u, headX: -.25 * u });
+        break;
+      case "relax": // 손깍지 끼고 뒤로 기대기
+        Object.assign(pose, { armL: -2.75, armR: -2.75, armLz: .55, armRz: -.55, lean: -.16, headX: -.1, headY: Math.sin(t * .5) * .15 });
+        break;
+      case "look":
+        Object.assign(pose, { headY: Math.sin(t * 1.6) * .7, yaw: seated ? Math.sin(t * .8) * .18 : 0 });
+        break;
+      case "swivel":
+        Object.assign(pose, { yaw: Math.sin(t * 2.2) * .4, headY: -Math.sin(t * 2.2) * .2, armL: -.5, armR: -.5 });
+        break;
+      case "scratch":
+        Object.assign(pose, { armR: -2.8 + Math.sin(t * 14) * .08, armRz: -.55, headX: .1, headY: -.15 });
+        break;
+      case "lean": // 화면 쪽으로 몸을 숙여 들여다보기
+        Object.assign(pose, { armL: -.95, armR: -.95, armLz: .15, armRz: -.15, lean: .16, headX: .15 });
+        break;
+    }
+  }
+  /** 모니터: 업무 중이면 역할별 작업 화면, 자리에 있으면 브라우저·메신저·바탕화면, 자리를 비우면 잠금화면. */
   paint(now) {
-    const on = this.mode === "type";
-    if (!on && !this._lit) return;
-    this._lit = on;
-    const c = this.screen.material.color.set(on ? this.def.color : "#3a4150");
-    if (on) c.offsetHSL(0, 0, Math.sin(now / 180) * .05);
+    if (!this.tv) return;
+    let state = "lock";
+    if (this.mode !== "walk" && this.atDesk()) {
+      if (this.mode === "type") state = this.act === "scroll" || this.act === "think" ? (this.workKind === "code" ? "browse" : this.workKind) : this.workKind;
+      else if (this.act === "browse" || this.act === "typing") state = hash(Math.floor(this.actAt)) > .5 ? "chat" : "browse";
+      else state = "desktop";
+    }
+    this.tv.draw(state, now, this);
   }
   placeLabel(w, h) {
     const v = this.group.position.clone(); v.y += 1.9;
