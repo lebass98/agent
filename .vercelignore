@@ -1,0 +1,4 @@
+# Vercel 에는 정적 웹(web/)과 설정만 올린다 — .env 등 비밀값 업로드 방지
+/*
+!/web
+!/vercel.json
