@@ -795,7 +795,7 @@ class Agent {
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
     let rig = null;
-    const use3DChar = store.get("agentOffice.char3d") !== "0" && !/[?&]char=2d\b/.test(location.search);
+    const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
     if (!use3DChar) {
       try { rig = window.SpriteChars?.build(def, name) || null; }
       catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }

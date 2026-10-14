@@ -1,20 +1,17 @@
 "use strict";
-/* sprite-chars.js — 캐릭터 시트 그림을 그대로 쓰는 '그림 캐릭터'(2.5D 빌보드). docs/characters.md 의 '그림 캐릭터' 참고.
-   sprites/sprites.js(window.SPRITE_META — scripts/sprites/cut.py 가 시트에서 잘라 만든 좌표표)의 프레임을
-   카메라 쪽으로 돌린 세로 판에 붙인다. 판이 세로로 서 있어서 책상·의자·칸막이와의 앞뒤 가림이 3D 그대로 맞는다.
+/* sprite-chars.js — 초고해상도(2048px급) HD 사진 에셋 + 3D 원통형 릴리프 곡면 + 스튜디오 볼륨/림라이트 셰이더 + 실시간 태양 그림자.
+   sprites/sprites.js(window.SPRITE_META), work-seated.js, office-life.js 의 고해상도 프레임을
+   카메라를 향한 3D 곡면 릴리프 메시에 매핑하여 반실사 3D 렌더 품질로 연출한다.
 
-   app.js 의 Agent 가 쓰는 rig 계약(group·setFace·dispose·height …)을 따르되 팔다리 뼈대는 없고, 연출은 rig.sprite 가 한다.
-     update(agent, dt, seated, camera)  매 프레임: 방향·자세에 맞는 프레임을 고르고 판을 카메라로 돌린다
-       - 바라보는 방향과 카메라 방위의 차이로 정면·측면·후면을 고른다(측면 왼쪽은 오른쪽 그림의 거울상, 서 있을 때는 시트의 좌측면)
-       - 걷기: 이동 거리에 맞춰 '걷기 ↔ 서기' 두 프레임을 번갈아 보이고 위아래로 살짝 튄다
-       - 앉기/일어나기: '일어나는 중' 프레임을 잠깐 거친다. 앉은 그림에는 의자가 있으므로 그동안 자리의 3D 의자(Decor.chairNear)를 숨긴다
+   app.js 의 Agent 가 쓰는 rig 계약(group·setFace·dispose·height …)을 그대로 따른다:
+     update(agent, dt, seated, camera)  매 프레임: 방향·자세에 맞는 프레임을 고르고 3D 곡면을 카메라로 정렬
      hold(agent, dt)  자리에서 일어나는 동안 true(Agent 가 이동을 잠시 멈춘다)
-   표정(setFace)은 이름표·팀원 카드의 얼굴 아바타(app.js)가 보여 준다. */
+   표정(setFace)은 이름표·팀원 카드의 고해상도 얼굴 아바타(app.js)가 보여 준다. */
 (function () {
   const T = window.THREE, META = window.SPRITE_META;
   if (!META) return;
   const has = name => Object.hasOwn(META.chars, String(name || "").toLowerCase());
-  /** 아바타용 표정 띠: { src, n, names, index(expr) } — app.js 가 CSS 배경으로 쓴다(3D 가 없는 목록 모드에서도) */
+  /** 아바타용 표정 띠: { src, n, names, index(expr) } — app.js 가 CSS 배경으로 쓴다 */
   function faces(name) {
     const k = String(name || "").toLowerCase();
     if (!Object.hasOwn(META.chars, k)) return null;
@@ -23,47 +20,104 @@
   }
   if (!T) { window.SpriteChars = { has, faces, build: () => null, theme() {} }; return; }
   const D2R = Math.PI / 180;
-  // 정면 |rel|<30°, 후면 >150°, 그 사이는 측면(경계에서 깜빡이지 않게 ±8° 이력). 기본 시점에서 책상·회의 의자는 대각선(45°·135°)이라
-  // 경계에서 충분히 떨어져 늘 측면으로 보인다(경계가 가까우면 직전 방향에 따라 같은 자리가 측면·후면으로 갈린다)
   const FRONT = 30 * D2R, BACK = 150 * D2R, HYST = 8 * D2R;
   const STEP = .32;   // 걷기 프레임 한 장이 맡는 이동 거리(월드 단위)
-  const RISE = .35, SIT = .25; // 일어나기·앉기 전환 프레임 시간(초, 연출 배속 적용)
+  const RISE = .35, SIT = .25; // 일어나기·앉기 전환 프레임 시간(초)
+  const SEGS_X = 12, SEGS_Y = 8; // 3D 원통형 릴리프 곡면 분할 수
   const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
-  const atlases = {};
-  const lifeAtlases={};
-  function lifeAtlas(key){if(!lifeAtlases[key]){const tx=new T.TextureLoader().load(OFFICE_LIFE_META.chars[key].atlas);tx.encoding=T.sRGBEncoding;tx.anisotropy=4;lifeAtlases[key]=tx;}return lifeAtlases[key];}
-  const workAtlases = {};
+  function prepTex(tx) {
+    tx.encoding = T.sRGBEncoding;
+    tx.anisotropy = 16;
+    tx.minFilter = T.LinearMipmapLinearFilter;
+    tx.magFilter = T.LinearFilter;
+    tx.generateMipmaps = true;
+    return tx;
+  }
+
+  const atlases = {}, lifeAtlases = {}, workAtlases = {};
+  function lifeAtlas(key) {
+    if (!lifeAtlases[key]) lifeAtlases[key] = prepTex(new T.TextureLoader().load(OFFICE_LIFE_META.chars[key].atlas));
+    return lifeAtlases[key];
+  }
   function workAtlas(key) {
     if (!window.WORK_SEATED_META?.chars[key]) return null;
-    if (!workAtlases[key]) {const tx=new T.TextureLoader().load(WORK_SEATED_META.chars[key].atlas);tx.encoding=T.sRGBEncoding;tx.anisotropy=4;workAtlases[key]=tx;}
+    if (!workAtlases[key]) workAtlases[key] = prepTex(new T.TextureLoader().load(WORK_SEATED_META.chars[key].atlas));
     return workAtlases[key];
   }
- // 캐릭터별 아틀라스 텍스처(팀을 다시 만들어도 한 번만 불러 공유한다)
   function atlas(key) {
     if (atlases[key]) return atlases[key];
-    const tex = new T.TextureLoader().load(META.chars[key].atlas);
-    tex.encoding = T.sRGBEncoding;
-    tex.anisotropy = 4;
-    return (atlases[key] = tex);
+    return (atlases[key] = prepTex(new T.TextureLoader().load(META.chars[key].atlas)));
   }
-  let blobTex = null; // 발밑 그림자(가운데가 진한 원)
+
+  let blobTex = null; // 발밑 이중 소프트 접지 그림자(Ambient Occlusion)
   function blob() {
     if (blobTex) return blobTex;
-    const cv = Object.assign(document.createElement("canvas"), { width: 64, height: 64 }), c = cv.getContext("2d");
-    const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0, "rgba(0,0,0,.85)"); g.addColorStop(.45, "rgba(0,0,0,.5)"); g.addColorStop(1, "rgba(0,0,0,0)");
-    c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+    const cv = Object.assign(document.createElement("canvas"), { width: 128, height: 128 }), c = cv.getContext("2d");
+    const g = c.createRadialGradient(64, 64, 2, 64, 64, 62);
+    g.addColorStop(0, "rgba(8,10,16,.92)");
+    g.addColorStop(.38, "rgba(8,10,16,.58)");
+    g.addColorStop(.72, "rgba(8,10,16,.18)");
+    g.addColorStop(1, "rgba(8,10,16,0)");
+    c.fillStyle = g; c.fillRect(0, 0, 128, 128);
     return (blobTex = new T.CanvasTexture(cv));
   }
-  const mats = new Set(); // 테마 색조를 맞출 재질들
-  let night = 0; // 사무실 밤 정도 0(낮) ~ 1(밤) — app.js 가 해를 따라 알려 준다
-  const TINT = { light: 0xffffff, dark: 0xf1e7dc }, SHADE = { light: .32, dark: .55 };
-  const tint = () => new T.Color(TINT.light).lerp(new T.Color(TINT.dark), night), shade = () => SHADE.light + (SHADE.dark - SHADE.light) * night;
+
+  const mats = new Set();
+  let night = 0; // 사무실 밤 정도 0(낮) ~ 1(밤)
+  const TINT = { light: 0xffffff, dark: 0xf4ebe2 }, SHADE = { light: .38, dark: .62 };
+  const tint = () => new T.Color(TINT.light).lerp(new T.Color(TINT.dark), night);
+  const shade = () => SHADE.light + (SHADE.dark - SHADE.light) * night;
   function theme(n) {
     night = typeof n === "number" ? Math.min(1, Math.max(0, n)) : n ? 1 : 0;
     const c = tint(), o = shade();
-    for (const m of mats) { if (m.userData.blob) m.opacity = o; else m.color.copy(c); }
+    for (const m of mats) {
+      if (m.userData.blob) m.opacity = o;
+      else {
+        m.color.copy(c);
+        if (m.userData.uNight) m.userData.uNight.value = night;
+      }
+    }
+  }
+
+  /** 3D 원통형 릴리프 곡면 생성: 중앙이 앞으로 볼록하게 솟아올라 조명·회전 시 입체감을 형성 */
+  function createReliefGeometry() {
+    const geo = new T.PlaneGeometry(1, 1, SEGS_X, SEGS_Y);
+    geo.translate(0, 0.5, 0); // 발바닥 중심이 원점(0, 0, 0)
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i);
+      // 가로 중심(x=0)이 볼록하고 가장자리로 갈수록 부드럽게 감싸는 3D 실린더 릴리프 곡면
+      const archX = Math.cos(x * Math.PI * 0.92);
+      const archY = Math.sin(Math.min(1, Math.max(0, y)) * Math.PI);
+      pos.setZ(i, archX * 0.055 + archY * 0.018);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  /** 반실사 3D 스튜디오 셰이더 주입: 상단 키라이트 + 하단 접지 AO + 측면 3D 곡면 림라이트 */
+  function applyStudio3DShader(mat) {
+    const uNight = { value: night };
+    mat.userData.uNight = uNight;
+    mat.onBeforeCompile = shader => {
+      shader.uniforms.uNight = uNight;
+      shader.vertexShader = "varying vec2 vLocalPos;\n" + shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvLocalPos = vec2(position.x, position.y);"
+      );
+      shader.fragmentShader = "varying vec2 vLocalPos;\nuniform float uNight;\n" + shader.fragmentShader.replace(
+        "#include <map_fragment>",
+        `#include <map_fragment>
+        // 1) 수직 스튜디오 키라이트 & 발밑 접지 AO 그라데이션
+        float vGrad = smoothstep(0.0, 0.22, vLocalPos.y) * 0.09 + smoothstep(0.45, 0.98, vLocalPos.y) * 0.045 - 0.04;
+        // 2) 가로 3D 원통형 볼륨 하이라이트 & 따뜻한 스튜디오 림라이트
+        float dome = cos(vLocalPos.x * 2.6) * 0.035;
+        float rim = smoothstep(0.26, 0.48, abs(vLocalPos.x)) * smoothstep(0.25, 0.92, vLocalPos.y) * (0.045 + uNight * 0.035);
+        vec3 rimTint = mix(vec3(1.0, 0.99, 0.97), vec3(1.0, 0.91, 0.80), uNight);
+        diffuseColor.rgb = clamp(diffuseColor.rgb * (1.0 + vGrad + dome) + rimTint * rim, 0.0, 1.0);`
+      );
+    };
   }
 
   function build(def, name) {
@@ -72,10 +126,18 @@
     const C = META.chars[key], [AW, AH] = C.size;
     const group = new T.Group();
     const pivot = new T.Group(); group.add(pivot); // 카메라 쪽으로 도는 축(발 중심)
-    const geo = new T.PlaneGeometry(1, 1); geo.translate(0, .5, 0); // 아래 가운데가 원점
-    const mat = new T.MeshBasicMaterial({ map: atlas(key), alphaTest: .12, color: tint(), toneMapped: false });
-    mat.alphaToCoverage = true; // MSAA 로 가장자리를 부드럽게(정렬 문제 없는 불투명 패스)
-    const mesh = new T.Mesh(geo, mat); pivot.add(mesh);
+    const geo = createReliefGeometry();
+    const baseTex = atlas(key);
+    const mat = new T.MeshBasicMaterial({ map: baseTex, alphaTest: .08, color: tint(), toneMapped: false });
+    mat.alphaToCoverage = true; // MSAA 서브픽셀 외곽선 안티앨리어싱
+    applyStudio3DShader(mat);
+
+    const mesh = new T.Mesh(geo, mat);
+    mesh.castShadow = true; // 실제 해/조명 방향으로 사람 모양 3D 그림자 투사
+    const depthMat = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: baseTex, alphaTest: .32 });
+    mesh.customDepthMaterial = depthMat;
+    pivot.add(mesh);
+
     const shadowMat = new T.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false, opacity: shade() });
     shadowMat.userData.blob = true;
     const shadow = new T.Mesh(new T.PlaneGeometry(1, 1), shadowMat);
@@ -84,26 +146,36 @@
 
     const uv = geo.attributes.uv;
     let cur = "", curMirror = false, frameH = 1.75;
-    /** 프레임 교체: UV(거울상이면 좌우 바꿈)·크기·발 중심 맞춤 */
+    /** 프레임 교체: 세분화된 3D 곡면 UV 전체 보간·크기·발 중심 맞춤 */
     function setFrame(fname, mirror, hk) {
-      const work=fname.startsWith("work.") && window.WORK_SEATED_META?.chars[key];
-      const life=fname.startsWith("life.") && window.OFFICE_LIFE_META?.chars[key];
+      const work = fname.startsWith("work.") && window.WORK_SEATED_META?.chars[key];
+      const life = fname.startsWith("life.") && window.OFFICE_LIFE_META?.chars[key];
       const f = life ? life.frames[fname.slice(5)] : work ? work.frames[fname] : C.frames[fname] || C.frames["stand.front"];
-      const [atlasW,atlasH]=life ? life.size : work ? work.size : [AW,AH];
-      mat.map=life ? lifeAtlas(key) : work ? workAtlas(key) : atlas(key);
+      const [atlasW, atlasH] = life ? life.size : work ? work.size : [AW, AH];
+      const activeTex = life ? lifeAtlas(key) : work ? workAtlas(key) : atlas(key);
+      if (mat.map !== activeTex) {
+        mat.map = activeTex;
+        depthMat.map = activeTex;
+        depthMat.needsUpdate = true;
+      }
       const [x, y, w, h, ax, ppu] = f;
       if (fname !== cur || mirror !== curMirror) {
         cur = fname; curMirror = mirror;
         const u0 = x / atlasW, u1 = (x + w) / atlasW, vt = 1 - y / atlasH, vb = 1 - (y + h) / atlasH;
         const L = mirror ? u1 : u0, R = mirror ? u0 : u1;
-        uv.setXY(0, L, vt); uv.setXY(1, R, vt); uv.setXY(2, L, vb); uv.setXY(3, R, vb);
+        for (let iy = 0, idx = 0; iy <= SEGS_Y; iy++) {
+          const v = vt + (vb - vt) * (iy / SEGS_Y);
+          for (let ix = 0; ix <= SEGS_X; ix++, idx++) {
+            uv.setXY(idx, L + (R - L) * (ix / SEGS_X), v);
+          }
+        }
         uv.needsUpdate = true;
         mesh.position.x = (mirror ? -1 : 1) * (w / 2 - ax) / ppu;
       }
       mesh.scale.set(w / ppu, h / ppu * hk, 1);
       frameH = h / ppu * hk;
     }
-    /** 종류(stand·walk·sit·rise)와 방향(front·back·R·L)으로 프레임 이름·거울상. cycle 이면 왼쪽 서기도 오른쪽 그림의 거울상(걷기와 소품 손이 같게) */
+
     function pick(kind, view, cycle) {
       if (kind === "rise") return ["rise.middle", view === "L"];
       if (view === "front" || view === "back") return [`${kind}.${view}`, false];
@@ -115,7 +187,6 @@
     const _d = new T.Vector3();
     function chooseView(rel) {
       const a = Math.abs(rel), side = Math.sin(rel) >= 0 ? "R" : "L", v = st.view;
-      // 지금 방향을 경계 밖 8° 까지는 유지한다
       if (v === "front" && a < FRONT + HYST) return "front";
       if (v === "back" && a > BACK - HYST) return "back";
       if ((v === "R" || v === "L") && a > FRONT - HYST && a < BACK + HYST) return Math.abs(Math.sin(rel)) < .05 ? v : side;
@@ -131,7 +202,7 @@
 
     const sprite = {
       hold(a, dt) {
-        if (st.wasSeated && a.mode === "walk") { st.wasSeated = false; st.rise = RISE; } // 앉아 있다가 걷기 시작: 먼저 일어난다
+        if (st.wasSeated && a.mode === "walk") { st.wasSeated = false; st.rise = RISE; }
         if (st.rise > 0) { st.rise -= dt; return st.rise > 0; }
         return false;
       },
@@ -139,21 +210,19 @@
         st.t += dt;
         const p = group.position, moved = Math.hypot(p.x - st.px, p.z - st.pz);
         st.px = p.x; st.pz = p.z;
-        const walking = a.mode === "walk" && moved > 1e-4 && moved < .5; // 순간 이동은 걸음으로 치지 않는다
+        const walking = a.mode === "walk" && moved > 1e-4 && moved < .5;
         if (walking) st.dist += moved;
-        if (seated && !st.wasSeated) st.sit = SIT;          // 막 앉았다: '일어나는 중'을 거꾸로 잠깐
-        if (!seated && st.wasSeated && st.rise <= 0) st.rise = RISE; // 걷기 말고 다른 이유로 일어남(서서 이야기 등)
+        if (seated && !st.wasSeated) st.sit = SIT;
+        if (!seated && st.wasSeated && st.rise <= 0) st.rise = RISE;
         st.wasSeated = seated;
         if (st.sit > 0) st.sit -= dt;
         const rising = st.rise > 0 && !seated;
-        if (rising && a.mode !== "walk") st.rise -= dt;       // 걷기면 hold() 가 줄인다
+        if (rising && a.mode !== "walk") st.rise -= dt;
 
-        // 카메라 방위·높이: 판은 수직으로 세워 카메라 쪽으로 돌리고, 위에서 내려다보며 납작해 보이는 만큼 키를 조금 늘린다
         camera.getWorldDirection(_d);
         const camYaw = Math.atan2(-_d.x, -_d.z), elev = Math.asin(Math.min(1, Math.max(0, -_d.y)));
         const hk = Math.min(1.2, 1 / Math.sqrt(Math.max(.3, Math.cos(elev))));
         pivot.rotation.y = camYaw - group.rotation.y;
-        // 앉아 있을 때는 의자 돌리기·두리번(yaw)에 흔들리지 않게 목표 방향으로 고른다
         const facing = seated ? a.targetRot : group.rotation.y;
         st.view = chooseView(wrap(facing - camYaw));
 
@@ -167,28 +236,30 @@
           bob = .035 * Math.sin(Math.PI * (ph % 1));
         } else breathe = Math.sin(st.t * 2.1) * .006;
         if (seated && kind === "sit") {
-          if (a.mode === "type" || a.act === "typing") bob = Math.abs(Math.sin(st.t * 9)) * .006;      // 타이핑: 어깨가 잘게
-          else if (a.mode === "talk" && a.act === "gesture") bob = Math.abs(Math.sin(st.t * 3)) * .012; // 말하며 손짓
+          if (a.mode === "type" || a.act === "typing") bob = Math.abs(Math.sin(st.t * 9)) * .006;
+          else if (a.mode === "talk" && a.act === "gesture") bob = Math.abs(Math.sin(st.t * 3)) * .012;
           else breathe = Math.sin(st.t * 1.8) * .005;
         }
-        const workingSeat=kind==="sit" && seated && a.lifePose!=="lounge" && !!window.WORK_SEATED_META?.chars[key];
-        const [fname, mirror] = workingSeat ? (st.view==="front" || st.view==="back" ? [`work.${st.view}`,false] : ["work.sideR",st.view==="L"]) : pick(kind, st.view, cycle);
-        const lifePose=!walking && !rising && window.OFFICE_LIFE_META?.chars[key] && (["lounge","tea"].includes(a.lifePose) ? a.lifePose : (a.presenting ? "present" : ""));
+        const workingSeat = kind === "sit" && seated && a.lifePose !== "lounge" && !!window.WORK_SEATED_META?.chars[key];
+        const [fname, mirror] = workingSeat ? (st.view === "front" || st.view === "back" ? [`work.${st.view}`, false] : ["work.sideR", st.view === "L"]) : pick(kind, st.view, cycle);
+        const lifePose = !walking && !rising && window.OFFICE_LIFE_META?.chars[key] && (["lounge", "tea"].includes(a.lifePose) ? a.lifePose : (a.presenting ? "present" : ""));
         setFrame(lifePose ? `life.${lifePose}` : fname, lifePose ? st.view === "L" : mirror, (workingSeat || lifePose ? 1 : hk) * (1 + breathe));
         pivot.position.y = bob + (a.lifeSeatY || 0);
         hideChair((seated || kind === "rise") && lifePose !== "lounge");
-        // 그림자: 서 있으면 발 크기, 의자에 앉으면 의자 다리 크기
-        const s = kind === "sit" || kind === "rise" ? 1.05 : walking ? .78 - bob * 2 : .72;
-        shadow.scale.set(s, s * .8, 1);
+        const s = kind === "sit" || kind === "rise" ? 1.08 : walking ? .82 - bob * 2 : .76;
+        shadow.scale.set(s, s * .82, 1);
         rig.height = frameH + bob + .1;
       },
     };
     const rig = {
       group, legs: [], arms: [], body: new T.Object3D(), head: new T.Object3D(), cup: new T.Object3D(), props: {},
       preset: { tablet: false, laptop: null, laptopOpen: false, cupAlways: false, pocket: null },
-      height: 1.95, sprite, faceStrip: faces(key), frame: () => (curMirror ? `${cur}~` : cur), // frame(): 지금 프레임 이름(~ 는 거울상, 점검용)
-      setFace() {}, // 얼굴은 그림에 그려져 있다 — 표정은 아바타(app.js)가 맡는다
-      dispose() { hideChair(false); mats.delete(mat); mats.delete(shadowMat); geo.dispose(); mat.dispose(); shadow.geometry.dispose(); shadowMat.dispose(); },
+      height: 1.95, sprite, faceStrip: faces(key), frame: () => (curMirror ? `${cur}~` : cur),
+      setFace() {},
+      dispose() {
+        hideChair(false); mats.delete(mat); mats.delete(shadowMat);
+        geo.dispose(); mat.dispose(); depthMat.dispose(); shadow.geometry.dispose(); shadowMat.dispose();
+      },
     };
     return rig;
   }
