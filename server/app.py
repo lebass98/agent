@@ -12,6 +12,7 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, WebSocket
 from fastapi.responses import HTMLResponse, Response
@@ -231,6 +232,17 @@ class RunIn(BaseModel):
     goal: str = ""
 
 
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class AskIn(BaseModel):
+    name: str
+    message: str = ""
+    history: list[ChatMessage] = []
+
+
 # ── 앱 ────────────────────────────────────────────────
 def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False) -> FastAPI:
     """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일)."""
@@ -250,6 +262,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
 
     app = FastAPI(title="멀티 에이전트 팀", lifespan=lifespan)
     app.state.hub, app.state.task, app.state.dev = hub, None, dev_hub
+    app.state.chatting = False
 
     def key_ok(key: str | None) -> bool:
         return not access_key or secrets.compare_digest((key or "").encode(), access_key.encode())
@@ -283,13 +296,38 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         if len(goal) > GOAL_LIMIT:
             raise HTTPException(400, f"업무 목표는 {GOAL_LIMIT:,}자 이내로 입력하세요.")
         # 확인과 시작 사이에 await 가 없으므로 동시 요청이 둘 다 시작될 수 없다
-        if app.state.task and not app.state.task.done():
+        if app.state.chatting or (app.state.task and not app.state.task.done()):
             raise HTTPException(409, "이미 진행 중인 업무가 있습니다.")
         run_id = _new_run_id(runs_dir)
         task = asyncio.create_task(team.run(goal, runs_dir, emit=hub.publish, run_id=run_id))
         task.add_done_callback(finished)
         app.state.task = task  # 강한 참조 유지 (GC 방지)
         return {"run_id": run_id}
+
+    @api.post("/ask")
+    async def ask_member(body: AskIn):
+        if body.name not in team.members:
+            raise HTTPException(404, "팀원을 찾을 수 없습니다.")
+        message = body.message.strip()
+        if not message or len(message) > GOAL_LIMIT:
+            raise HTTPException(400, "질문은 1~4,000자로 입력하세요.")
+        if len(body.history) > 12 or any(len(m.content) > 20_000 for m in body.history) or sum(len(m.content) for m in body.history) > 24_000:
+            raise HTTPException(400, "대화가 너무 깁니다. 새 대화를 시작하세요.")
+        if app.state.chatting or (app.state.task and not app.state.task.done()):
+            raise HTTPException(409, "진행 중인 응답이나 팀 업무가 끝난 뒤 다시 말 걸어 주세요.")
+        app.state.chatting = True
+        try:
+            history = "\n\n".join(f"{'사용자' if m.role == 'user' else '당신'}: {m.content}" for m in body.history)
+            prompt = f"##CHAT##\n사무실에서 사용자가 당신에게 말을 걸었습니다. 자신의 역할에 맞춰 한국어로 자연스럽게 답하세요. 인사는 짧게, 질문은 구체적으로 답하세요.\n\n[이전 대화]\n{history}\n\n[사용자 질문]\n{message}"
+            answer = await asyncio.wait_for(team.ask(body.name, prompt), timeout=180)
+            return {"name": body.name, "answer": str(answer)[:20_000], "mock": team.mock}
+        except TimeoutError:
+            raise HTTPException(504, "답변 시간이 초과되었습니다. 잠시 후 다시 시도하세요.")
+        except Exception:
+            log.exception("팀원 대화 실패: %s", body.name)
+            raise HTTPException(502, "답변을 받지 못했습니다. 서버의 모델 연결 상태를 확인하세요.")
+        finally:
+            app.state.chatting = False
 
     @api.get("/runs")
     def list_runs():

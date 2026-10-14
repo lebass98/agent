@@ -58,6 +58,7 @@
 |---|---|---|
 | `GET` | `/api/team` | 팀 구성 (`team` 과 같은 형식) |
 | `POST` | `/api/run` | `{ "goal": "..." }` 업무 시작 → `{ "run_id": "..." }`. 빈 목표·4,000자 초과 `400`, 진행 중 `409`, 형식 오류 `422` |
+| `POST` | `/api/ask` | `{name, message, history?: [{role: "user" 또는 "assistant", content}]}` → `{name, answer, mock}`. 선택한 팀원에게 개인 질문. 빈 질문·4,000자 초과·이력 12건/24,000자 초과 `400`, 없는 팀원 `404`, 팀 업무/응답 진행 중 `409`, 연결 실패 `502`, 180초 초과 `504`. 동일 접속 키 인증 사용. |
 | `GET` | `/api/runs` | 지난 실행 목록(최신순, 최대 50건) `[{run_id, goal, created, has_report, has_error}]` |
 | `GET` | `/api/runs/{run_id}` | `{run_id, goal, plan, tasks: [{file, content}], report, error}` — `plan` 은 plan.json(없으면 `null`), `tasks` 는 task-*.md 번호순, `report`·`error` 는 없으면 `null`. 없는 id 는 `404` |
 

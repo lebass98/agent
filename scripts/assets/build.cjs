@@ -8,7 +8,7 @@ const element = () => ({style:{},dataset:{},classList:{add(){}},appendChild(){},
 const window = {THREE, dispatchEvent(){}};
 const sandbox = {window, THREE, document:{createElement:element, getElementById:()=>element(),body:element()}, Event:class{}, console, Math};
 vm.createContext(sandbox);
-for (const file of ['characters.js','decor.js']) vm.runInContext(fs.readFileSync(path.join(root,'web',file),'utf8'), sandbox);
+for (const file of ['model-kit.js','apple-assets.js','characters.js','decor.js']) {vm.runInContext(fs.readFileSync(path.join(root,'web',file),'utf8'),sandbox);sandbox.ModelKit=window.ModelKit;sandbox.AppleAssets=window.AppleAssets;}
 const out = path.join(root,'web/assets/3d'); fs.mkdirSync(out,{recursive:true});
 function exportOBJ(group, name) {
   group.updateMatrixWorld(true);
@@ -42,6 +42,9 @@ for(const name of ['claude','gpt','gemini']) {
   const height=new THREE.Box3().setFromObject(rig.group);
   if(Math.abs(height.min.y)>1e-5 || Math.abs(height.max.y-rig.group.userData.height)>1e-5) throw Error('캐릭터 키/접지 검증 실패');
 }
+const apple=new THREE.Group();
+for(const [i,name] of ['Studio Display','Mac mini','Magic Keyboard','Magic Mouse','MacBook','iPad','Apple TV','HomePod mini'].entries()){const a=window.AppleAssets.build(name).group;a.position.set((i%4)*.8,0,Math.floor(i/4)*.7);apple.add(a);}
+exportOBJ(apple,'apple');
 const office=new THREE.Group(); window.Decor.build(office,{small:true});
 for(const [i,p] of window.Decor.spots(3).entries()) window.Decor.deskSet(office,{...p.desk,exec:i===0,mats:[new THREE.MeshStandardMaterial({color:0x162434}),new THREE.MeshStandardMaterial({color:0x162434})],label:''});
 exportOBJ(office,'office');

@@ -1,4 +1,11 @@
 /* Agent Office v2 — 사무실 중심의 워크스페이스. 서버/뷰 DOM 계약을 유지한다. */
+.character-transcript { display:grid; gap:12px; max-height:38vh; overflow:auto; margin-bottom:16px; }
+.character-message { padding:12px 14px; border-radius:12px; background:var(--panel-2); overflow-wrap:anywhere; }
+.character-message.user { background:var(--accent-weak); margin-left:28px; }
+.character-message > strong { display:block; margin-bottom:6px; font-size:12px; color:var(--accent-text); }
+.character-message p { margin:4px 0; white-space:pre-wrap; }
+.character-quick { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+#characterQuestion { width:100%; resize:vertical; box-sizing:border-box; }
 :root { --tb-h:88px; --side-w:80px; --right-w:326px; --gap:16px; --cmd-h:64px; --dash-left:96px; --dash-right:358px; --dash-bottom:220px; }
 :root[data-theme="dark"] { --bg:#111419; --panel:#191e25; --panel-2:#1d232c; --panel-3:#252d38; --line:#2b3441; --line-strong:#3b495b; --text:#f0f3f8; --text-2:#c4cdd9; --muted:#9caabb; --faint:#7e8c9e; --accent:#6aabff; --accent-btn:#438cf1; --accent-text:#8dbdff; --accent-weak:#21364e; --accent-off:#34475f; --grad:linear-gradient(135deg,#6baaff,#438cf1); --chip:#232b36; --track:#303b49; --code:#11171e; --shadow:0 6px 24px #0002; --ok:#89e8b7; --ok-weak:#193b30; --ok-dot:#67dfa0; }
 .dashboard-v2 .topbar { left:var(--dash-left); right:16px; padding:12px 0; height:88px; display:flex; border:0; background:var(--bg); gap:16px; }
@@ -129,3 +136,8 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .dashboard-v2 .task-shelf [data-pane="board"] { display:flex !important; }
 .dashboard-v2 .task-shelf .card h3,.dashboard-v2 .right .card h3 { display:flex; }
 @media(max-width:760px) { .dashboard-v2 .command { bottom:calc(12px + var(--safe-b) + var(--kb,0px)); }.dashboard-v2 .command input { font-size:16px; }.dashboard-v2 .dock.open .right { pointer-events:auto; } }
+
+/* 모든 공간: 좁은 화면은 가로 스크롤, 팀 활동 버튼 자리는 비워 둔다. */
+.room-switch { max-width:calc(100% - 24px);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;pointer-events:auto;touch-action:pan-x; }
+.room-switch button { flex:none;white-space:nowrap;min-height:32px; }
+@media(max-width:760px) { .room-switch { max-width:calc(100% - 96px); }.room-switch button { min-height:30px; } }

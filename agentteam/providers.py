@@ -112,6 +112,9 @@ async def _mock(m: Member, prompt: str, system: str) -> str:
     delay = float(os.getenv("MOCK_DELAY", "0"))
     if delay:
         await asyncio.sleep(delay * random.uniform(0.6, 1.6))
+    if prompt.startswith("##CHAT##"):
+        question = prompt.rsplit("[사용자 질문]\n", 1)[-1]
+        return f"{m.name}입니다. 말씀하신 ‘{question[:120]}’ 잘 들었어요. 제 역할은 {m.role.split('.')[0]}입니다. 함께 정리해 볼까요?\n\n(모의 답변입니다. 실제 실행에서는 연결된 모델이 질문에 답합니다.)"
     if "##PLAN##" in prompt:
         names = re.findall(r"^- (\w+):", prompt, re.M)
         n = lambda i: names[i % len(names)]  # noqa: E731

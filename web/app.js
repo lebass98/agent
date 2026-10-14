@@ -139,7 +139,7 @@ let KEY = (() => {
    three.js 를 불러오지 못했거나(오프라인·차단) WebGL 을 쓸 수 없으면 HAS3D=false 로, 3D 없이 목록 모드로 동작한다.
    이때도 연결·이벤트 처리·보드·로그·카드·업무 지시는 그대로 돈다(캐릭터는 위치만 가진 '유령'이 된다). */
 const SMALL = mqMobile.matches || Math.min(screen.width, screen.height) < 700;
-/* 평면도(decor.js 의 Decor 가 기준). 방: 현관(앞-왼쪽)·탕비실(뒤-왼쪽)·업무 공간(가운데)·대표님실(뒤-오른쪽)·회의실(오른쪽)·라운지(앞-오른쪽).
+/* 평면도(decor.js 의 Decor 가 기준). 방: 현관(앞-왼쪽)·탕비실(뒤-왼쪽)·업무 공간(가운데)·팀장실(뒤-오른쪽)·회의실(오른쪽)·라운지(앞-오른쪽).
    decor.js 가 없으면 같은 좌표의 최소값으로 동작한다(가구 없는 단순 사무실·직선 이동). */
 const HAS_DECOR = typeof Decor !== "undefined" && !!Decor.rooms;
 const OW = HAS_DECOR ? Decor.OW : 32, OD = HAS_DECOR ? Decor.OD : 22;     // 사무실 가로·세로
@@ -157,12 +157,12 @@ const ROOMS = HAS_DECOR ? Decor.rooms : {                                 // 이
   lobby: { x0: -16, x1: -9.5, z0: 4, z1: 11, label: "현관", door: { x: -9.5, z: 7.5, axis: "z", w: 1.6 } },
   pantry: { x0: -16, x1: -8.5, z0: -11, z1: -4, label: "탕비실", door: { x: -10, z: -4, axis: "x", w: 1.6 } },
   work: { x0: -8.5, x1: 5, z0: -11, z1: 11, label: "업무 공간", door: null },
-  exec: { x0: 5, x1: 16, z0: -11, z1: -3.5, label: "대표님실", door: { x: 5, z: -4.5, axis: "z", w: 1.6 } },
+  exec: { x0: 5, x1: 16, z0: -11, z1: -3.5, label: "팀장실", door: { x: 5, z: -4.5, axis: "z", w: 1.6 } },
   meeting: { x0: 5, x1: 16, z0: -3.5, z1: 4.5, label: "회의실", door: { x: 5, z: 3.5, axis: "z", w: 1.6 } },
   lounge: { x0: 5, x1: 16, z0: 4.5, z1: 11, label: "라운지", door: null },
 };
 const BOOTH = { x0: ROOMS.meeting.x0, x1: ROOMS.meeting.x1, z0: ROOMS.meeting.z0, z1: ROOMS.meeting.z1, door: .8, h: HAS_DECOR ? Decor.PART_H : 2.6 }; // 회의실(유리 칸막이) 영역 — 예전 이름 유지
-const MAX_DESKS = 9; // 3D 자리는 9명까지(대표님실 1 + 업무 공간 3줄×3). 그 이상은 목록·보드에만 표시
+const MAX_DESKS = 9; // 3D 자리는 9명까지(팀장실 1 + 업무 공간 3줄×3). 그 이상은 목록·보드에만 표시
 let renderer = null, scene = null, camera = null, controls = null, hemi = null, sun = null, teamGroup = null, CAM_OFF = null;
 let strokes = [], OFFICE_PTS = [], ACT_PTS = [];
 const themed = {};
@@ -177,7 +177,11 @@ function cyl(rt, rb, h, color, x, y, z, parent = scene, seg = 20) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(color));
   m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m;
 }
-function dispose(obj) { obj.traverse(o => { o.geometry?.dispose(); o.material?.map?.dispose(); o.material?.dispose(); }); } // 캔버스 텍스처(명패·화면)도 GPU 에서 내린다
+function dispose(obj) {
+  const resources=new Set();
+  obj.traverse(o=>{if(o.geometry)resources.add(o.geometry);for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m){for(const v of Object.values(m))if(v?.isTexture)resources.add(v);resources.add(m);}});
+  for(const resource of resources)resource.dispose();
+} // 캔버스 텍스처(명패·화면)도 GPU 에서 내린다
 
 /** 장면을 만든다. three.js·OrbitControls 가 없거나 WebGL 컨텍스트를 만들 수 없으면 false. */
 function init3D() {
@@ -190,19 +194,24 @@ function init3D() {
     return false;
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .88;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("role", "img");
-  renderer.domElement.setAttribute("aria-label", "에이전트들이 일하는 3D 사무실. 드래그로 회전, 휠이나 두 손가락으로 확대");
+  renderer.domElement.tabIndex = 0;
+  renderer.domElement.setAttribute("aria-label", "3D 사무실. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.");
   $("stage").append(renderer.domElement);
 
   scene = new THREE.Scene();
+  if (window.ModelKit) scene.environment = ModelKit.environment(renderer).texture;
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   CAM_OFF = new THREE.Vector3(22, 20, 22);
   camera.position.copy(CAM_OFF);
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   Object.assign(controls, {
-    enablePan: false, enableDamping: true, minZoom: .6, maxZoom: mqMobile.matches ? 3.2 : 2.2, minPolarAngle: .5, maxPolarAngle: 1.2,
+    enablePan: true, screenSpacePanning: true, panSpeed: .65, enableDamping: true, minZoom: .6, maxZoom: mqMobile.matches ? 6.4 : 4.4, minPolarAngle: .5, maxPolarAngle: 1.2,
   });
 
   hemi = new THREE.HemisphereLight(0xffffff, 0xc9d2e3, .78);
@@ -261,7 +270,7 @@ function showStroke() { if (strokeN < strokes.length) strokes[strokeN++].visible
 function clearStrokes() { strokes.forEach(s => (s.visible = false)); strokeN = 0; }
 
 /** 책상 세트: 원목 상판·듀얼 모니터·키보드·마우스·머그·램프·화분·서랍장·칸막이·의자. 두 화면은 팀원별 캔버스(Screen) 두 개가 각각 칠한다.
-    opts.exec 면 대표님실의 짙은 원목 책상(가죽 의자·왕관 명패). 돌려주는 값 { screen, mug }. decor.js 가 없으면 단순 책상. */
+    opts.exec 면 팀장실의 짙은 원목 책상(가죽 의자·왕관 명패). 돌려주는 값 { screen, mug }. decor.js 가 없으면 단순 책상. */
 function desk(x, z, w, mats, opts = {}) {
   const g = teamGroup;
   if (HAS_DECOR && typeof Decor.deskSet === "function") {
@@ -289,7 +298,7 @@ function desk(x, z, w, mats, opts = {}) {
   cyl(.32, .32, .1, 0x2a2d35, x, .5, sz, g); box(.52, .55, .08, 0x2a2d35, x, .85, sz + .26, g); cyl(.04, .04, .45, 0x40465a, x, .25, sz, g);
   return { screen: screens[0], mug };
 }
-/** 팀 자리 배치(0번이 팀장). 팀장은 대표님실 원목 책상, 나머지는 업무 공간 책상(가운데 줄 → 뒷줄 → 앞줄, 한 줄 3개).
+/** 팀 자리 배치(0번이 팀장). 팀장은 팀장실 원목 책상, 나머지는 업무 공간 책상(가운데 줄 → 뒷줄 → 앞줄, 한 줄 3개).
     회의 의자는 회의실 긴 테이블 둘레(장식이 놓은 의자 9개 중 앞 n개), 커피 자리는 탕비실. 길 찾기 격자도 여기서 다시 만든다.
     3D 가 없으면 위치만 계산한다(screen 없음). */
 const DESK_DISPOSERS = []; // Decor.deskSet 이 돌려준 정리 함수(명패 캔버스·책상 램프 등록 해제). 팀을 다시 놓기 전에 전부 부른다
@@ -324,7 +333,7 @@ function spareScreens() {
     return s.material;
   });
 }
-/** decor.js 가 없을 때의 자리(같은 평면 기준): 팀장은 대표님실, 나머지는 업무 공간 3줄, 회의 자리는 테이블 둘레 타원. */
+/** decor.js 가 없을 때의 자리(같은 평면 기준): 팀장은 팀장실, 나머지는 업무 공간 3줄, 회의 자리는 테이블 둘레 타원. */
 function fallbackSpots(n) {
   const rows = [-1.5, -7.5, 4.5];
   return Array.from({ length: n }, (_, i) => {
@@ -334,7 +343,7 @@ function fallbackSpots(n) {
     return { desk, seat: { x: desk.x, z: desk.z + (i === 0 ? 1.3 : 1.15) }, meet: { x: TABLE.x + Math.cos(a) * 2.3, z: TABLE.z + Math.sin(a) * 1.3 }, coffee: COFFEE[i % COFFEE.length] };
   });
 }
-/** 카메라 맞춤용 '활동 영역' 점: 모든 책상(이름표 높이 포함)·회의실·대표님실·탕비실·현관·현관 문 밖(출근 시작점, 인사 말풍선 포함).
+/** 카메라 맞춤용 '활동 영역' 점: 모든 책상(이름표 높이 포함)·회의실·팀장실·탕비실·현관·현관 문 밖(출근 시작점, 인사 말풍선 포함).
     패널 사이에 이것만은 꼭 보이게 한다. */
 function activityPts(plan) {
   const V = (x, y, z) => new THREE.Vector3(x, y, z), pts = [];
@@ -351,7 +360,7 @@ const THEMES = {
   light: { clear: 0xf4f6fb, floor: 0xf1efea, wall: 0xffffff, side: 0xfafafc, base: 0xd9dee8, sky: 0xffffff, ground: 0xc9d2e3, hemi: .78, sun: .8, sunColor: 0xfff6e8 },
   // 다크는 참고 이미지(docs/ref/office-dark.png)의 '밤의 사무실': 숯색 배경, 낮은 하늘빛, 그림자를 만드는 따뜻한 위쪽 조명.
   // 나머지 빛(램프·LED 띠·빛 웅덩이)은 decor.js 가 맡는다. 휴대폰 크기에서도 가구가 구분되게 하늘빛을 너무 낮추지 않는다
-  dark: { clear: 0x0c0f16, floor: 0x2c2c33, wall: 0x26272c, side: 0x1d1e23, base: 0x131417, sky: 0x7a7f9c, ground: 0x33271c, hemi: .74, sun: .38, sunColor: 0xffd6aa },
+  dark: { clear: 0x0c0f16, floor: 0x2c2c33, wall: 0x26272c, side: 0x1d1e23, base: 0x131417, sky: 0x7a7f9c, ground: 0x33271c, hemi: .52, sun: .3, sunColor: 0xffd6aa },
 };
 /* 사무실 조명(낮 ↔ 밤). 기본은 실제 해를 따른다(decor.js 의 Decor.sun): 해 고도 +5° 에서 어두워지기 시작해 -5° 에서 완전히 밤이 되고
    (일몰·일출 앞뒤 약 40~50분), 낮에는 그림자가 실제 해의 방위를 따라 돈다. 설정의 '사무실 조명'에서 '화면 테마'를 고르면 예전처럼
@@ -528,6 +537,7 @@ function resize() {
   window.Dashboard?.layout();
   if (HAS3D) { renderer.setSize(innerWidth, innerHeight); renderer.clear(); } // 크기가 바뀌면 캔버스가 비워지므로 첫 프레임 전에도 배경색이 보이게 한다
   UI.focused = null; frame(false);
+  window.Dashboard?.restoreRoom();
 }
 /** 시트가 열리고 닫힐 때 다시 맞춘다. 특정 팀원을 보고 있으면 그대로 둔다. */
 function reframe() { if (!UI.focused) frame(true); }
@@ -779,13 +789,13 @@ class Agent {
       this.group = { position: { x: this.seat.x, y: 0, z: this.seat.z, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, rotation: { y: Math.PI } };
       return;
     }
-    // 모든 팀원은 미터 기준 입체 관절 캐릭터를 사용한다(docs/characters.md).
+    // 시트 캐릭터 외형을 기본으로 보존한다. 승인된 정밀 GLB가 생기기 전에는 도형 모델로 교체하지 않는다.
     // 둘 다 없으면 단순 도형 캐릭터. 모두 같은 rig 계약:
     // group(위치·방향) ─ legs(+knees) / body(엉덩이 축으로 기울기) ─ torso·arms(+elbows·hands)·head(목 축으로 고개)·cup·props
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
     let rig = null;
-    try { rig = window.Characters?.build(def, name) || null; }
+    try { rig = window.SpriteChars?.build(def, name) || null; }
     catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
     try { rig = rig || (window.Characters && Characters.build(def, name)); } // 프리셋 오류가 팀 전체 구성을 막지 않게
     catch (e) { console.warn(`캐릭터 생성 실패(${name}), 기본 모양으로 대체:`, e); }
@@ -835,7 +845,7 @@ class Agent {
     this.bubble = el("div", { class: "bubble" });
     const f = this.rig?.faceStrip;
     this.faceEl = f ? el("i", { class: "face", style: faceVars(f) }) : null; // 그림 캐릭터: 색 점 대신 지금 표정의 얼굴
-    this.tag = el("div", { class: "nametag" }, this.faceEl || el("i", { class: "dot" }), el("b", { text: d.label }), d.leader ? el("span", { class: "crown", title: "팀장", text: "★" }) : null);
+    this.tag = el("button", { type:"button", class: "nametag", "aria-label":`${d.label}에게 말 걸기`, onclick:()=>window.CharacterChat?.open(this.name) }, this.faceEl || el("i", { class: "dot" }), el("b", { text: d.label }), d.leader ? el("span", { class: "crown", title: "팀장", text: "★" }) : null);
     this.role = d.role ? el("div", { class: "roletag", text: d.role }) : null;
     this.label = el("div", { class: "tagwrap", style: { "--c": d.color } }, this.bubble, this.tag, this.role);
     this.ly = 0; // declutter() 가 겹친 이름표를 위로 밀어 올린 양(px)
@@ -900,7 +910,7 @@ class Agent {
   }
   face(p) { this.targetRot = Math.atan2(p.x - this.group.position.x, p.z - this.group.position.z); }
   sitDesk(mode = "sit") {
-    this.targetRot = Math.PI; this.mode = mode;
+    this.targetRot = Math.atan2((this.monitorTarget?.x ?? this.seat.x) - this.seat.x, (this.monitorTarget?.z ?? this.seat.z - 1) - this.seat.z); this.mode = mode;
     if (mode === "type") this.typingSince = performance.now();
   }
   update(dt) {
@@ -915,6 +925,7 @@ class Agent {
     }
     const atDesk = this.atDesk(), atMeet = this.atMeet();
     const seated = this.mode === "sit" || this.mode === "type" || (this.mode === "talk" && atMeet); // 회의 자리에서는 앉아서 이야기한다
+    if (seated && atDesk && this.monitorTarget) this.targetRot = Math.atan2(this.monitorTarget.x - g.position.x, this.monitorTarget.z - g.position.z);
     const pose = { legL: 0, legR: 0, legLz: 0, legRz: 0, kneeL: 0, kneeR: 0, armL: 0, armR: 0, armLz: 0, armRz: 0, elbL: null, elbR: null,
       headX: 0, headY: 0, lean: 0, yaw: 0, y: 0, cup: false, pocketL: false, pocketR: false, expr: "기본" };
     const t = this.t, s = Math.sin(t * 10);
@@ -941,7 +952,9 @@ class Agent {
     lerp(this.body.rotation, "x", pose.lean);
     this.cup.visible = pose.cup;
     if (this.mug) this.mug.visible = !(pose.cup && atDesk);
-    g.position.y = seated && R.seatOffset != null ? R.seatOffset + pose.y + .43 : pose.y + (seated ? .02 : 0);
+    const targetY = seated && R.seatOffset != null ? R.seatOffset + pose.y + .43 : pose.y + (seated ? .02 : 0);
+    g.position.y += (targetY - g.position.y) * k;
+    R.tick?.(t, this.act === "typing");
   }
   atDesk() { const p = this.group.position; return Math.hypot(p.x - this.seat.x, p.z - this.seat.z) < .35; }
   atMeet() { const p = this.group.position; return Math.hypot(p.x - this.meet.x, p.z - this.meet.z) < .35; }
@@ -1113,7 +1126,8 @@ function buildTeam(team) {
   buildMembers();
   brandSub();
   if (VIEW.name === "members" || VIEW.name === "settings") scheduleView();
-  UI.focused = null; frame(false); // 책상 줄 길이가 바뀌었으니 카메라를 다시 맞춘다
+  UI.focused = null; frame(false);
+  window.Dashboard?.restoreRoom(); // 책상 줄 길이가 바뀌었으니 카메라를 다시 맞춘다
 }
 function brandSub() {
   const names = D.names.length > 4 ? `팀원 ${D.names.length}명` : D.names.map(n => A(n).def.label).join(" · ");
@@ -1154,8 +1168,8 @@ function buildMembers() {
     const a = A(n), d = a.def;
     const badge = el("span", { class: "badge", text: "대기" }), task = el("span", { class: "task-text", text: "—" });
     const time = el("span", { class: "task-time" }), bar = el("span", { class: "bar" }, el("i"));
-    const title = a.ghost ? `${d.label}${HAS3D ? " (3D 자리 없음)" : ""}` : `${d.label} 쪽으로 카메라 이동`;
-    MEMBERS_EL.append(el("button", { class: "member", type: "button", style: { "--c": d.color }, title, onclick: () => { closeView(); focusAgent(n); } },
+    const title = `${d.label}에게 말 걸기`;
+    MEMBERS_EL.append(el("button", { class: "member", type: "button", style: { "--c": d.color }, title, onclick: () => { closeView(); window.CharacterChat?.open(n); } },
       el("span", { class: "row" },
         facesOf(n) ? el("span", { class: "avatar face", style: faceVars(facesOf(n)), "aria-hidden": "true" }) : el("span", { class: "avatar", text: d.initial }),
         el("span", { class: "who" },
@@ -1316,7 +1330,7 @@ function tickClock() {
 }
 function updateInput() {
   const busy = D.running || UI.submitting;
-  $("goal").disabled = $("runBtn").disabled = $("attachBtn").disabled = busy;
+  $("goal").disabled = $("runBtn").disabled = $("attachBtn").disabled = busy || !!window.CharacterChat?.pending;
   $("runBtn").classList.toggle("busy", UI.submitting);
   $("runBtn").setAttribute("aria-label", D.running ? "진행 중" : UI.submitting ? "요청 중" : "업무 지시");
   $("goal").placeholder = D.running ? `팀이 업무를 진행하고 있어요… (${D.phaseText})` : UI.submitting ? "요청 중…" : "팀에 업무를 지시해보세요...";
@@ -1402,7 +1416,7 @@ function setReduce(v) {
   store.set("agentOffice.reduce", PREF.reduce ? "1" : "0");
   document.body.classList.toggle("reduce-motion", PREF.reduce);
 }
-/** 방 이름표(현관·탕비실·업무 공간·대표님실·회의실·라운지 칩) 보이기/숨기기. decor.js 가 만든 .room-chip 을 body 클래스로 가린다 */
+/** 방 이름표(현관·탕비실·업무 공간·팀장실·회의실·라운지 칩) 보이기/숨기기. decor.js 가 만든 .room-chip 을 body 클래스로 가린다 */
 function setRoomTags(v) {
   PREF.rooms = !!v;
   store.set("agentOffice.rooms", PREF.rooms ? "1" : "0");
@@ -1593,7 +1607,7 @@ function settingsView() {
     HAS3D ? row("사무실 조명", officeLightNote(), officeLightControl()) : null,
     row("기본 연출 속도", "말풍선·이동 연출의 빠르기. 상단 바에서도 바꿀 수 있어요.", speedControl()),
     row("움직임 줄이기", "카메라 이동과 전환 애니메이션을 최소화해요. 시스템의 '동작 줄이기' 설정은 항상 따릅니다.", switchControl(PREF.reduce, setReduce, "움직임 줄이기")),
-    HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·대표님실·회의실 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
+    HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·팀장실·회의실 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
     row("접속 키", NET.mode === "auth" ? "이 서버는 접속 키가 있어야 쓸 수 있어요." : KEY ? "저장된 접속 키가 있어요." : "LAN 공개(--lan) 서버에서만 필요해요.",
       el("button", { class: "tbtn", type: "button", onclick: () => openKeyDialog() }, icon("key"), KEY ? "접속 키 변경" : "접속 키 입력")),
     el("h3", { class: "sec" }, icon("server"), "서버 정보"),
@@ -2046,6 +2060,7 @@ function runIdTime(id) {
 }
 
 function dispatch(ev) {
+  if (["hello","run_start","plan_start","plan","task_start","review_start","run_error"].includes(ev.type)) window.OfficeLife?.interrupt();
   ev._at = performance.now();
   const T = ev.type;
   if (T === "hello") return onHello(ev);
@@ -2139,7 +2154,7 @@ function idle(n, run) {
 const coffeeFace = p => (p.x <= -14 ? COUNTER : PANTRY_TABLE);
 
 /** 출근 연출(처음 팀을 만들었을 때만, 재연결 때는 하지 않는다): 한 명씩 0.9초 간격으로 현관 유리문으로 들어와 인사하고
-    자기 자리로 걸어간다(간격이 짧으면 인사 말풍선이 서로 포개진다). 팀장은 대표님실로.
+    자기 자리로 걸어간다(간격이 짧으면 인사 말풍선이 서로 포개진다). 팀장은 팀장실로.
     연출 중 재동기화(epoch)가 오면 그 자리에서 멈추고 applySnapshot 이 자리를 잡아 준다. */
 const GREET = ["좋은 아침입니다 ☀️", "출근했습니다! 👋", "오늘도 화이팅 💪", "안녕하세요~ 😊"];
 async function arrive() {
@@ -2189,7 +2204,9 @@ async function pPlan(ev) {
   await capped(Promise.all(D.names.map(async n => {
     const a = A(n);
     if (n !== D.leader) setMember(n, { ...IDLE, status: "회의", cls: "meet", task: "킥오프 회의" });
-    if (await go(a, a.meet)) { a.face(TABLE); a.mode = "talk"; }
+    if (n === D.leader) {
+      if(await go(a,{x:6.6,z:1.4})){a.face(TABLE);a.mode="talk";a.presenting=true;}
+    } else if (await go(a,a.meet)){a.face({x:6.6,z:1.4});a.mode="talk";}
   })), 25000);
   for (const t of tasks) {
     const a = A(t.assignee);
@@ -2202,7 +2219,7 @@ async function pPlan(ev) {
   l.say("그럼 시작해 볼까요? 🚀", 1400);
   await wait(500);
   setPhase("업무 진행", true);
-  for (const n of D.names) { A(n).mode = "stand"; setMember(n, { ...IDLE }); }
+  for (const n of D.names) { A(n).presenting=false; A(n).mode = "stand"; setMember(n, { ...IDLE }); }
   openGate(run);
   for (const n of D.names) if (!lane(n).n) idle(n, run); // 바로 할 일이 없는 팀원은 커피/회의 테이블로
 }
@@ -2317,7 +2334,7 @@ function onHello(ev) {
   if (JSON.stringify(team) !== D.teamKey) buildTeam(team);
   D.mock = !!ev.mock; brandSub();
   if (NET.mode === "live") setConn("live"); // 모의 여부가 정해졌으니 칩 설명·기록 갱신
-  for (const n of D.names) A(n).finishWalk();
+  for (const n of D.names) { A(n).finishWalk(); A(n).presenting=false; }
   const first = !D.greeted;
   D.greeted = true;
   if (first) log(NET.mode === "demo" ? "데모 사무실에 출근했습니다. 목표를 입력해 보세요." : "사무실에 출근했습니다. 목표를 입력해 주세요.");
@@ -2385,6 +2402,7 @@ function ambient() {
   if (performance.now() - last > 1500) for (const n of D.names) A(n).finishWalk();
   if (document.hidden) return;
   tickClock(); tickBoard();
+  window.OfficeLife?.tick();
   const now = performance.now();
   for (const n of D.names) {
     const a = A(n);
@@ -2539,7 +2557,7 @@ function demoReport(goal, tasks) {
 
 /* ───────────────────────── 입력 · 초기화 ───────────────────────── */
 async function submitGoal() {
-  if (D.running || UI.submitting) return;
+  if (D.running || UI.submitting || window.CharacterChat?.pending) return;
   if (NET.mode === "auth") { openKeyDialog(); return; }
   let goal = $("goal").value.trim();
   if (!goal && NET.mode === "demo" && !ATT.name) goal = EXAMPLE_GOAL;
@@ -2618,6 +2636,19 @@ document.addEventListener("pointerdown", e => {
   if (!m.hidden && !m.contains(e.target) && !POP.anchor?.contains(e.target)) closeMenu();
 });
 if (HAS3D) {
+  let characterPress=null;
+  renderer.domElement.addEventListener("pointerdown",e=>{characterPress=e.button===0?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
+  renderer.domElement.addEventListener("pointercancel",()=>{characterPress=null;});
+  renderer.domElement.addEventListener("pointerup",e=>{
+    const start=characterPress;characterPress=null;
+    if(!start||start.id!==e.pointerId||Math.hypot(e.clientX-start.x,e.clientY-start.y)>8)return;
+    const r=renderer.domElement.getBoundingClientRect(),ray=new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
+    const meshes=[];
+    for(const n of D.names){const a=A(n);if(!a.ghost&&!a.hidden)a.group.traverse(o=>{if(o.isMesh&&!o.material?.userData?.blob)meshes.push(o);});}
+    const hit=ray.intersectObjects(meshes,false)[0];
+    if(hit){const a=D.names.map(A).find(a=>{let o=hit.object;while(o){if(o===a.group)return true;o=o.parent;}return false;});if(a)window.CharacterChat?.open(a.name);}
+  });
   renderer.domElement.addEventListener("dblclick", resetView);
   renderer.domElement.addEventListener("gesturestart", e => e.preventDefault(), { passive: false }); // iOS: 3D 위 핀치는 카메라 확대로만(페이지 확대는 다른 곳에서 가능)
 }
@@ -2693,7 +2724,7 @@ addEventListener("online", () => { if (NET.mode === "retry" && !NET.ws) { clearT
 let resizeRaf = 0;
 addEventListener("resize", () => { cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(resize); });
 const onLayoutChange = () => {
-  if (controls) controls.maxZoom = mqMobile.matches ? 3.2 : 2.2;
+  if (controls) controls.maxZoom = mqMobile.matches ? 6.4 : 4.4;
   if (!mqMobile.matches) { setDock(false); setDrawer(false); }
   updateInput(); resize();
 };

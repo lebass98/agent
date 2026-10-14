@@ -15,7 +15,7 @@
     lobby: { x0: X0, x1: -9.5, z0: 4, z1: Z1, label: "현관", door: { x: -9.5, z: 7.5, axis: "z", w: DOOR_W }, chip: { x: -12.5, z: 9.3 } },
     pantry: { x0: X0, x1: -8.5, z0: Z0, z1: -4, label: "탕비실", door: { x: -10, z: -4, axis: "x", w: DOOR_W }, chip: { x: -12.3, z: -5.2 } },
     work: { x0: -8.5, x1: 5, z0: Z0, z1: Z1, label: "업무 공간", door: null, chip: { x: -1.75, z: -9.2 } },
-    exec: { x0: 5, x1: X1, z0: Z0, z1: -3.5, label: "대표님실", door: { x: 5, z: -4.5, axis: "z", w: DOOR_W }, door2: { x: 13, z: -3.5, axis: "x", w: DOOR_W }, chip: { x: 6.8, z: -5.5 } },
+    exec: { x0: 5, x1: X1, z0: Z0, z1: -3.5, label: "팀장실", door: { x: 5, z: -4.5, axis: "z", w: DOOR_W }, door2: { x: 13, z: -3.5, axis: "x", w: DOOR_W }, chip: { x: 6.8, z: -5.5 } },
     meeting: { x0: 5, x1: X1, z0: -3.5, z1: 4.5, label: "회의실", door: { x: 5, z: 3.5, axis: "z", w: DOOR_W }, chip: { x: 8, z: 3.2 } },
     lounge: { x0: 5, x1: X1, z0: 4.5, z1: Z1, label: "라운지", door: null, chip: { x: 11, z: 9.8, off: true } },
   };
@@ -30,12 +30,12 @@
   const COFFEE = [{ x: -14.5, z: -8.4 }, { x: -9.5, z: -7.6 }, { x: -13.6, z: -5.3 }, { x: -14.5, z: -9.6 }, { x: -12.6, z: -5.1 },
     { x: -9.6, z: -9.8 }, { x: -14.5, z: -7.2 }, { x: -13.6, z: -10 }, { x: -9.6, z: -5.4 }];
   const EXEC_DESK = { x: 11, z: -8.8, w: 3 };
-  const EXEC_SEAT = { x: 11, z: -7.5 };
+  const EXEC_SEAT = { x: 11, z: -7.85 };
   const REPORT_SPOT = { x: 12.9, z: -7.2 };                  // 검수 보고 자리: 대표 책상 오른쪽 모서리(12.5,-8.2)에서 0.4 떨어진 앞쪽
   // 회의 의자 9개(3D 최대 인원과 같다): 카메라에 얼굴이 보이는 쪽(z=-.7)·양 끝부터 채우고, 9번째는 뒤쪽 모서리
   const MEET_SEATS = [{ x: 11, z: -.7 }, { x: 9.6, z: -.7 }, { x: 12.4, z: -.7 }, { x: 8.5, z: .5 }, { x: 13.5, z: .5 },
     { x: 11, z: 1.7 }, { x: 9.6, z: 1.7 }, { x: 12.4, z: 1.7 }, { x: 8.3, z: -.7 }];
-  const ROWS = [-1.5, -7.5, 4.5], ROW_CAP = 3, PITCH = 3.2, ROW_CX = -2.35, DESK_W = 2.6, SEAT_DZ = 1.15;
+  const ROWS = [-1.5, -7.5, 4.5], ROW_CAP = 3, PITCH = 3.2, ROW_CX = -2.35, DESK_W = 2.6, SEAT_DZ = .95;
   /** 팀원(팀장 제외) n 명의 책상 자리: 가운데 줄 → 뒷줄 → 앞줄 순으로 한 줄에 3개까지. */
   function slots(n) {
     n = Math.max(0, Math.min(ROWS.length * ROW_CAP, n | 0));
@@ -66,8 +66,8 @@
     { axis: "z", at: -9.5, a: 4, b: Z1, gap: [6.7, 8.3] },           // 현관 칸막이
     { axis: "x", at: -4, a: X0, b: -8.5, gap: [-10.8, -9.2] },       // 탕비실 앞(문)
     { axis: "z", at: -8.5, a: Z0, b: -4 },                           // 탕비실 옆
-    { axis: "z", at: 5, a: Z0, b: -3.5, gap: [-5.3, -3.7] },         // 대표님실 옆(문)
-    { axis: "x", at: -3.5, a: 5, b: X1, gap: [12.2, 13.8] },         // 대표님실/회의실 사이(연결문)
+    { axis: "z", at: 5, a: Z0, b: -3.5, gap: [-5.3, -3.7] },         // 팀장실 옆(문)
+    { axis: "x", at: -3.5, a: 5, b: X1, gap: [12.2, 13.8] },         // 팀장실/회의실 사이(연결문)
     { axis: "z", at: 5, a: -3.5, b: 4.5, gap: [2.7, 4.3], solid: [-1.3, 1.9] }, // 회의실 옆(문·TV 패널)
     { axis: "x", at: 4.5, a: 5, b: X1 },                             // 회의실/라운지 사이
   ];
@@ -94,7 +94,7 @@
     R(-9.05, -10.5, .45, .45, "cooler"),
     // 업무 공간 화분
     R(-8, 10.3, .8, .8, "plant"), R(4.4, -10.4, .8, .8, "plant"), R(-7.9, -10.4, .8, .8, "plant"), R(4.4, 10.3, .8, .8, "plant"),
-    // 대표님실
+    // 팀장실
     R(EXEC_DESK.x, EXEC_DESK.z, EXEC_DESK.w, 1.2, "desk"), R(10.2, -9.9, .5, .5, "chair"), R(11.8, -9.9, .5, .5, "chair"),
     R(6.1, -9.6, .85, 1.7, "sofa"), R(7.5, -9.6, .9, .5, "table"), R(14.2, -10.6, 2, .4, "shelf"), R(15.4, -4.1, .7, .7, "plant"), R(8.4, -10.5, .6, .6, "plant"),
     R(15.3, -6.6, .4, .4, "lamp"),
@@ -308,7 +308,7 @@
       geo.dispose();
       return this;
     }
-    box(w, h, d, color, x, y, z, o) { return this.add(new T.BoxGeometry(w, h, d), color, x, y, z, o); }
+    box(w, h, d, color, x, y, z, o) { return this.add(window.ModelKit && Math.max(w,h,d)<4 ? ModelKit.roundedBox(w,h,d) : new T.BoxGeometry(w, h, d), color, x, y, z, o); }
     cyl(rt, rb, h, color, x, y, z, seg = 16, o) { return this.add(new T.CylinderGeometry(rt, rb, h, seg), color, x, y, z, o); }
     sphere(r, color, x, y, z, o, seg = 12) { return this.add(new T.SphereGeometry(r, seg, Math.max(6, seg >> 1)), color, x, y, z, o); }
     leaf(r, color, x, y, z, o) { return this.add(new T.IcosahedronGeometry(r, small ? 0 : 1), color, x, y, z, o); }
@@ -320,11 +320,29 @@
       g.setAttribute("normal", new T.BufferAttribute(cat(this.nor, this.n * 3), 3));
       g.setAttribute("uv", new T.BufferAttribute(cat(this.uv, this.n * 2), 2));
       g.setAttribute("color", new T.BufferAttribute(cat(this.col, this.n * 3), 3));
+      if (!material && window.ModelKit) {
+        // 정점색은 보존하고 재질 4개로 모아 호출 수를 제한한다.
+        const woods=new Set([C.wood,C.woodDark]),metals=new Set([C.alu,C.steel,C.legs,C.handle]),fabrics=new Set([C.cushion,C.chairBlack,C.leather,C.sofaGray,C.sofaBlue]);
+        const classify=hex=>woods.has(hex)?1:metals.has(hex)?2:fabrics.has(hex)?3:0;
+        const buckets=[[],[],[],[]];for(const run of this.runs)buckets[classify(run[0])].push(run);
+        const reordered={};for(const k of ["position","normal","uv","color"])reordered[k]=new Float32Array(g.attributes[k].array.length);
+        const runs=[];let cursor=0;
+        for(let b=0;b<4;b++){
+          const start=cursor;
+          for(const [hex,offset,count] of buckets[b]){
+            for(const k in reordered){const attr=g.attributes[k],size=attr.itemSize;reordered[k].set(attr.array.subarray(offset*size,(offset+count)*size),cursor*size);}
+            runs.push([hex,cursor,count]);cursor+=count;
+          }
+          if(cursor>start)g.addGroup(start,cursor-start,b);
+        }
+        for(const k in reordered)g.attributes[k].array=reordered[k];this.runs=runs;
+        material=[VMAT(),new T.MeshStandardMaterial({vertexColors:true,roughness:.67,bumpMap:ModelKit.surface("wood"),bumpScale:.0015}),new T.MeshStandardMaterial({vertexColors:true,metalness:.7,roughness:.36}),new T.MeshStandardMaterial({vertexColors:true,roughness:.94,bumpMap:ModelKit.surface("fabric"),bumpScale:.001})];
+      }
       const m = new T.Mesh(g, material || VMAT());
       m.castShadow = m.receiveShadow = shadow;
       parent.add(m);
       m.userData.runs = this.runs;
-      if (m.material.vertexColors) tint(m);
+      if (Array.isArray(m.material) ? m.material.some(x=>x.vertexColors) : m.material.vertexColors) tint(m);
       this.pos = []; this.nor = []; this.uv = []; this.col = []; this.n = 0; this.runs = [];
       return m;
     }
@@ -346,7 +364,7 @@
   const canvas = (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h });
   const FONT = '"Noto Sans KR", system-ui, sans-serif';
   const redraws = []; // 글꼴이 늦게 오면 다시 그릴 캔버스들
-  function texture(cv) { const t = new T.CanvasTexture(cv); t.minFilter = T.LinearFilter; t.anisotropy = 4; return t; }
+  function texture(cv) { const t = new T.CanvasTexture(cv); t.encoding = T.sRGBEncoding; t.minFilter = T.LinearFilter; t.anisotropy = 4; return t; }
   /** 캔버스 표지판 평면. draw(ctx,w,h) 를 지금 그리고 글꼴 로드 뒤 한 번 더 그린다. 없앨 때는 m.userData.release() 로 redraws 에서도 뺀다. */
   function sign(parent, w, h, px, draw, x, y, z, o = {}) {
     const cv = canvas(px, Math.round(px * h / w)), c = cv.getContext("2d"), tex = texture(cv);
@@ -372,7 +390,7 @@
      크림색 칸막이, 짙은 회색 소파·회의 의자, 원목 카운터. 표에 없는 색(화분 잎·책·머그 등)은 그대로 둔다. */
   const dimHex = (h, k) => new T.Color(h).multiplyScalar(k).getHex();
   const DARK = new Map([
-    [C.wood, 0x93603a], [C.woodDark, 0x3d2718], [C.white, 0x25262b], [C.panel, 0xd4c6ae], [C.frame, 0x121316], [C.alu, 0x26272c],
+    [C.wood, 0x684327], [C.woodDark, 0x3d2718], [C.white, 0x25262b], [C.panel, 0x8b8070], [C.frame, 0x121316], [C.alu, 0x26272c],
     [C.chairBlack, 0x4a4c53], [C.cushion, 0x6a6c74], [C.gray, 0x2d2e34], [C.grayDark, 0x1c1d21], [C.leather, 0x211c19], [C.steel, 0x9da2aa],
     [C.pot, 0xcbc6be], [C.terra, 0x8f5c40], [C.sofaBlue, 0x3c3e46], [C.sofaGray, 0x4a4b52], [C.blue, 0x4c5a74],
     [C.meetTop, 0x4a2f1d], [C.counter, 0x8a5a35], [C.cabinet, 0x1f2024], [C.key, 0x2a2b30], [C.legs, 0x1d1e22], [C.trimLight, 0x2a2b30],
@@ -473,7 +491,7 @@
     light: { floor: 0xf1efea, slab: 0xd5d8e0, wall: 0xffffff, trim: 0xd9dee8, carpet: 0xdde4f3, execCarpet: 0xd9d2c8, rug: 0xe3dccf, glass: 0xdbeafe, glassOp: .18, bulb: 0, light: 0, sky: "day", rough: .9, metal: 0, band: .3, shade: 0xf1e8d8, shadeGlow: 0 },
     // 다크: 참고 이미지(docs/ref/office-dark.png)의 '밤의 라운지 오피스' — 짙은 회갈색 광택 바닥·숯색 벽, 따뜻한 램프·LED 띠(themed.night),
     // 원목·검은 가구(DARK 표). 바닥은 덜 거칠게 해서 점광원 반사가 보이게 한다
-    dark: { floor: 0x35343b, slab: 0x15171c, wall: 0x26272c, trim: 0x131417, carpet: 0x2b2a2f, execCarpet: 0x3b2f27, rug: 0x3a3029, glass: 0xa9bed4, glassOp: .1, bulb: 1.8, light: 1.6, sky: "night", rough: .42, metal: .12, band: .05, shade: 0x3a332c, shadeGlow: .45 },
+    dark: { floor: 0x1d1d23, slab: 0x15171c, wall: 0x26272c, trim: 0x131417, carpet: 0x2b2a2f, execCarpet: 0x3b2f27, rug: 0x3a3029, glass: 0xa9bed4, glassOp: .1, bulb: 1.1, light: .9, sky: "night", rough: .76, metal: .02, band: .05, shade: 0x3a332c, shadeGlow: .25 },
   };
   /** 도시 스카이라인 캔버스(day 낮 · dusk 노을 · night 밤). 뒷벽 창 밖에 겹쳐 둔다. */
   function skylineTex(kind) {
@@ -577,7 +595,7 @@
     const slab = new T.Mesh(new T.BoxGeometry(OW + .2, .3, OD + .2), M.slab); slab.position.y = -.16; scene.add(slab);
     const carpet = (mat, x0, x1, z0, z1) => { const m = new T.Mesh(new T.PlaneGeometry(x1 - x0, z1 - z0), mat); m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, .012, (z0 + z1) / 2); m.receiveShadow = true; scene.add(m); };
     carpet(M.carpet, 5.1, X1, -3.4, 4.4);               // 회의실
-    carpet(M.execCarpet, 5.1, X1, Z0 + .1, -3.6);       // 대표님실
+    carpet(M.execCarpet, 5.1, X1, Z0 + .1, -3.6);       // 팀장실
     carpet(M.rug, 10.6, 14.6, 6.6, 10.8);               // 라운지 러그
     carpet(M.rug, -15.6, -12, 4.2, 10.6);               // 현관 러그
     floor.onBeforeRender = (r, s, cam) => { themed.camera = cam; tick(); }; // 매 프레임: 문·방 이름표
@@ -662,7 +680,9 @@
     sofaParts(st, -15.1, 4.9, Math.PI / 2, 1.6, C.sofaBlue, 2);
     st.cyl(.34, .34, .04, C.wood, -13.5, .4, 4.9, 20); st.cyl(.03, .03, .4, C.alu, -13.5, .2, 4.9, 8); st.cyl(.18, .18, .03, C.alu, -13.5, .015, 4.9, 12);
     st.box(.36, .06, .36, C.alu, -13.8, .03, 9.3); st.box(.06, 1.1, .06, C.alu, -13.8, .58, 9.3);
-    st.box(.34, .46, .04, 0x1f2430, -13.8, 1.35, 9.3, { rx: -.35, ry: Math.PI / 4 });
+    if (window.AppleAssets) {
+      const ipad=AppleAssets.build("iPad").group;ipad.name="Lobby iPad check-in";ipad.position.set(-13.8,1.25,9.3);ipad.rotation.set(-.35,Math.PI/4,0);scene.add(ipad);
+    } else st.box(.34, .46, .04, 0x1f2430, -13.8, 1.35, 9.3, { rx: -.35, ry: Math.PI / 4 });
     plantParts(st, -15.3, 6.1, 1.05, "fiddle"); plantParts(st, -15.3, 8.9, 1, "monstera");
     sign(scene, 2.2, .55, 512, lobbySign, X0 + .02, 2.55, 4.9, { ry: Math.PI / 2 });
     // 추상화 + 액자: 액자 상자(두께 .04)는 그림 평면(x=X0+.03) 뒤(앞면 X0+.015)에 두어야 그림이 묻히지 않는다
@@ -694,7 +714,7 @@
     // 펜던트는 책상 줄 위에 단다(카메라 쪽 통로에 매달면 앉은 사람 머리를 가린다). 통로의 빛은 다크의 점광원·빛 웅덩이가 맡는다
     for (const z of [ROWS[1], ROWS[0]]) { shadeGeo.cyl(.05, .32, .2, 0x2b3245, ROW_CX, 2.95, z, 16); lampParts(st, ROW_CX, z, "pendant", 4.3); bulbGeo.sphere(.06, 0xffffff, ROW_CX, 2.9, z); }
 
-    // ── 대표님실: 손님 의자 2·소파·낮은 탁자·책장·화분·플로어 램프·문패
+    // ── 팀장실: 손님 의자 2·소파·낮은 탁자·책장·화분·플로어 램프·문패
     chairParts(st, 10.2, -9.9, 0, "guest"); chairParts(st, 11.8, -9.9, 0, "guest");
     sofaParts(st, 6.1, -9.6, Math.PI / 2, 1.7, C.leather, 2);
     st.box(.9, .05, .5, C.woodDark, 7.5, .42, -9.6); for (const [lx, lz] of [[-.4, -.2], [.4, -.2], [-.4, .2], [.4, .2]]) st.box(.04, .4, .04, C.alu, 7.5 + lx, .2, -9.6 + lz);
@@ -706,8 +726,8 @@
     }
     plantParts(st, 15.4, -4.1, 1.1, "monstera"); plantParts(st, 8.4, -10.5, .9, "fiddle");
     { const b = lampParts(st, 15.3, -6.6, "floor"); shadeGeo.cyl(.2, .26, .34, 0xffffff, b.x, b.y, b.z, 16); bulbGeo.sphere(.05, 0xffffff, b.x, b.y, b.z); addLight(b.x, b.y, b.z); }
-    sign(scene, .9, .26, 256, plate("👑 대표님실", "#1e2538", "#ffffff", 30), 5.08, 1.75, -6.1, { ry: Math.PI / 2 });
-    sign(scene, 1.4, .36, 256, plate("대표님실", "#2b3245"), 5.07, PART_H + .32, rooms.exec.door.z, { ry: Math.PI / 2 });
+    sign(scene, .9, .26, 256, plate("👑 팀장실", "#1e2538", "#ffffff", 30), 5.08, 1.75, -6.1, { ry: Math.PI / 2 });
+    sign(scene, 1.4, .36, 256, plate("팀장실", "#2b3245"), 5.07, PART_H + .32, rooms.exec.door.z, { ry: Math.PI / 2 });
 
     // ── 회의실: 긴 테이블·의자 9(MEET_SEATS)·노트북·TV(막대 그래프)·화분·펜던트 2·표지판
     st.box(TABLE.w, .07, TABLE.d, C.meetTop, TABLE.x, .78, TABLE.z);
@@ -733,7 +753,17 @@
     sofaParts(st, 9.6, 9.3, Math.PI / 2, .8, C.sofaBlue, 1);
     st.cyl(.3, .3, .04, C.wood, 14.4, .5, 8.6, 16); st.cyl(.03, .03, .5, C.alu, 14.4, .25, 8.6, 8);
     { const b = lampParts(st, 14.9, 9.7, "floor"); shadeGeo.cyl(.2, .26, .34, 0xffffff, b.x, b.y, b.z, 16); bulbGeo.sphere(.05, 0xffffff, b.x, b.y, b.z); }
-    st.box(1.1, .75, .6, C.white, 6.3, .375, 10); st.box(.62, .3, .5, C.printerTop, 6.3, .9, 10); st.box(.5, .04, .3, 0x30343c, 6.3, 1.07, 10);
+    st.box(1.1, .75, .6, C.white, 6.3, .375, 10);
+    if (window.AppleAssets) {
+      const place=(name,x,y,z,ry=0)=>{const a=AppleAssets.build(name);a.group.position.set(x,y,z);a.group.rotation.y=ry;scene.add(a.group);return a.group;};
+      place("MacBook",6.25,.75,10,Math.PI);
+      place("HomePod mini",6.7,.75,10);
+      const ipad=place("iPad",6,.88,10.1,Math.PI);ipad.rotation.x=-.25;
+      st.box(.26,.025,.18,C.alu,6,.77,10.1);
+      place("Apple TV",5.3,1.02,.3,Math.PI/2);
+      st.box(.28,.04,.35,C.alu,5.2,1,.3);
+      for(const x of [9.7,11,12.3])place("MacBook",x,.815,.45,Math.PI);
+    }
     plantParts(st, 15.4, 5.2, 1.05, "monstera"); plantParts(st, 6, 5.3, .85, "bush");
 
     // 메시로 내보내기
@@ -751,7 +781,7 @@
         : (() => { const m = new T.Mesh(new T.BoxGeometry(.012, .06, .01), new T.MeshStandardMaterial({ color: 0x6b7489 })); m.position.set(TV.x + .17, TV.y + TV.h * .32 - i * .2, TV.z - TV.w / 2 + .25 + len / 2); scene.add(m); return m; })();
       l.scale.z = len / .01; l.castShadow = false; l.visible = false; return l;
     });
-    // 점광원(다크): 대표님실 램프·회의 테이블 다음으로 탕비실 펜던트·업무 공간 펜던트 2 — 휴대폰은 앞의 2개만
+    // 점광원(다크): 팀장실 램프·회의 테이블 다음으로 탕비실 펜던트·업무 공간 펜던트 2 — 휴대폰은 앞의 2개만
     addLight(PANTRY_TABLE.x, 2.2, PANTRY_TABLE.z, 9);
     for (const z of [-4.5, 1.5]) addLight(ROW_CX, 2.6, z, 11);
     buildNight();
@@ -788,12 +818,12 @@
     const pools = new MB(), fades = new MB(), leds = new MB();
     const kit = {
       /** 바닥(또는 y 높이 수평면) 위 둥근 빛 웅덩이 */
-      pool(x, z, r, color = WARM, k = .3, y = .024) { pools.add(new T.PlaneGeometry(r * 2, r * 2), dimHex(color, k), x, y, z, { rx: -Math.PI / 2 }); return kit; },
+      pool(x, z, r, color = WARM, k = .3, y = .024) { pools.add(new T.PlaneGeometry(r * 2, r * 2), dimHex(color, k * .24), x, y, z, { rx: -Math.PI / 2 }); return kit; },
       /** 세로 둥근 빛(벽·화면 뒤 후광). (nx,nz) 는 판이 바라보는 쪽 */
       halo(x, y, z, w, h, nx, nz, color = WARM, k = .3) { pools.add(new T.PlaneGeometry(w, h), dimHex(color, k), x, y, z, { ry: Math.atan2(nx, nz) }); return kit; },
       /** 바닥 번짐 띠: 길이 len, 폭 depth. (dx,dz) 는 벽에서 멀어지는 쪽 — 벽 쪽이 밝다. alongX: 띠가 x 축을 따라 놓임 */
       band(cx, cz, len, depth, dx, dz, color = WARM, k = .22) {
-        fades.add(new T.PlaneGeometry(len, depth), dimHex(color, k), cx + dx * depth / 2, .02, cz + dz * depth / 2, { rx: -Math.PI / 2, ry: Math.atan2(dx, dz), order: "YXZ" });
+        fades.add(new T.PlaneGeometry(len, depth), dimHex(color, k * .4), cx + dx * depth / 2, .02, cz + dz * depth / 2, { rx: -Math.PI / 2, ry: Math.atan2(dx, dz), order: "YXZ" });
         return kit;
       },
       /** 벽 조명: 세로 판. top 이면 위가 밝고(천장 쪽 띠에서 아래로), 아니면 아래가 밝다(바닥 띠에서 위로). (nx,nz) 는 벽에서 나오는 쪽 */
@@ -817,7 +847,7 @@
     return kit;
   }
   /** 사무실 고정 연출: 칸막이 위·아래 LED 와 바닥 번짐, 창가·왼쪽 벽 간접 조명, 펜던트·램프·다운라이트 빛 웅덩이,
-      탕비실 선반·대표님실 책장 뒷조명, 회의실 TV·현관 간판·키오스크의 푸른 후광. */
+      탕비실 선반·팀장실 책장 뒷조명, 회의실 TV·현관 간판·키오스크의 푸른 후광. */
   function buildNight() {
     const g = themed.night = new T.Group(); g.visible = false; scene.add(g);
     const kit = glowKit();
@@ -853,13 +883,11 @@
     for (const x of [TABLE.x - 1, TABLE.x + 1]) kit.pool(x, TABLE.z, 1.8, WARM, .32);
     kit.pool(15.3, -6.6, 2, WARM, .55).pool(14.9, 9.7, 1.9, WARM, .52).pool(-13.4, 6.4, 2.2, WARM, .3); // 램프 2 · 현관 소파 앞
     // 천장 다운라이트(바닥의 작은 빛 웅덩이 무늬)
-    const downs = [[-6.6, -10], [-2.35, -10], [1.9, -10], [-6.6, 7.6], [-2.35, 7.6], [1.9, 7.6], [-6.6, 10.2], [1.9, 10.2],
-      [-13, 5.8], [-11, 9.6], [-14, -5.4], [7.6, -6], [13.6, -5.2], [7.2, -1.6], [14.6, 2.6], [7.4, 7.4], [11.5, 6.4]];
-    for (const [x, z] of downs) kit.pool(x, z, 1.35, WARM, .24);
+    // 반복되는 원형 다운라이트 바닥 무늬는 제거한다. 실제 램프 아래만 약한 광량을 남긴다.
     // 탕비실: 선반 아래 LED + 벽 조명, 카운터 발치 LED
     for (const y of [1.85, 2.35]) kit.led(.02, .02, 3.5, -15.74, y - .03, -8.7).wash(X0 + .03, y - .5, -8.7, 3.6, .9, 1, 0, true, WARM, .4);
     kit.led(.02, .02, 4.1, -15.3, .05, -8.68).band(-15.28, -8.68, 4.1, .7, 1, 0, WARM, .22);
-    // 대표님실 책장: 칸마다 LED + 뒤판 후광
+    // 팀장실 책장: 칸마다 LED + 뒤판 후광
     for (let s = 0; s < 3; s++) kit.led(1.9, .015, .02, 14.2, .3 + s * .62 + .58, -10.42);
     kit.halo(14.2, 1.15, -10.74, 2.4, 2.6, 0, 1, WARM, .38);
     // 푸른 후광: 회의실 TV, 현관 간판, 키오스크 화면(+ 화면 발광 판)
@@ -897,13 +925,14 @@
       if (col < cols - 1) { mb.box(.05, 1.25, 1.4, C.panel, x + PITCH / 2, .625, z - .05); mb.box(.08, .04, 1.4, C.alu, x + PITCH / 2, 1.27, z - .05); }
     }
     const s = exec ? 1 : Math.min(1, (w - .25) / 2.75);
-    const screens = [[-.68, .2], [.68, -.2]].map(([dx, r], i) => {
+    const apple = window.AppleAssets?.desktop(group, { x, y: topY, z, mats });
+    const screens = apple ? apple.screens : [[-.68, .2], [.68, -.2]].map(([dx, r], i) => {
       monitor(mb, x + dx * s, topY, z - .34, r, s);
       const scr = new T.Mesh(new T.PlaneGeometry(1.26 * s, .76 * s), mats[i]);
       scr.position.set(x + dx * s, topY + .665 * s, z - .34); scr.rotation.y = r; scr.translateZ(.027 * s); group.add(scr);
       return scr;
     });
-    mb.box(.62, .03, .2, exec ? 0x2a2d35 : C.key, x - .05, topY + .015, z + .14); mb.box(.1, .03, .15, exec ? 0x2a2d35 : C.key, x + .42, topY + .015, z + .16);
+    if (!apple) { mb.box(.62, .03, .2, exec ? 0x2a2d35 : C.key, x - .05, topY + .015, z + .14); mb.box(.1, .03, .15, exec ? 0x2a2d35 : C.key, x + .42, topY + .015, z + .16); }
     plantParts(mb, x - w / 2 + .25, z - .3, exec ? 1.1 : .9, "small", null, topY);
     let bulb = null;
     if (lamp) {
@@ -923,7 +952,7 @@
     const mesh = mb.mesh(group);
     const mug = new T.Mesh(new T.CylinderGeometry(.075, .065, .16, 14), new T.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }));
     mug.position.set(x + w / 2 - .62, .9, z + .25); mug.castShadow = true; group.add(mug);
-    const seatZ = z + (exec ? 1.3 : SEAT_DZ); // 의자는 spots() 의 seat 와 같은 자리
+    const seatZ = z + (exec ? .95 : SEAT_DZ); // 의자는 spots() 의 seat 와 같은 자리
     const chair = { mesh: officeChair(group, x, seatZ, Math.PI, null, exec ? "exec" : "task"), x, z: seatZ };
     chairs.push(chair);
     const night = deskNight(group, { x, z, w, exec, topY, lampAt: lamp ? { x: x + w / 2 - .45, z: z - .35 } : null });

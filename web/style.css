@@ -285,7 +285,7 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
   content: ""; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; background: var(--panel);
   border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: translateX(-50%) rotate(45deg);
 }
-/* 방 이름표(현관·탕비실·업무 공간·대표님실·회의실·라운지): decor.js 가 #labels 안에 만들고 매 프레임 위치를 옮긴다. 설정에서 끄면 body.no-roomtags */
+/* 방 이름표(현관·탕비실·업무 공간·팀장실·회의실·라운지): decor.js 가 #labels 안에 만들고 매 프레임 위치를 옮긴다. 설정에서 끄면 body.no-roomtags */
 .room-chip {
   position: absolute; left: 0; top: 0; font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--muted); white-space: nowrap; will-change: transform;
   background: color-mix(in srgb, var(--panel) 84%, transparent); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; pointer-events: none;

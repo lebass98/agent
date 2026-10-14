@@ -121,9 +121,9 @@
   <button class="primary" type="button" id="newTaskBtn"><svg class="ic"><use href="#i-plus"/></svg>새 업무</button>
 </section>
 <section class="office-frame" id="officeFrame" aria-label="사무실 뷰포트">
-  <nav class="room-switch" aria-label="사무실 공간"><button type="button" data-room="all" aria-pressed="true">전체 보기</button><button type="button" data-room="work" aria-pressed="false">업무 공간</button><button type="button" data-room="meeting" aria-pressed="false">회의실</button></nav>
-  <span class="office-live"><i></i>실시간 사무실</span>
-  <div class="office-tools" role="group" aria-label="카메라 조작"><button type="button" id="cameraReset" aria-label="전체 사무실 보기"><svg class="ic"><use href="#i-house"/></svg></button><button type="button" id="cameraOut" aria-label="축소">−</button><button type="button" id="cameraIn" aria-label="확대">+</button></div>
+  <nav class="room-switch" aria-label="사무실 공간"><button type="button" data-room="all" aria-pressed="true">전체 보기</button><button type="button" data-room="lobby" aria-pressed="false">현관</button><button type="button" data-room="pantry" aria-pressed="false">탕비실</button><button type="button" data-room="work" aria-pressed="false">업무 공간</button><button type="button" data-room="exec" aria-pressed="false">팀장실</button><button type="button" data-room="meeting" aria-pressed="false">회의실</button><button type="button" data-room="lounge" aria-pressed="false">라운지</button></nav>
+  <span class="office-live" title="왼쪽 드래그: 회전 · 오른쪽 드래그: 이동 · 휠: 확대 · 모바일: 두 손가락 이동"><i></i>실시간 사무실</span>
+  <div class="office-tools" role="group" aria-label="카메라 조작"><button type="button" data-pan="left" aria-label="화면 왼쪽으로 이동">←</button><button type="button" data-pan="up" aria-label="화면 위로 이동">↑</button><button type="button" data-pan="down" aria-label="화면 아래로 이동">↓</button><button type="button" data-pan="right" aria-label="화면 오른쪽으로 이동">→</button><button type="button" id="cameraReset" aria-label="전체 사무실 보기"><svg class="ic"><use href="#i-house"/></svg></button><button type="button" id="cameraOut" aria-label="축소">−</button><button type="button" id="cameraIn" aria-label="확대">+</button></div>
   <button class="team-toggle" id="teamToggle" type="button" aria-label="팀 활동 열기" aria-expanded="false"><svg class="ic"><use href="#i-users"/></svg>팀 활동</button>
 </section>
 <section class="task-shelf" id="taskShelf" aria-label="현재 업무 목록"></section>
@@ -205,10 +205,16 @@
 <script src="vendor/OrbitControls.js"></script><!-- three@0.128.0 examples/js -->
 <script src="vendor/marked.min.js"></script><!-- marked 12.0.2 -->
 <script src="vendor/purify.min.js"></script><!-- DOMPurify 3.1.6 -->
+<script src="model-kit.js"></script>
+<script src="apple-assets.js"></script>
 <script src="decor.js"></script><!-- 사무실 장식·평면(장식 담당). 없어도 app.js 는 동작 -->
 <script src="characters.js"></script><!-- 캐릭터 외형(캐릭터 담당). 없어도 app.js 는 동작 -->
 <script src="sprites/sprites.js"></script><!-- 캐릭터 시트 좌표표(scripts/sprites/cut.py 가 만든다) -->
+<script src="sprites/office-life.js"></script>
+<script src="sprites/work-seated.js"></script>
 <script src="sprite-chars.js"></script><!-- 그림 캐릭터(2.5D 빌보드)·표정 아바타. 없으면 characters.js 의 3D 캐릭터 -->
+<script src="office-life.js"></script>
+<script src="character-chat.js"></script>
 <script src="dashboard.js"></script>
 <script src="app.js"></script>
 </body>

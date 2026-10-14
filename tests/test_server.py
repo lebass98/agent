@@ -86,7 +86,7 @@ def test_conflict_while_running(make_client, monkeypatch):
 def test_access_key(make_client):
     with make_client("s3cret") as client:
         for method, url in [("GET", "/api/team"), ("GET", "/api/runs"),
-                            ("GET", "/api/runs/20261014-160000"), ("POST", "/api/run")]:
+                            ("GET", "/api/runs/20261014-160000"), ("POST", "/api/run"), ("POST", "/api/ask")]:
             for headers in ({}, {"X-Access-Key": "wrong"}):
                 r = client.request(method, url, headers=headers, json={"goal": "x"})
                 assert r.status_code == 401 and r.json()["detail"] == "접속 키가 필요합니다."
@@ -159,3 +159,56 @@ def test_ws_ignores_garbage(make_client):
         ws.send_bytes(b"\x00")
         ws.send_text(json.dumps({"type": "ping"}))
         assert ws.receive_json() == {"type": "pong"}
+
+
+def test_member_chat_uses_selected_member_and_history(make_client, monkeypatch):
+    from agentteam import Team
+    calls = []
+
+    async def ask(self, name, prompt):
+        calls.append((name, prompt))
+        return "도와드릴게요."
+
+    monkeypatch.setattr(Team, "ask", ask)
+    with make_client() as client:
+        r = client.post("/api/ask", json={"name": "gpt", "message": "  코드 봐줘  ", "history": [{"role": "user", "content": "파이썬이야"}]})
+        assert r.json() == {"name": "gpt", "answer": "도와드릴게요.", "mock": True}
+        assert client.app.state.hub.snapshot is None  # 개인 대화가 팀 업무 상태를 덮지 않는다
+    assert calls[0][0] == "gpt" and "파이썬이야" in calls[0][1] and calls[0][1].endswith("코드 봐줘")
+
+
+@pytest.mark.parametrize("body,code", [
+    ({"name": "unknown", "message": "안녕"}, 404),
+    ({"name": "gpt", "message": " "}, 400),
+    ({"name": "gpt", "message": "가" * 4001}, 400),
+    ({"name": "gpt", "message": "안녕", "history": [{"role": "system", "content": "x"}]}, 422),
+    ({"name": "gpt", "message": "안녕", "history": [{"role": "user", "content": "x"}] * 13}, 400),
+])
+def test_member_chat_validation(make_client, body, code):
+    with make_client() as client:
+        assert client.post("/api/ask", json=body).status_code == code
+
+
+def test_chat_during_team_run_is_rejected(make_client, monkeypatch):
+    monkeypatch.setenv("MOCK_DELAY", "0.2")
+    with make_client() as client, client.websocket_connect("/ws") as ws:
+        ws.receive_json()
+        client.post("/api/run", json={"goal": "팀 업무"})
+        assert client.post("/api/ask", json={"name": "gpt", "message": "안녕"}).status_code == 409
+        collect(ws)
+
+
+def test_chat_failure_releases_busy_state(make_client, monkeypatch):
+    from agentteam import Team
+
+    async def fail(self, name, prompt):
+        raise RuntimeError("private-provider-error")
+
+    monkeypatch.setattr(Team, "ask", fail)
+    with make_client() as client:
+        r = client.post("/api/ask", json={"name": "gpt", "message": "안녕"})
+        assert r.status_code == 502 and "private-provider-error" not in r.text
+        assert client.app.state.chatting is False
+        client.app.state.chatting = True
+        assert client.post("/api/run", json={"goal": "새 업무"}).status_code == 409
+        assert client.post("/api/ask", json={"name": "gpt", "message": "다시"}).status_code == 409

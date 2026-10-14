@@ -1,7 +1,7 @@
 "use strict";
 /* 대시보드 시안 v2. 기존 리듀서 D/팀원 상태에서만 표시 데이터를 읽는다. */
 window.Dashboard = (() => {
-  let pending = 0, lastTeam = "";
+  let pending = 0, lastTeam = "", selectedRoom = "all";
   const cards = new Map();
   function schedule() { if (!pending) pending = requestAnimationFrame(() => { pending = 0; render(); }); }
   function render() {
@@ -14,7 +14,7 @@ window.Dashboard = (() => {
         const avatar = facesOf(n) ? el("span", {class:"activity-avatar face",style:faceVars(facesOf(n)),"aria-hidden":"true"}) : el("span",{class:"activity-avatar",text:d.initial,"aria-hidden":"true"});
         const status = el("span",{class:"activity-status"}), task = el("p",{class:"activity-task"});
         const dot = el("i",{class:"activity-dot"}), bar = el("span",{class:"bar"},el("i"));
-        const button = el("button",{type:"button",class:"activity-agent",style:{"--c":d.color},onclick:()=>focusAgent(n),"aria-label":`${d.label} 활동 및 위치 보기`}, avatar,
+        const button = el("button",{type:"button",class:"activity-agent",style:{"--c":d.color},onclick:()=>window.CharacterChat?.open(n),"aria-label":`${d.label}에게 말 걸기`}, avatar,
           el("span",{class:"activity-detail"}, el("span",{class:"activity-name"},dot,el("strong",{text:d.label}),el("small",{class:"activity-model",text:d.model || PROVIDER_KO[d.provider] || d.provider || "미설정"})),
           el("span",{class:"activity-role",text:d.role}),status,task,bar));
         cards.set(n,{status,task,dot,bar,avatar}); return button;
@@ -55,18 +55,44 @@ window.Dashboard = (() => {
     $("newTaskBtn").onclick=()=>{closeView();$("goal").focus();};
     $("cameraReset").onclick=()=>{resetView();selectRoom("all");};
     for(const [id,delta] of [["cameraIn",.2],["cameraOut",-.2]]) $(id).onclick=()=>{if(HAS3D){const zoom=Math.min(controls.maxZoom,Math.max(controls.minZoom,camera.zoom+delta));setView(cam.view,controls.target.clone(),true,zoom);}};
-    for(const button of document.querySelectorAll("[data-room]"))button.onclick=()=>{
-      const name=button.dataset.room;selectRoom(name);if(!HAS3D)return;
-      if(name==="all")return resetView();
-      const r=ROOMS[name];if(!r)return;
-      UI.focused=`room:${name}`;
-      const points=[];
-      for(const x of [r.x0-.3,r.x1+.3])for(const z of [r.z0-.3,r.z1+.3])for(const y of [0,3])points.push(new THREE.Vector3(x,y,z));
-      frame(true,1,points);
-    };
+    const moves={left:[-1,0],right:[1,0],up:[0,1],down:[0,-1]};
+    for(const b of document.querySelectorAll("[data-pan]"))b.onclick=()=>pan(...moves[b.dataset.pan]);
+    $("stage").addEventListener("keydown",e=>{
+      const key={ArrowLeft:"left",ArrowRight:"right",ArrowUp:"up",ArrowDown:"down"}[e.key];
+      if(key && !e.altKey && !e.ctrlKey && !e.metaKey){e.preventDefault();pan(...moves[key]);}
+    });
+    for (const button of document.querySelectorAll("[data-room]")) button.onclick=()=>focusRoom(button.dataset.room);
     if (typeof ResizeObserver === "function") new ResizeObserver(()=>{layout(); if(HAS3D)resize();}).observe($("officeFrame"));
     schedule();
   }
-  function selectRoom(name){for(const b of document.querySelectorAll("[data-room]"))b.setAttribute("aria-pressed",String(b.dataset.room===name));}
-  return {init,schedule,layout};
+  function selectRoom(name) {
+    selectedRoom=name;
+    for(const b of document.querySelectorAll("[data-room]")) {
+      b.setAttribute("aria-pressed",String(b.dataset.room===name));
+      if(b.dataset.room===name)b.scrollIntoView({block:"nearest",inline:"nearest",behavior:"smooth"});
+    }
+  }
+  function focusRoom(name, animate=true) {
+    selectRoom(name);
+    if(!HAS3D)return;
+    if(name==="all")return resetView();
+    let r=ROOMS[name];if(!r)return;
+    if(name==='work'){
+      const seats=D.names.map(A).filter(a=>!a.ghost&&a.seat.x>=r.x0&&a.seat.x<=r.x1).map(a=>a.seat);
+      if(seats.length)r={x0:Math.min(...seats.map(p=>p.x))-1.8,x1:Math.max(...seats.map(p=>p.x))+1.8,z0:Math.min(...seats.map(p=>p.z))-2.1,z1:Math.max(...seats.map(p=>p.z))+1.1};
+    }
+    UI.focused=`room:${name}`;
+    const points=[];
+    for(const x of [r.x0-.3,r.x1+.3])for(const z of [r.z0-.3,r.z1+.3])for(const y of [0,3])points.push(new THREE.Vector3(x,y,z));
+    frame(animate,1,points);
+  }
+  function pan(dx,dy) {
+    if(!HAS3D)return;
+    cam.tween=null;UI.focused="manual";
+    const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion),up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+    const delta=right.multiplyScalar(dx).addScaledVector(up,dy).multiplyScalar(cam.view/camera.zoom*.08);
+    camera.position.add(delta);controls.target.add(delta);controls.update();
+  }
+  function restoreRoom() { if(selectedRoom!=="all")focusRoom(selectedRoom,false); }
+  return {init,schedule,layout,selectRoom,restoreRoom};
 })();

@@ -30,10 +30,20 @@
   const RISE = .35, SIT = .25; // 일어나기·앉기 전환 프레임 시간(초, 연출 배속 적용)
   const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
-  const atlases = {}; // 캐릭터별 아틀라스 텍스처(팀을 다시 만들어도 한 번만 불러 공유한다)
+  const atlases = {};
+  const lifeAtlases={};
+  function lifeAtlas(key){if(!lifeAtlases[key]){const tx=new T.TextureLoader().load(OFFICE_LIFE_META.chars[key].atlas);tx.encoding=T.sRGBEncoding;tx.anisotropy=4;lifeAtlases[key]=tx;}return lifeAtlases[key];}
+  const workAtlases = {};
+  function workAtlas(key) {
+    if (!window.WORK_SEATED_META?.chars[key]) return null;
+    if (!workAtlases[key]) {const tx=new T.TextureLoader().load(WORK_SEATED_META.chars[key].atlas);tx.encoding=T.sRGBEncoding;tx.anisotropy=4;workAtlases[key]=tx;}
+    return workAtlases[key];
+  }
+ // 캐릭터별 아틀라스 텍스처(팀을 다시 만들어도 한 번만 불러 공유한다)
   function atlas(key) {
     if (atlases[key]) return atlases[key];
     const tex = new T.TextureLoader().load(META.chars[key].atlas);
+    tex.encoding = T.sRGBEncoding;
     tex.anisotropy = 4;
     return (atlases[key] = tex);
   }
@@ -63,7 +73,7 @@
     const group = new T.Group();
     const pivot = new T.Group(); group.add(pivot); // 카메라 쪽으로 도는 축(발 중심)
     const geo = new T.PlaneGeometry(1, 1); geo.translate(0, .5, 0); // 아래 가운데가 원점
-    const mat = new T.MeshBasicMaterial({ map: atlas(key), alphaTest: .12, color: tint() });
+    const mat = new T.MeshBasicMaterial({ map: atlas(key), alphaTest: .12, color: tint(), toneMapped: false });
     mat.alphaToCoverage = true; // MSAA 로 가장자리를 부드럽게(정렬 문제 없는 불투명 패스)
     const mesh = new T.Mesh(geo, mat); pivot.add(mesh);
     const shadowMat = new T.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false, opacity: shade() });
@@ -76,11 +86,15 @@
     let cur = "", curMirror = false, frameH = 1.75;
     /** 프레임 교체: UV(거울상이면 좌우 바꿈)·크기·발 중심 맞춤 */
     function setFrame(fname, mirror, hk) {
-      const f = C.frames[fname] || C.frames["stand.front"];
+      const work=fname.startsWith("work.") && window.WORK_SEATED_META?.chars[key];
+      const life=fname.startsWith("life.") && window.OFFICE_LIFE_META?.chars[key];
+      const f = life ? life.frames[fname.slice(5)] : work ? work.frames[fname] : C.frames[fname] || C.frames["stand.front"];
+      const [atlasW,atlasH]=life ? life.size : work ? work.size : [AW,AH];
+      mat.map=life ? lifeAtlas(key) : work ? workAtlas(key) : atlas(key);
       const [x, y, w, h, ax, ppu] = f;
       if (fname !== cur || mirror !== curMirror) {
         cur = fname; curMirror = mirror;
-        const u0 = x / AW, u1 = (x + w) / AW, vt = 1 - y / AH, vb = 1 - (y + h) / AH;
+        const u0 = x / atlasW, u1 = (x + w) / atlasW, vt = 1 - y / atlasH, vb = 1 - (y + h) / atlasH;
         const L = mirror ? u1 : u0, R = mirror ? u0 : u1;
         uv.setXY(0, L, vt); uv.setXY(1, R, vt); uv.setXY(2, L, vb); uv.setXY(3, R, vb);
         uv.needsUpdate = true;
@@ -157,10 +171,12 @@
           else if (a.mode === "talk" && a.act === "gesture") bob = Math.abs(Math.sin(st.t * 3)) * .012; // 말하며 손짓
           else breathe = Math.sin(st.t * 1.8) * .005;
         }
-        const [fname, mirror] = pick(kind, st.view, cycle);
-        setFrame(fname, mirror, hk * (1 + breathe));
-        pivot.position.y = bob;
-        hideChair(seated || kind === "rise");
+        const workingSeat=kind==="sit" && seated && a.lifePose!=="lounge" && !!window.WORK_SEATED_META?.chars[key];
+        const [fname, mirror] = workingSeat ? (st.view==="front" || st.view==="back" ? [`work.${st.view}`,false] : ["work.sideR",st.view==="L"]) : pick(kind, st.view, cycle);
+        const lifePose=!walking && !rising && window.OFFICE_LIFE_META?.chars[key] && (["lounge","tea"].includes(a.lifePose) ? a.lifePose : (a.presenting ? "present" : ""));
+        setFrame(lifePose ? `life.${lifePose}` : fname, lifePose ? st.view === "L" : mirror, (workingSeat || lifePose ? 1 : hk) * (1 + breathe));
+        pivot.position.y = bob + (a.lifeSeatY || 0);
+        hideChair((seated || kind === "rise") && lifePose !== "lounge");
         // 그림자: 서 있으면 발 크기, 의자에 앉으면 의자 다리 크기
         const s = kind === "sit" || kind === "rise" ? 1.05 : walking ? .78 - bob * 2 : .72;
         shadow.scale.set(s, s * .8, 1);
