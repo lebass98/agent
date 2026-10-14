@@ -4,73 +4,177 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#eef1f7">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#10141c">
+<meta name="theme-color" id="themeColorLight" media="(prefers-color-scheme: light)" content="#f4f6fb">
+<meta name="theme-color" id="themeColorDark" media="(prefers-color-scheme: dark)" content="#0b1020">
 <title>Agent Office</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="labels.css"><!-- 3D 위 이름표·방 이름(캐릭터/장식 담당) -->
 </head>
 <body>
-<div id="stage"></div>
-<div id="labels" aria-hidden="true"></div>
+<!-- 아이콘 스프라이트(Lucide 계열 외곽선, stroke 1.8). JS 는 <use href="#i-이름"> 으로 쓴다 -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-timeline" viewBox="0 0 24 24"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-dash" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></symbol>
+  <symbol id="i-kanban" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 7v7"/><path d="M12 7v4"/><path d="M16 7v9"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
+</svg>
 
+<div id="stage"></div>
+<div id="labels" aria-hidden="true"></div><!-- 3D 위 HTML 라벨 컨테이너(이름표·말풍선·방 이름 모두 여기에) -->
+
+<!-- ── 상단 바 ── -->
 <header class="topbar" id="topbar">
-  <div class="brand">Agent Office<small id="brandSub">멀티 에이전트 팀</small></div>
-  <span class="conn" id="conn" role="status"><i></i><span id="connText">연결 중…</span></span>
-  <span class="grow"></span>
-  <div class="phase"><span class="dot" id="phaseDot"></span><b id="phaseText">대기 중</b></div>
-  <button class="tbtn key" id="keyBtn" type="button" hidden aria-label="접속 키 입력">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 20 3"/><path d="m16 7 3 3"/><path d="m18 5 2 2"/></svg>
-    <span>키 입력</span>
-  </button>
-  <button class="tbtn" id="historyBtn" type="button" hidden aria-label="지난 업무 보기">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
-    <span>지난 업무</span>
-  </button>
-  <div class="speed" id="speed" role="group" aria-label="연출 속도">
-    <button type="button" data-s="1">1×</button><button type="button" data-s="2">2×</button><button type="button" data-s="4">4×</button>
+  <div class="tb-left">
+    <button class="icon-btn round menu-btn" id="menuBtn" type="button" aria-label="메뉴 열기" aria-controls="sidebar" aria-expanded="false">
+      <svg class="ic"><use href="#i-menu"/></svg>
+    </button>
+    <div class="brand">Agent Office<small id="brandSub">Claude · GPT · Gemini | 멀티 에이전트 팀</small></div>
+    <button class="icon-btn round" id="searchBtn" type="button" aria-label="검색 (⌘K)" title="검색">
+      <svg class="ic"><use href="#i-search"/></svg>
+    </button>
+    <button class="primary" id="newAgentBtn" type="button" aria-label="새 에이전트 추가" title="새 에이전트 추가">
+      <svg class="ic"><use href="#i-plus"/></svg><span>새 에이전트</span>
+    </button>
   </div>
-  <button class="speed-cycle" id="speedCycle" type="button">1×</button>
-  <div class="clock" id="clock">--:--</div>
+  <nav class="topnav" id="topnav" aria-label="주요 보기">
+    <button type="button" data-view="office" aria-current="page" aria-label="사무실"><svg class="ic"><use href="#i-house"/></svg><span>사무실</span></button>
+    <button type="button" data-view="timeline" aria-label="타임라인"><svg class="ic"><use href="#i-timeline"/></svg><span>타임라인</span></button>
+    <button type="button" data-view="stats" aria-label="분석"><svg class="ic"><use href="#i-chart"/></svg><span>분석</span></button>
+    <button type="button" data-view="settings" aria-label="설정"><svg class="ic"><use href="#i-gear"/></svg><span>설정</span></button>
+  </nav>
+  <div class="tb-right">
+    <button class="chip conn" id="conn" type="button" role="status" aria-live="polite"><i></i><span id="connText">연결 중…</span></button>
+    <span class="chip" id="dateChip"><svg class="ic"><use href="#i-calendar"/></svg><span id="dateText">—</span></span>
+    <div class="speed" id="speed" role="group" aria-label="연출 속도">
+      <button type="button" data-s="1">1x</button><button type="button" data-s="2">2x</button><button type="button" data-s="4">4x</button>
+    </div>
+    <button class="speed-cycle" id="speedCycle" type="button">1×</button>
+    <span class="chip" id="clock" title="현재 업무 경과 시간"><svg class="ic"><use href="#i-clock"/></svg><span id="clockText">00:00</span></span>
+    <span class="avatar-btn" id="avatar" aria-hidden="true"><svg class="ic"><use href="#i-user"/></svg></span>
+  </div>
 </header>
 
-<section class="dock" id="dock" data-tab="members" aria-label="팀 현황">
-  <button class="dock-handle" id="dockHandle" type="button" aria-expanded="false" aria-controls="panes">
-    <span class="grabber" aria-hidden="true"></span>
-    <span class="summary"><span class="dot" id="sumDot"></span><span id="summary">대기 중</span></span>
-  </button>
-  <div class="tabs" id="tabs" role="tablist" aria-label="보기 전환">
-    <button type="button" role="tab" data-tab="members" aria-selected="true">팀원</button>
-    <button type="button" role="tab" data-tab="board" aria-selected="false">업무<em id="tabCount"></em></button>
-    <button type="button" role="tab" data-tab="log" aria-selected="false">로그</button>
+<!-- ── 왼쪽 사이드바 (휴대폰: 서랍) ── -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel left" id="sidebar" aria-label="사이드바">
+  <div class="drawer-head">
+    <div class="brand">Agent Office<small>멀티 에이전트 팀</small></div>
+    <button class="icon-btn" id="drawerClose" type="button" aria-label="메뉴 닫기"><svg class="ic"><use href="#i-x"/></svg></button>
   </div>
-  <div class="panes" id="panes">
-    <aside class="panel left" data-pane="members" aria-label="팀원">
-      <h3>팀원 <span id="memberCount">0명</span></h3>
-      <div class="scroll" id="members"></div>
-    </aside>
-    <aside class="panel right">
-      <section class="pane" data-pane="board" aria-label="업무 보드">
-        <h3>업무 보드 <span id="taskCount">0건</span></h3>
-        <div class="board scroll" id="board"></div>
-      </section>
-      <section class="pane" data-pane="log" aria-label="활동 로그">
-        <h3>활동 로그 <span>실시간</span></h3>
-        <div class="log scroll" id="log"></div>
-      </section>
-    </aside>
+  <nav class="sidenav" id="sidenav" aria-label="메뉴">
+    <button type="button" data-view="office" aria-current="page" title="대시보드"><svg class="ic"><use href="#i-dash"/></svg><span>대시보드</span></button>
+    <button type="button" data-view="board" title="업무 보드"><svg class="ic"><use href="#i-kanban"/></svg><span>업무 보드</span></button>
+    <button type="button" data-view="members" title="팀원 관리"><svg class="ic"><use href="#i-users"/></svg><span>팀원 관리</span></button>
+    <button type="button" data-view="library" title="자료실"><svg class="ic"><use href="#i-folder"/></svg><span>자료실</span></button>
+    <button type="button" data-view="settings" title="설정"><svg class="ic"><use href="#i-gear"/></svg><span>설정</span></button>
+  </nav>
+  <div class="drawer-only drawer-tools">
+    <button class="tbtn" id="drawerSearch" type="button"><svg class="ic"><use href="#i-search"/></svg><span>검색</span></button>
+    <button class="tbtn" id="drawerNewAgent" type="button"><svg class="ic"><use href="#i-plus"/></svg><span>새 에이전트</span></button>
   </div>
+  <div class="progress-slot" id="progressSide"></div>
+  <div class="drawer-only" id="drawerTheme"></div>
+</aside>
+
+<!-- ── 오른쪽 열 (휴대폰: 바텀 시트) + 입력창 ── -->
+<section class="dock" id="dock" data-tab="board" aria-label="업무 현황">
   <form class="command" id="command" autocomplete="off">
-    <button class="report-btn" id="reportBtn" type="button" hidden aria-label="최근 보고서 보기">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
-      <span>최근 보고서 보기</span>
-    </button>
-    <input id="goal" name="goal" maxlength="4000" enterkeyhint="send" aria-label="팀에게 맡길 목표">
-    <button id="runBtn" type="submit">업무 지시</button>
+    <svg class="ic spark" aria-hidden="true"><use href="#i-sparkles"/></svg>
+    <input id="goal" name="goal" maxlength="4000" enterkeyhint="send" aria-label="팀에게 지시할 업무" placeholder="팀에 업무를 지시해보세요...">
+    <span class="att-chip" id="attachChip" hidden>
+      <svg class="ic"><use href="#i-file"/></svg><span class="att-name" id="attachName"></span>
+      <button type="button" id="attachRemove" aria-label="첨부 제거"><svg class="ic"><use href="#i-x"/></svg></button>
+    </span>
+    <input type="file" id="attachInput" accept=".txt,.md,.csv,.json,.html,.htm,text/plain,text/markdown,text/csv,application/json,text/html" hidden>
+    <button class="icon-btn ghost" id="reportBtn" type="button" hidden aria-label="최근 보고서 보기" title="최근 보고서 보기"><svg class="ic"><use href="#i-file"/></svg></button>
+    <button class="icon-btn ghost" id="attachBtn" type="button" aria-label="파일 첨부 (txt·md·csv·json·html, 200KB 이하)" title="파일 첨부"><svg class="ic"><use href="#i-clip"/></svg></button>
+    <button class="send" id="runBtn" type="submit" aria-label="업무 지시"><svg class="ic"><use href="#i-send"/></svg></button>
   </form>
+  <div class="dock-card">
+    <button class="dock-handle" id="dockHandle" type="button" aria-expanded="false" aria-controls="panes">
+      <span class="grabber" aria-hidden="true"></span>
+      <span class="summary"><span class="dot" id="sumDot"></span><span id="summary">대기 중</span></span>
+    </button>
+    <div class="tabs" id="tabs" role="tablist" aria-label="보기 전환">
+      <button type="button" role="tab" data-tab="board" aria-selected="true">업무<em id="tabCount"></em></button>
+      <button type="button" role="tab" data-tab="log" aria-selected="false">로그</button>
+      <button type="button" role="tab" data-tab="progress" aria-selected="false">진행률</button>
+    </div>
+    <div class="panes" id="panes">
+      <aside class="panel right" id="rightcol" aria-label="업무 현황">
+        <section class="card pane" data-pane="board" aria-label="업무 보드">
+          <h3><svg class="ic"><use href="#i-clipboard"/></svg><span class="h-title">업무 보드</span><span class="h-sub" id="boardPhase"></span>
+            <button class="link" id="boardLink" type="button" title="업무 보드 열기">보드 열기<svg class="ic"><use href="#i-chev-right"/></svg></button></h3>
+          <div class="board scroll" id="board"></div>
+        </section>
+        <section class="card pane" data-pane="log" aria-label="활동 로그">
+          <h3><svg class="ic"><use href="#i-activity"/></svg><span class="h-title">활동 로그</span>
+            <button class="link" id="logFilterBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="활동 로그 필터"><span id="logFilterText">실시간</span><svg class="ic"><use href="#i-chev-down"/></svg></button></h3>
+          <div class="log scroll" id="log"></div>
+        </section>
+      </aside>
+      <section class="pane progress-slot" data-pane="progress" id="progressDock" aria-label="오늘의 진행률"></section>
+    </div>
+  </div>
 </section>
+
+<!-- ── 보기(업무 보드·타임라인·분석·팀원·자료실·설정) 오버레이 ── -->
+<section class="view" id="view" hidden role="region" aria-labelledby="viewTitle">
+  <header class="view-head">
+    <h2 id="viewTitle"></h2>
+    <button class="icon-btn" id="viewClose" type="button" aria-label="닫기"><svg class="ic"><use href="#i-x"/></svg></button>
+  </header>
+  <div class="view-body scroll" id="viewBody"></div>
+</section>
+<!-- 팀원 목록은 보기와 무관하게 항상 갱신된다(팀원 관리 보기에 들어간다) -->
+<div id="membersHome" hidden><div class="members" id="members"></div></div>
+
+<!-- 검색(명령 팔레트) -->
+<div class="palette" id="palette" hidden>
+  <div class="palette-box" role="dialog" aria-modal="true" aria-label="검색">
+    <div class="palette-input">
+      <svg class="ic"><use href="#i-search"/></svg>
+      <input id="paletteInput" type="search" autocomplete="off" placeholder="업무·로그·지난 업무 검색" aria-label="검색어" aria-controls="paletteList" aria-expanded="true" role="combobox" aria-autocomplete="list">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="palette-list scroll" id="paletteList" role="listbox" aria-label="검색 결과"></div>
+  </div>
+</div>
+<div class="popmenu" id="popmenu" role="menu" hidden></div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="modal" id="modal" hidden>
@@ -82,6 +186,8 @@
 <script src="vendor/OrbitControls.js"></script><!-- three@0.128.0 examples/js -->
 <script src="vendor/marked.min.js"></script><!-- marked 12.0.2 -->
 <script src="vendor/purify.min.js"></script><!-- DOMPurify 3.1.6 -->
+<script src="decor.js"></script><!-- 사무실 장식·평면(장식 담당). 없어도 app.js 는 동작 -->
+<script src="characters.js"></script><!-- 캐릭터 외형(캐릭터 담당). 없어도 app.js 는 동작 -->
 <script src="app.js"></script>
 </body>
 </html>
