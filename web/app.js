@@ -691,13 +691,13 @@ class Agent {
       this.group = { position: { x: this.seat.x, y: 0, z: this.seat.z, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, rotation: { y: Math.PI } };
       return;
     }
-    // 캐릭터 시트에 있는 팀원은 그림 캐릭터(sprite-chars.js, 2.5D 빌보드), 그 밖에는 characters.js 의 3D 프리셋 캐릭터(docs/characters.md),
+    // 모든 팀원은 미터 기준 입체 관절 캐릭터를 사용한다(docs/characters.md).
     // 둘 다 없으면 단순 도형 캐릭터. 모두 같은 rig 계약:
     // group(위치·방향) ─ legs(+knees) / body(엉덩이 축으로 기울기) ─ torso·arms(+elbows·hands)·head(목 축으로 고개)·cup·props
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
     let rig = null;
-    try { rig = window.SpriteChars?.build(def, name) || null; }
+    try { rig = window.Characters?.build(def, name) || null; }
     catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
     try { rig = rig || (window.Characters && Characters.build(def, name)); } // 프리셋 오류가 팀 전체 구성을 막지 않게
     catch (e) { console.warn(`캐릭터 생성 실패(${name}), 기본 모양으로 대체:`, e); }
@@ -830,7 +830,7 @@ class Agent {
     const pose = { legL: 0, legR: 0, legLz: 0, legRz: 0, kneeL: 0, kneeR: 0, armL: 0, armR: 0, armLz: 0, armRz: 0, elbL: null, elbR: null,
       headX: 0, headY: 0, lean: 0, yaw: 0, y: 0, cup: false, pocketL: false, pocketR: false, expr: "기본" };
     const t = this.t, s = Math.sin(t * 10);
-    if (seated) Object.assign(pose, { legL: -1.45, legR: -1.45, kneeL: 1.45, kneeR: 1.45, y: -.02 });
+    if (seated) Object.assign(pose, { legL: -1.45, legR: -1.45, kneeL: 1.45, kneeR: 1.45, y: -.43 });
     if (this.mode === "walk") Object.assign(pose, { legL: s * .6, legR: -s * .6, kneeL: Math.max(0, s) * .7, kneeR: Math.max(0, -s) * .7, armL: -s * .5, armR: s * .5, y: Math.abs(s) * .05 });
     else if (seated || this.mode === "coffee" || this.mode === "talk") this.doAct(pose, seated);
     else if (this.mode === "write") Object.assign(pose, { armR: -2.2 + Math.sin(t * 8) * .25, elbR: -.2, headX: -.12, headY: Math.sin(t * 2) * .1, expr: "집중" });
@@ -853,7 +853,7 @@ class Agent {
     lerp(this.body.rotation, "x", pose.lean);
     this.cup.visible = pose.cup;
     if (this.mug) this.mug.visible = !(pose.cup && atDesk);
-    g.position.y = pose.y + (seated ? .02 : 0);
+    g.position.y = seated && R.seatOffset != null ? R.seatOffset + pose.y + .43 : pose.y + (seated ? .02 : 0);
   }
   atDesk() { const p = this.group.position; return Math.hypot(p.x - this.seat.x, p.z - this.seat.z) < .35; }
   atMeet() { const p = this.group.position; return Math.hypot(p.x - this.meet.x, p.z - this.meet.z) < .35; }

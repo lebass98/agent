@@ -292,11 +292,29 @@
       l.visible = false;
     }
 
+    // 성인 비율: 다리를 늘리고 몸통·두상을 줄인다. 관절 계약은 유지한다.
+    legs.forEach(leg => { leg.position.y = .92; leg.scale.set(.8, 1.67, .85); });
+    body.position.y = .92;
+    torso.position.y = -.55 * .75;
+    torso.scale.set(.78, .75, .85);
+    head.scale.setScalar(.64);
+    arms.forEach(arm => { arm.scale.y = 1.2; });
+    group.updateMatrixWorld(true);
+    const bounds = new T.Box3().setFromObject(group);
+    const targetHeight = key === "gpt" ? 1.78 : key === "gemini" ? 1.68 : 1.72;
+    const factor = targetHeight / (bounds.max.y - bounds.min.y);
+    // 원점은 발바닥: 각 자식에 오프셋을 적용해 이동/회전 원점을 유지한다.
+    for (const child of group.children) child.position.y -= bounds.min.y;
+    group.scale.setScalar(factor);
+    group.name = `character-${key || "member"}`;
+    group.userData = { units: "meters", height: targetHeight, assetType: "articulated-character", forward: "+Z" };
+    const hipHeight = legs[0].position.y * factor;
+
     let cur = "기본";
     const setFace = e => { if (e !== cur && faces[e]) { cur = e; faceMat.map = faces[e]; } };
     const dispose = () => { for (const t of texs) t.dispose(); for (const o of pool) o.dispose(); };
     return {
-      group, legs, knees, body, torso, arms, elbows, hands, head, cup, props, height: 1.98, setFace, dispose, face: () => cur,
+      group, legs, knees, body, torso, arms, elbows, hands, head, cup, props, height: targetHeight + .18, hipHeight, seatOffset: .535 - hipHeight, setFace, dispose, face: () => cur,
       preset: Object.assign({ tablet: false, laptop: null, laptopOpen: false, cupAlways: false, pocket: null }, P.props),
     };
   }
