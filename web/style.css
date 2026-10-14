@@ -527,16 +527,15 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
 .stage-empty-card { max-width: 340px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .stage-empty-card b { display: block; margin-bottom: 6px; color: var(--text); font-size: 15px; }
 
-/* ───────────── 넓지 않은 데스크톱 (≤1400px): 상단 바 여유 확보 ───────────── */
+/* ───────────── 넓지 않은 데스크톱 (1101–1400px, 흔한 노트북): 상단 바 여유 확보 ─────────────
+   '+ 새 에이전트' 글자는 그대로 둔다(폭이 충분하다). 브랜드 부제만 숨기고 탭·칩 간격을 조금 줄인다 */
 @media (max-width: 1400px) and (min-width: 1101px) {
   .topbar { display: flex; } /* 좌우 열을 같은 너비로 묶지 않고, 가운데 탭은 남는 자리의 가운데에 */
   .tb-left { flex: 0 1 auto; }
   .topnav { margin: 0 auto; }
-  .tb-right { flex: 0 0 auto; }
+  .tb-right { flex: 0 0 auto; gap: 6px; }
   .brand small { display: none; }
-  .topnav button { padding: 0 11px; }
-  .primary span { display: none; }
-  .primary { width: 38px; padding: 0; justify-content: center; }
+  .topnav button { padding: 0 10px; }
 }
 
 /* ───────────── 태블릿 (761–1100px): 아이콘 레일 + 좁은 오른쪽 열 ───────────── */
@@ -568,9 +567,16 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
   .kanban { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
 }
+/* 태블릿 세로: 오른쪽 열을 옆이 아니라 사무실 아래(입력창 위)에 가로로 눕혀 사무실이 폭 전체를 쓰게 한다.
+   app.js 의 visibleArea() 는 오른쪽 열이 아래(R.top > 40vh)이면 아이콘 레일 오른쪽 ~ 화면 오른쪽, 상단 바 아래 ~ 열 위로 카메라를 맞춘다 */
 @media (max-width: 1100px) and (min-width: 761px) and (orientation: portrait) {
-  :root { --right-w: 250px; }
-  .command { width: min(460px, 100%); }
+  .right {
+    top: auto; left: calc(var(--side-w) + var(--gap) * 2 + var(--safe-l)); right: calc(var(--gap) + var(--safe-r)); width: auto;
+    bottom: calc(var(--cmd-h) + 36px + var(--safe-b)); height: 34vh; flex-direction: row;
+  }
+  .pane[data-pane="board"], .pane[data-pane="log"] { flex: 1 1 0; max-height: none; min-width: 0; }
+  .command { right: calc(var(--gap) + var(--safe-r)); width: min(460px, 100%); }
+  .view, .stage-empty { right: calc(var(--gap) + var(--safe-r)); }
 }
 
 /* ───────────── 모바일 (≤760px, 가로 모드 폰 포함): 압축 상단 바 + 서랍 + 바텀 시트 ───────────── */

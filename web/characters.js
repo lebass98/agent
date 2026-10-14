@@ -51,14 +51,14 @@
   };
   const hashStr = s => { let h = 7; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
   function wardrobe(def, key) {
-    const h = hashStr(key || "x"), top = WARDROBE.top[(h >> 2) % WARDROBE.top.length], hair = WARDROBE.hair[h % WARDROBE.hair.length];
+    const h = hashStr(key || "x"), top = WARDROBE.top[(h >>> 2) % WARDROBE.top.length], hair = WARDROBE.hair[h % WARDROBE.hair.length];
     const kind = top[2] || "shirt";
     return {
-      hair, hairColor: def.hair ?? 0x3b2a22, iris: "#3a2a22", lashes: hair !== "short", blush: .26, glasses: (h >> 10) % 3 === 0,
+      hair, hairColor: def.hair ?? 0x3b2a22, iris: "#3a2a22", lashes: hair !== "short", blush: .26, glasses: (h >>>10) % 3 === 0,
       top: { kind, color: top[0], trim: top[1], rolled: kind === "shirt" },
-      pants: { color: WARDROBE.pants[(h >> 5) % WARDROBE.pants.length], wide: (h >> 7) % 2 === 0, belt: (h >> 8) % 2 ? 0x1a1a1a : null },
+      pants: { color: WARDROBE.pants[(h >>>5) % WARDROBE.pants.length], wide: (h >>>7) % 2 === 0, belt: (h >>>8) % 2 ? 0x1a1a1a : null },
       shoes: { color: 0xffffff, accent: def.color || null },
-      props: { cup: "mug", laptop: (h >> 9) % 2 ? "L" : "R" },
+      props: { cup: "mug", laptop: (h >>>9) % 2 ? "L" : "R" },
     };
   }
 
@@ -123,7 +123,7 @@
   /* ── 조립 ── */
   function build(def, name) {
     const key = String(name || "").toLowerCase();
-    const P = PRESETS[key] || wardrobe(def || {}, key);
+    const P = Object.hasOwn(PRESETS, key) ? PRESETS[key] : wardrobe(def || {}, key); // 'constructor' 같은 이름이 Object.prototype 을 집지 않게
     const pool = [], texs = [];
     const G = g => (pool.push(g), g);
     const M = (color, o) => { const m = new T.MeshStandardMaterial(Object.assign({ color, roughness: .85 }, o)); pool.push(m); return m; };

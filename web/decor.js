@@ -8,14 +8,16 @@
   const OW = 32, OD = 22, WALL_H = 4, PART_H = 2.6, DOOR_W = 1.6;
   const X0 = -OW / 2, X1 = OW / 2, Z0 = -OD / 2, Z1 = OD / 2;
 
-  /* ───────── 평면도 ───────── */
+  /* ───────── 평면도 ─────────
+     chip: 방 이름 칩(HTML)을 띄우는 바닥 좌표. 사람이 앉는 자리(팀장 책상·회의 상석) 머리 위와 겹치지 않는 곳에 둔다.
+     off: true 면 칩을 만들되 기본으로 숨긴다(라운지는 명세의 5개 방 칩 목록에 없다). */
   const rooms = {
-    lobby: { x0: X0, x1: -9.5, z0: 4, z1: Z1, label: "현관", door: { x: -9.5, z: 7.5, axis: "z", w: DOOR_W } },
-    pantry: { x0: X0, x1: -8.5, z0: Z0, z1: -4, label: "탕비실", door: { x: -10, z: -4, axis: "x", w: DOOR_W } },
-    work: { x0: -8.5, x1: 5, z0: Z0, z1: Z1, label: "업무 공간", door: null },
-    exec: { x0: 5, x1: X1, z0: Z0, z1: -3.5, label: "대표님실", door: { x: 5, z: -4.5, axis: "z", w: DOOR_W }, door2: { x: 13, z: -3.5, axis: "x", w: DOOR_W } },
-    meeting: { x0: 5, x1: X1, z0: -3.5, z1: 4.5, label: "회의실", door: { x: 5, z: 3.5, axis: "z", w: DOOR_W } },
-    lounge: { x0: 5, x1: X1, z0: 4.5, z1: Z1, label: "라운지", door: null },
+    lobby: { x0: X0, x1: -9.5, z0: 4, z1: Z1, label: "현관", door: { x: -9.5, z: 7.5, axis: "z", w: DOOR_W }, chip: { x: -12.5, z: 9.3 } },
+    pantry: { x0: X0, x1: -8.5, z0: Z0, z1: -4, label: "탕비실", door: { x: -10, z: -4, axis: "x", w: DOOR_W }, chip: { x: -12.3, z: -5.2 } },
+    work: { x0: -8.5, x1: 5, z0: Z0, z1: Z1, label: "업무 공간", door: null, chip: { x: -1.75, z: -9.2 } },
+    exec: { x0: 5, x1: X1, z0: Z0, z1: -3.5, label: "대표님실", door: { x: 5, z: -4.5, axis: "z", w: DOOR_W }, door2: { x: 13, z: -3.5, axis: "x", w: DOOR_W }, chip: { x: 6.8, z: -5.5 } },
+    meeting: { x0: 5, x1: X1, z0: -3.5, z1: 4.5, label: "회의실", door: { x: 5, z: 3.5, axis: "z", w: DOOR_W }, chip: { x: 8, z: 3.2 } },
+    lounge: { x0: 5, x1: X1, z0: 4.5, z1: Z1, label: "라운지", door: null, chip: { x: 11, z: 9.8, off: true } },
   };
   const ENTRANCE = { x: -14.3, z: 7.5 };                     // 현관 유리문 바로 안
   const LOBBY_DOOR = { x: X0, z: 7.5, w: 2 };                // 바깥 유리 양문(왼쪽 외벽)
@@ -24,13 +26,15 @@
   const WHITEBOARD = { x: 6.2, z: .3 }, BOARD_FACE = { x: 5, z: .3 };
   const COUNTER = { x: -15.6, z: -8.6 };                     // 탕비실 커피 머신
   const PANTRY_TABLE = { x: -11.6, z: -7.6, w: 1.9, d: 1.15 };
-  const COFFEE = [{ x: -14.5, z: -9.6 }, { x: -14.5, z: -8.4 }, { x: -14.5, z: -7.2 }, { x: -9.5, z: -7.6 }, { x: -13.6, z: -10 },
-    { x: -13.6, z: -5.3 }, { x: -9.6, z: -9.8 }, { x: -9.6, z: -5.4 }, { x: -12.6, z: -5.1 }];
+  // 탕비실 대기 자리: 카운터 앞(x≈-14.5, 커피 머신을 본다)과 타원 테이블 둘레(테이블을 본다)를 번갈아 채워 한 줄로 서지 않게 한다
+  const COFFEE = [{ x: -14.5, z: -8.4 }, { x: -9.5, z: -7.6 }, { x: -13.6, z: -5.3 }, { x: -14.5, z: -9.6 }, { x: -12.6, z: -5.1 },
+    { x: -9.6, z: -9.8 }, { x: -14.5, z: -7.2 }, { x: -13.6, z: -10 }, { x: -9.6, z: -5.4 }];
   const EXEC_DESK = { x: 11, z: -8.8, w: 3 };
   const EXEC_SEAT = { x: 11, z: -7.5 };
-  // 회의 의자 8개: 카메라에 얼굴이 보이는 쪽(z=-.7)·양 끝부터 채운다
+  const REPORT_SPOT = { x: 12.9, z: -7.2 };                  // 검수 보고 자리: 대표 책상 오른쪽 모서리(12.5,-8.2)에서 0.4 떨어진 앞쪽
+  // 회의 의자 9개(3D 최대 인원과 같다): 카메라에 얼굴이 보이는 쪽(z=-.7)·양 끝부터 채우고, 9번째는 뒤쪽 모서리
   const MEET_SEATS = [{ x: 11, z: -.7 }, { x: 9.6, z: -.7 }, { x: 12.4, z: -.7 }, { x: 8.5, z: .5 }, { x: 13.5, z: .5 },
-    { x: 11, z: 1.7 }, { x: 9.6, z: 1.7 }, { x: 12.4, z: 1.7 }];
+    { x: 11, z: 1.7 }, { x: 9.6, z: 1.7 }, { x: 12.4, z: 1.7 }, { x: 8.3, z: -.7 }];
   const ROWS = [-1.5, -7.5, 4.5], ROW_CAP = 3, PITCH = 3.2, ROW_CX = -2.35, DESK_W = 2.6, SEAT_DZ = 1.15;
   /** 팀원(팀장 제외) n 명의 책상 자리: 가운데 줄 → 뒷줄 → 앞줄 순으로 한 줄에 3개까지. */
   function slots(n) {
@@ -213,7 +217,7 @@
 
   const Decor = {
     OW, OD, WALL_H, PART_H, rooms, walls: wallDefs, wallRects, obstacles: furniture, navRects, slots, spots, nav,
-    ENTRANCE, TABLE, WHITEBOARD, BOARD_FACE, COUNTER, COFFEE, EXEC_DESK, EXEC_SEAT, MEET_SEATS, PANTRY_TABLE, LOBBY_DOOR, TV,
+    ENTRANCE, TABLE, WHITEBOARD, BOARD_FACE, COUNTER, COFFEE, EXEC_DESK, EXEC_SEAT, REPORT_SPOT, MEET_SEATS, PANTRY_TABLE, LOBBY_DOOR, TV,
     walkable: (x, z) => nav.walkable(x, z), segHits,
   };
   if (typeof window !== "undefined") window.Decor = Decor; else if (typeof module !== "undefined") module.exports = Decor;
@@ -262,13 +266,14 @@
   const FONT = '"Noto Sans KR", system-ui, sans-serif';
   const redraws = []; // 글꼴이 늦게 오면 다시 그릴 캔버스들
   function texture(cv) { const t = new T.CanvasTexture(cv); t.minFilter = T.LinearFilter; t.anisotropy = 4; return t; }
-  /** 캔버스 표지판 평면. draw(ctx,w,h) 를 지금 그리고 글꼴 로드 뒤 한 번 더 그린다. */
+  /** 캔버스 표지판 평면. draw(ctx,w,h) 를 지금 그리고 글꼴 로드 뒤 한 번 더 그린다. 없앨 때는 m.userData.release() 로 redraws 에서도 뺀다. */
   function sign(parent, w, h, px, draw, x, y, z, o = {}) {
     const cv = canvas(px, Math.round(px * h / w)), c = cv.getContext("2d"), tex = texture(cv);
     const paint = () => { c.save(); draw(c, cv.width, cv.height); c.restore(); tex.needsUpdate = true; };
     paint(); redraws.push(paint);
     const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: tex, transparent: !!o.alpha }));
     m.position.set(x, y, z); m.rotation.set(o.rx || 0, o.ry || 0, o.rz || 0); parent.add(m);
+    m.userData.release = () => { const i = redraws.indexOf(paint); if (i >= 0) redraws.splice(i, 1); };
     return m;
   }
   const plate = (text, bg = "#2b3245", fg = "#ffffff", size = 30) => (c, w, h) => {
@@ -364,7 +369,8 @@
   const themed = { mats: {}, lights: [], dyn: [], dark: false, chips: [], doors: [], skyline: null, skyTex: {}, glass: null, bulbs: null, shades: null, camera: null };
   const TH = {
     light: { floor: 0xf1efea, slab: 0xd5d8e0, wall: 0xffffff, trim: 0xd9dee8, carpet: 0xdde4f3, execCarpet: 0xd9d2c8, rug: 0xe3dccf, glass: 0xdbeafe, glassOp: .18, bulb: 0, light: 0, sky: "day" },
-    dark: { floor: 0x151c33, slab: 0x0b1020, wall: 0x1b2340, trim: 0x111733, carpet: 0x1c2748, execCarpet: 0x1f1b2e, rug: 0x272239, glass: 0x8fb3ff, glassOp: .1, bulb: 1.1, light: 1.3, sky: "night" },
+    // 다크: '따뜻한 램프 빛이 도는 네이비 사무실' — 바닥·벽을 너무 어둡지 않게, 램프(점광원·전구 발광)는 더 세게
+    dark: { floor: 0x1c2546, slab: 0x0b1020, wall: 0x242f55, trim: 0x111733, carpet: 0x1c2748, execCarpet: 0x1f1b2e, rug: 0x272239, glass: 0x8fb3ff, glassOp: .1, bulb: 1.6, light: 2.0, sky: "night" },
   };
   /** 도시 스카이라인(낮/밤) 캔버스. 뒷벽 창 밖에 둔다. */
   function skylineTex(night) {
@@ -536,8 +542,9 @@
     st.box(.34, .46, .04, 0x1f2430, -13.8, 1.35, 9.3, { rx: -.35, ry: Math.PI / 4 });
     plantParts(st, -15.3, 6.1, 1.05, "fiddle"); plantParts(st, -15.3, 8.9, 1, "monstera");
     sign(scene, 2.2, .55, 512, lobbySign, X0 + .02, 2.55, 4.9, { ry: Math.PI / 2 });
+    // 추상화 + 액자: 액자 상자(두께 .04)는 그림 평면(x=X0+.03) 뒤(앞면 X0+.015)에 두어야 그림이 묻히지 않는다
     sign(scene, 1, .8, 256, abstractArt, X0 + .03, 2.2, 9.9, { ry: Math.PI / 2 });
-    st.box(.04, .9, 1.1, C.woodDark, X0 + .015, 2.2, 9.9);
+    st.box(.04, .9, 1.1, C.woodDark, X0 - .005, 2.2, 9.9);
 
     // ── 탕비실: 카운터·커피 머신·주전자·전자레인지·냉장고·선반(머그·화분)·타원 테이블 + 의자 4·정수기
     st.box(.62, .88, 4.15, C.white, -15.65, .44, -8.68); st.box(.72, .05, 4.25, 0xcfd3db, -15.62, .905, -8.68);
@@ -578,7 +585,7 @@
     sign(scene, .9, .26, 256, plate("👑 대표님실", "#1e2538", "#ffffff", 30), 5.08, 1.75, -6.1, { ry: Math.PI / 2 });
     sign(scene, 1.4, .36, 256, plate("대표님실", "#2b3245"), 5.07, PART_H + .32, rooms.exec.door.z, { ry: Math.PI / 2 });
 
-    // ── 회의실: 긴 테이블·의자 8·노트북·TV(막대 그래프)·화분·펜던트 2·표지판
+    // ── 회의실: 긴 테이블·의자 9(MEET_SEATS)·노트북·TV(막대 그래프)·화분·펜던트 2·표지판
     st.box(TABLE.w, .07, TABLE.d, C.white, TABLE.x, .78, TABLE.z);
     for (const sx of [-1, 1]) st.box(.08, .76, TABLE.d - .4, 0xcfd3db, TABLE.x + sx * (TABLE.w / 2 - .3), .38, TABLE.z);
     MEET_SEATS.forEach(m => chairParts(st, m.x, m.z, Math.atan2(TABLE.x - m.x, TABLE.z - m.z), "meet"));
@@ -626,9 +633,11 @@
     if (themed.lights.length >= 4) return null;
     const l = new T.PointLight(0xffb86b, 0, 11, 2); l.position.set(x, y, z); scene.add(l); themed.lights.push(l); return l;
   }
-  /** 책상 세트(팀원·대표). group 에 넣고 { screen, mug } 를 돌려준다(두 화면 재질은 mats[0..1]). */
+  /** 책상 세트(팀원·대표). group 에 넣고 { screen, mug, bulb, mesh, dispose } 를 돌려준다(두 화면 재질은 mats[0..1]).
+      dispose() 는 팀을 다시 만들 때 group 에서 메시를 떼기 전에 부른다: 명패 캔버스를 redraws 에서, 책상 램프 점광원을 themed.dyn 에서 뺀다(누수 방지). */
   function deskSet(group, { x, z, w = DESK_W, mats, exec = false, color = 0x4f7cf7, label = "", lamp = true, light = false, cols = 1, col = 0 }) {
     const mb = new MB(), top = exec ? C.woodDark : C.wood, topY = exec ? .82 : .815;
+    const owned = { signs: [], lights: [] };
     if (exec) {
       mb.box(w, .08, 1.2, top, x, .78, z);
       for (const sx of [-1, 1]) mb.box(.06, .76, 1.05, top, x + sx * (w / 2 - .1), .38, z - .05);
@@ -657,19 +666,24 @@
       bulb = new T.Mesh(new T.SphereGeometry(.04, 10, 6), themed.mats.bulb || new T.MeshStandardMaterial({ color: 0xfff1d6 }));
       bulb.position.set(b.x + .02, b.y - .03, b.z); group.add(bulb);
       if (light) { // 다크 테마용 따뜻한 점광원(책상 램프). 전체 4개 한도는 theme() 에서 센다
-        const pl = new T.PointLight(0xffb86b, themed.dark ? TH.dark.light : 0, 8, 2); pl.position.set(b.x, b.y + .1, b.z + .2); group.add(pl); themed.dyn.push(pl);
+        const pl = new T.PointLight(0xffb86b, themed.dark ? TH.dark.light : 0, 8, 2); pl.position.set(b.x, b.y + .1, b.z + .2); group.add(pl); themed.dyn.push(pl); owned.lights.push(pl);
       }
     }
     if (exec && label) { // 명패(팀원 색 + 왕관)
       const col = "#" + new T.Color(color).getHexString();
-      sign(group, .62, .16, 256, plate(`👑 ${label}`, col, "#ffffff", 30), x + w / 2 - .95, .92, z + .46);
+      owned.signs.push(sign(group, .62, .16, 256, plate(`👑 ${label}`, col, "#ffffff", 30), x + w / 2 - .95, .92, z + .46));
       mb.box(.64, .04, .1, C.alu, x + w / 2 - .95, .83, z + .49);
     }
     const mesh = mb.mesh(group);
     const mug = new T.Mesh(new T.CylinderGeometry(.075, .065, .16, 14), new T.MeshStandardMaterial({ color: 0xffffff, roughness: .6 }));
     mug.position.set(x + w / 2 - .62, .9, z + .25); mug.castShadow = true; group.add(mug);
     officeChair(group, x, z + (exec ? 1.3 : SEAT_DZ), Math.PI, null, exec ? "exec" : "task"); // 의자는 spots() 의 seat 와 같은 자리
-    return { screen: screens[0], mug, bulb, mesh };
+    const dispose = () => {
+      for (const s of owned.signs) s.userData.release?.();
+      themed.dyn = themed.dyn.filter(l => !owned.lights.includes(l));
+      owned.signs = []; owned.lights = [];
+    };
+    return { screen: screens[0], mug, bulb, mesh, dispose };
   }
 
   /* ───────── 테마 ───────── */
@@ -708,19 +722,28 @@
     const cam = themed.camera;
     if (!cam || !themed.chips.length) return;
     const hide = innerWidth < 760 && cam.zoom < 1.5;
+    const W = innerWidth, H = innerHeight;
+    let tags = null; // 보이는 이름표 사각형(이름표가 우선: 칩이 이름표를 가리거나 그 뒤에 숨지 않게, 겹치면 칩을 숨긴다)
     for (const c of themed.chips) {
-      if (hide) { c.el.style.display = "none"; continue; }
+      if (hide || c.el.hidden) { c.el.style.display = "none"; continue; }
       c.el.style.display = "";
       _v.set(c.x, 3.2, c.z).project(cam);
-      c.el.style.transform = `translate3d(${((_v.x * .5 + .5) * innerWidth).toFixed(1)}px, ${((-_v.y * .5 + .5) * innerHeight).toFixed(1)}px, 0) translate(-50%, -50%)`;
+      const cx = (_v.x * .5 + .5) * W, cy = (-_v.y * .5 + .5) * H;
+      c.el.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy.toFixed(1)}px, 0) translate(-50%, -50%)`;
+      if (!c.w || (c.n = (c.n || 0) + 1) % 60 === 0) { c.w = c.el.offsetWidth; c.h = c.el.offsetHeight; } // 크기는 1초에 한 번만 잰다
+      if (!tags) tags = [...document.querySelectorAll("#labels .tagwrap .nametag, #labels .tagwrap .roletag")].map(n => n.getBoundingClientRect()).filter(r => r.width > 0);
+      const x0 = cx - c.w / 2, x1 = cx + c.w / 2, y0 = cy - c.h / 2, y1 = cy + c.h / 2;
+      const covered = tags.some(r => x0 < r.right && x1 > r.left && y0 < r.bottom && y1 > r.top);
+      c.el.style.opacity = covered ? "0" : "";
     }
   }
   function makeChips() { // 스타일은 style.css 의 .room-chip(테마 토큰) — 설정의 '방 이름표' 가 body.no-roomtags 로 숨긴다
     const box = document.getElementById("labels") || document.body;
     for (const [k, r] of Object.entries(rooms)) {
       const el = document.createElement("div"); el.className = "room-chip"; el.textContent = r.label; el.dataset.room = k;
+      if (r.chip?.off) el.hidden = true; // 기본 숨김(라운지)
       box.prepend(el);
-      themed.chips.push({ el, x: (r.x0 + r.x1) / 2, z: k === "work" ? -9.2 : (r.z0 + r.z1) / 2 });
+      themed.chips.push({ el, x: r.chip ? r.chip.x : (r.x0 + r.x1) / 2, z: r.chip ? r.chip.z : (r.z0 + r.z1) / 2, w: 0, h: 0, n: 0 });
     }
   }
   Object.assign(Decor, { build, deskSet, officeChair, plant, theme, tick, setCamera: cam => (themed.camera = cam), themed, MB, VMAT, C });
