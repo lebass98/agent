@@ -91,11 +91,17 @@ def main() -> int:
     if not git("remote", check=False):
         print("ℹ️  원격 저장소가 없어 push 를 건너뜁니다.")
         return 0
-    r = subprocess.run(["git", "pull", "--rebase", "origin", branch], cwd=ROOT, text=True, capture_output=True)
-    if r.returncode:
-        print(f"❌ pull --rebase 충돌/실패:\n{(r.stderr or r.stdout).strip()}")
-        print("   충돌 파일을 고친 뒤:  git add <파일> && git rebase --continue && git push origin " + branch)
-        return 1
+    git("fetch", "origin", branch)
+    behind = subprocess.run(["git", "merge-base", "--is-ancestor", f"origin/{branch}", "HEAD"], cwd=ROOT).returncode != 0
+    if behind:  # 원격에 새 커밋이 있을 때만 rebase. 커밋 안 한 작업 중 변경은 --autostash 로 잠시 치웠다 되돌린다
+        r = subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", branch], cwd=ROOT, text=True, capture_output=True)
+        if r.returncode:
+            print(f"❌ pull --rebase 충돌/실패:\n{(r.stderr or r.stdout).strip()}")
+            print("   충돌 파일을 고친 뒤:  git add <파일> && git rebase --continue && git push origin " + branch)
+            return 1
+        print(f"🔄 원격 변경을 받아 rebase 했습니다 → {git('log', '--oneline', '-1')}")
+    else:
+        print("✓ 원격에 새 커밋 없음 (rebase 생략)")
     if a.no_push:
         print("⏭  --no-push: push 생략")
         return 0
