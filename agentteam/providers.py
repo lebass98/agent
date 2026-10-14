@@ -38,6 +38,8 @@ class Member:
         return await call(self, prompt, system or self.system)
 
 
+API_TIMEOUT = float(os.getenv("API_TIMEOUT", "600"))  # 초
+
 # provider 별로 하나라도 있으면 되는 환경변수
 _KEYS = {
     "anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"),
@@ -94,13 +96,14 @@ async def _google(m: Member, prompt: str, system: str) -> str:
     from google.genai import types
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
-    resp = await client.aio.models.generate_content(
-        model=m.model,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=system, max_output_tokens=m.max_tokens
-        ),
-    )
+    try:  # 무료 사용량에서는 응답이 아주 늦어질 수 있어 제한 시간을 둔다(Anthropic·OpenAI SDK 는 자체 제한 시간이 있다)
+        resp = await asyncio.wait_for(client.aio.models.generate_content(
+            model=m.model,
+            contents=prompt,
+            config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=m.max_tokens),
+        ), API_TIMEOUT)
+    except asyncio.TimeoutError:
+        raise RuntimeError(f"Gemini 응답 시간 초과({API_TIMEOUT:.0f}초). 모델을 바꾸거나 잠시 뒤 다시 시도하세요.")
     return resp.text or ""
 
 

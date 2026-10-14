@@ -4,7 +4,7 @@
 #   CLI (구독 로그인, API 키·크레딧 불필요):
 #     claude-cli  → `claude -p`   Claude Code 의 claude.ai 로그인(Max/Pro). model: opus | sonnet | haiku
 #     codex-cli   → `codex exec`  Codex CLI 의 ChatGPT 로그인.            model: default (CLI 기본) 또는 codex 가 허용하는 이름
-#     gemini-cli  → `gemini -p`   Gemini CLI 의 Google 로그인(무료 사용량). model: default 또는 gemini-2.5-pro 등
+#     gemini-cli  → `gemini -p`   Gemini CLI (Google 개인 로그인은 2026-10 현재 지원 종료 → Antigravity. API 키 로그인은 가능)
 #   API (키 필요, .env):  anthropic | openai | google
 #   mock: 테스트용 (--mock 으로 전체 전환)
 #
@@ -25,6 +25,6 @@ model = "default"
 role = "개발자. 코드 구현, 리팩터링, 자동화 스크립트 작성"
 
 [members.gemini]
-provider = "gemini-cli"
-model = "default"
+provider = "google"              # Gemini CLI 의 Google 로그인은 개인 계정 지원이 끝나(Antigravity 로 이전) 무료 API 키를 쓴다
+model = "gemini-3.6-flash"       # 무료 사용량은 Flash 계열만 가능(2026-10 측정: 3.6-flash 2.8초 응답, flash-latest 는 40초 이상). Pro 는 결제 등록 필요
 role = "분석가. 긴 문서·대용량 자료 분석, 리서치, 요약"
