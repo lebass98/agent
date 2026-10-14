@@ -795,8 +795,11 @@ class Agent {
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
     let rig = null;
-    try { rig = window.SpriteChars?.build(def, name) || null; }
-    catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
+    const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
+    if (!use3DChar) {
+      try { rig = window.SpriteChars?.build(def, name) || null; }
+      catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
+    }
     try { rig = rig || (window.Characters && Characters.build(def, name)); } // 프리셋 오류가 팀 전체 구성을 막지 않게
     catch (e) { console.warn(`캐릭터 생성 실패(${name}), 기본 모양으로 대체:`, e); }
     rig = this.rig = rig || this.primitiveRig(def);
@@ -963,7 +966,16 @@ class Agent {
       Gemini: 타이핑할 때 빼고는 커피컵을 손에, 걸을 때는 노트북도 옆구리에 */
   dress(pose, seated, atDesk, atMeet) {
     const pr = this.pr, P = this.props, m = this.mode, moving = m === "walk" || m === "stand";
-    const show = { tablet: false, laptop: false, laptopOpen: false };
+    const show = { tablet: false, laptop: false, laptopOpen: false, phone: false };
+    const lifeKey = m !== "walk" && (["lounge", "tea"].includes(this.lifePose) ? this.lifePose : (this.presenting ? "present" : ""));
+    if (lifeKey && window.Characters?.POSES?.[lifeKey]) {
+      const sp = window.Characters.POSES[lifeKey](String(this.name || "").toLowerCase());
+      Object.assign(pose, sp);
+      show.phone = !!sp.phone;
+      for (const k in show) if (P[k]) P[k].visible = show[k];
+      this.setFace(this.t < this.emoteUntil ? this.emoteExpr : (sp.expr || pose.expr));
+      return;
+    }
     const busyHands = this.act === "typing" || this.act === "scroll" || this.act === "lean" || this.act === "relax" || this.act === "stretch";
     if (pr.tablet && !(seated && (atDesk || busyHands)) && m !== "coffee") { show.tablet = true; Object.assign(pose, { armL: -1.05, armLz: .55, elbL: -1.65 }); }
     if (pr.laptopOpen && atMeet && (m === "talk" || m === "sit")) {

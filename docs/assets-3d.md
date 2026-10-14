@@ -21,10 +21,11 @@
 
 ## 산출물
 
-- `claude.obj/.mtl`, `gpt.obj/.mtl`, `gemini.obj/.mtl`: 성인 비율 기본 모델. 머리·의상·신발·사원증 메시 포함. 숨긴 휴대 소품 제외.
+- `claude.glb`, `gpt.glb`, `gemini.glb`, `characters.glb`: 512×512 얼굴 캔버스 텍스처, 웨이브/번 리본 헤어, 의상 주름·칼라·벨트·사원증·스니커즈·손가락 관절을 포함한 입체 GLB 모델 (`characters.glb`는 시트 3가지 대표 포즈 `lounge`·`tea`·`present` 3인 세트).
+- `claude.obj/.mtl`, `gpt.obj/.mtl`, `gemini.obj/.mtl`: 성인 비율 정밀 조형 기본 모델. 머리·3D 이목구비·의상·신발·사원증·손가락 메시 포함. 숨긴 휴대 소품 제외.
 - `office.obj/.mtl`: 바닥·벽·유리 칸막이·창·회의실·탕비실·라운지·가구 및 3인 책상 세트.
 - `dimensions.json`: 동일한 좌표계의 치수와 방 경계.
-- 브라우저의 JSON 저장: 얼굴 캔버스 텍스처, 메시 계층과 재질을 포함하는 Three.js ObjectLoader 형식. 캐릭터 비교 화면에는 검수용 조명/격자를 제외한 캐릭터 그룹만 저장한다.
+- 브라우저의 JSON/GLB 저장: `web/assets/3d/index.html`(`/assets/3d/`)에서 **시트 3×3 포즈 비교(9개 동시 배치)** 및 **캐릭터 3인 스튜디오(포즈 6종 · 표정 5종 · 턴테이블 회전 · 와이어프레임)** 모드로 검수하고 GLB/JSON을 즉시 저장할 수 있다.
 
 재생성: `node scripts/assets/build.cjs`. 기존 고정 Three.js만 사용하며 인터넷·외부 패키지가 필요 없다. 생성기는 세 캐릭터의 발바닥 0과 목표 키를 검증한다.
 
