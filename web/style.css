@@ -723,3 +723,13 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
   .toasts { left: calc(var(--safe-l) + 8px); right: auto; transform: none; width: calc(100% - var(--side-w2) - 32px - var(--safe-l) - var(--safe-r)); }
   .stage-empty { inset: calc(var(--safe-t) + 72px) calc(var(--side-w2) + 24px + var(--safe-r)) 16px calc(16px + var(--safe-l)); padding: 16px; }
 }
+
+/* 팀원별 외형 선택: 모바일에서도 이미지와 선택 상태를 함께 확인 */
+.appearance-agent { margin: 20px 0; }
+.appearance-agent h4 { margin: 0 0 10px; }
+.appearance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.appearance-option { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 6px; border: 2px solid transparent; border-radius: 12px; background: var(--panel, #f3f4f6); color: inherit; cursor: pointer; }
+.appearance-option[aria-pressed="true"] { border-color: #6366f1; background: rgba(99,102,241,.12); }
+.appearance-option:focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; }
+.appearance-option small { opacity: .65; }
+.appearance-portrait.face { display: block; width: 64px; height: 64px; border-radius: 12px; }

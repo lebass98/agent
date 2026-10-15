@@ -1,0 +1,69 @@
+{
+  "tool": "built-in image_gen",
+  "common": "Use case: stylized-concept. Production game character sprite sheet for a 2.5D office simulation. Single consistent adult person across ALL cells, polished semi-realistic illustrated 3D render matching a friendly office character game, natural adult proportions, navy lanyard and white employee ID. Transparent background, no text, no grid lines, no borders, no ground shadows. Exactly FOUR columns and FIVE rows, equal-size cells, wide spacing within every cell, no overlap. Center each figure in its own cell. Body figures show entire head and both shoes and fit within cell with 8% padding. Camera level, orthographic. Identity and outfit identical in all views.\nREADING ORDER left to right:\nRow1: standing front; standing left profile; standing right profile; standing back.\nRow2: walking front; walking right profile; walking back; midway rising from gray office chair (right profile).\nRow3: seated typing front with hands extended to an invisible keyboard (NO desk NO laptop); seated typing right profile same; seated typing back same; seated relaxing on simple gray lounge chair front.\nRow4: standing sipping a white coffee cup; standing presenting with one hand raised; face portrait neutral; face portrait smiling.\nRow5: face portrait focused; face portrait surprised; face portrait thinking; face portrait right profile.\nOnly gray chair with seated/rising poses, no surrounding furniture. Face portraits show head and shoulders. Soft consistent neutral studio lighting. Subject: ",
+  "people": [
+    {
+      "id": "hana",
+      "label": "하나",
+      "age": 24,
+      "subject": "Korean woman, short straight dark-brown bob, sage-green cardigan over white top, beige straight trousers, white sneakers"
+    },
+    {
+      "id": "jun",
+      "label": "준",
+      "age": 27,
+      "subject": "Korean man, short neat black side-part hair, navy rolled-sleeve shirt, light gray chinos, white sneakers"
+    },
+    {
+      "id": "sora",
+      "label": "소라",
+      "age": 31,
+      "subject": "Korean woman, shoulder-length auburn wavy hair, burgundy knit top, navy wide-leg trousers, white sneakers"
+    },
+    {
+      "id": "min",
+      "label": "민",
+      "age": 29,
+      "subject": "androgynous Korean adult, short ash-brown pixie hair, round silver glasses, lavender sweatshirt, charcoal trousers, white sneakers"
+    },
+    {
+      "id": "doyoon",
+      "label": "도윤",
+      "age": 34,
+      "subject": "Korean man aged 34, natural Korean facial features and light-medium warm skin, short textured black hair, clean-shaven, cream overshirt over rust T-shirt, dark blue trousers, white sneakers"
+    },
+    {
+      "id": "jiyu",
+      "label": "지유",
+      "age": 26,
+      "subject": "Korean woman aged 26, natural Korean facial features and light warm skin, long black braid, mustard blouse, forest-green wide-leg trousers, white sneakers"
+    },
+    {
+      "id": "hyunwoo",
+      "label": "현우",
+      "age": 38,
+      "subject": "Korean man aged 38, natural Korean facial features and light-medium skin, swept-back dark-brown hair, rectangular glasses, teal knit polo, sand chinos, white sneakers"
+    },
+    {
+      "id": "seojin",
+      "label": "서진",
+      "age": 43,
+      "subject": "Korean man aged 43, mature natural face with subtle smile lines, neat short black hair with slight gray at temples, thin metal glasses, charcoal blazer over pale blue open collar shirt, navy trousers, clean dark sneakers"
+    },
+    {
+      "id": "taeho",
+      "label": "태호",
+      "age": 48,
+      "subject": "Korean man aged 48, mature friendly face with smile lines, broad shoulders and average sturdy build, short salt-and-pepper side-part hair, no glasses, olive casual jacket over cream knit shirt, brown straight trousers, clean white sneakers"
+    },
+    {
+      "id": "sungwoo",
+      "label": "성우",
+      "age": 45,
+      "subject": "Korean man aged 45, mature Korean face with subtle smile lines, neatly side-parted short black hair, rectangular thin dark-rim eyeglasses, crisp WHITE formal dress shirt with collar and buttons tucked in (no jacket, no tie, no sweater), charcoal formal suit trousers with a black leather belt, black formal leather dress shoes. Professional office worker."
+    }
+  ],
+  "refinements": {
+    "sungwoo": "Fix only row four columns one and two: scale the coffee and presenting figures down to show complete legs and black dress shoes within their cells. Preserve the Korean man aged 45, white dress shirt, charcoal suit trousers, eyeglasses, other 18 cells, and alpha transparency."
+  }
+}

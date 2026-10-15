@@ -6,7 +6,7 @@ window.Dashboard = (() => {
   function schedule() { if (!pending) pending = requestAnimationFrame(() => { pending = 0; render(); }); }
   function render() {
     if (!document.getElementById("activityAgents")) return;
-    const names = D.names, teamKey = names.map(n => `${n}:${A(n).def.model}:${A(n).def.provider}:${A(n).def.role}`).join("|");
+    const names = D.names, teamKey = names.map(n => `${n}:${A(n).def.model}:${A(n).def.provider}:${A(n).def.role}:${appearanceOf(n)}`).join("|");
     if (teamKey !== lastTeam) {
       lastTeam = teamKey; cards.clear();
       $("activityAgents").replaceChildren(...names.map(n => {

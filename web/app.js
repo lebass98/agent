@@ -771,8 +771,9 @@ function pickAct(list, prev) {
   }
   return [list[0][0], list[0][2]];
 }
-/** 그림 캐릭터(sprite-chars.js)의 표정 띠. 시트에 있는 팀원(claude·gpt·gemini)만, 없으면 null */
-const facesOf = n => window.SpriteChars?.faces(n) || null;
+/** 팀원별 선택 외형과 해당 인물의 표정 띠. 등록되지 않은 외형은 null. */
+const appearanceOf = n => window.CharacterLooks?.get(n) || n;
+const facesOf = n => window.SpriteChars?.faces(appearanceOf(n)) || null;
 /** 표정 아바타 CSS 변수: 띠 이미지·칸 수·보여 줄 칸(style.css 의 .face) */
 const faceVars = (f, expr = "기본") => ({ "--face": `url("${f.src}")`, "--fn": f.n, "--fi": f.index(expr) });
 /** 0→1→0 으로 올라갔다 내려오는 동작 곡선(올리기 25% · 유지 · 내리기 20%) */
@@ -796,8 +797,8 @@ class Agent {
     ensureCharacterAssets();
     let rig = null;
     const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
-    if (!use3DChar) {
-      try { rig = window.SpriteChars?.build(def, name) || null; }
+    if (!use3DChar || appearanceOf(name) !== name) {
+      try { rig = window.SpriteChars?.build(def, appearanceOf(name)) || null; }
       catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
     }
     try { rig = rig || (window.Characters && Characters.build(def, name)); } // 프리셋 오류가 팀 전체 구성을 막지 않게
@@ -853,6 +854,22 @@ class Agent {
     this.label = el("div", { class: "tagwrap", style: { "--c": d.color } }, this.bubble, this.tag, this.role);
     this.ly = 0; // declutter() 가 겹친 이름표를 위로 밀어 올린 양(px)
     $("labels").append(this.label);
+  }
+  changeAppearance(key) {
+    if (this.ghost) return;
+    const rig = window.SpriteChars?.build(this.def, key);
+    if (!rig) return;
+    const previous = this.rig;
+    rig.group.position.copy(this.group.position);
+    rig.group.rotation.copy(this.group.rotation);
+    scene.remove(this.group);
+    previous.dispose?.();
+    this.rig = rig;
+    Object.assign(this, { group: rig.group, legs: rig.legs, body: rig.body, arms: rig.arms, head: rig.head, cup: rig.cup });
+    this.props = rig.props || {}; this.pr = rig.preset || {};
+    scene.add(this.group);
+    this.label.remove(); this.makeLabel();
+    this.expr = ""; this.setFace("기본");
   }
   dispose() {
     this._settle(false); clearTimeout(this._bt);
@@ -1593,6 +1610,27 @@ function membersView() {
   return [
     el("p", { class: "muted small", text: `팀원 ${D.names.length}명 · 팀장 ${memberDef(D.leader).label} · ${conn}` }),
     MEMBERS_EL,
+    el("section", { class: "appearance-settings" },
+      el("h3", { text: "에이전트 사람 이미지 선택" }),
+      el("p", { class: "muted small", text: "팀원별로 13종의 외형을 선택하세요. 선택은 이 브라우저에 저장되고 사무실과 얼굴 아바타에 바로 적용됩니다." }),
+      ...D.names.map(n => el("div", { class: "appearance-agent" },
+        el("h4", { text: memberDef(n).label }),
+        el("div", { class: "appearance-grid", role: "group", "aria-label": `${memberDef(n).label} 사람 이미지` },
+          ...window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id)).map(person => el("button", {
+            type: "button", class: "appearance-option", "aria-pressed": appearanceOf(n) === person.id ? "true" : "false",
+            onclick: () => {
+              window.CharacterLooks.set(n, person.id);
+              A(n).changeAppearance(person.id);
+              scheduleView(); window.Dashboard?.schedule();
+              D.names.forEach((name, i) => {
+                const node = MEMBERS_EL.children[i]?.querySelector(".avatar");
+                const f = facesOf(name);
+                if (node && f) node.replaceWith(el("span", { class: "avatar face", style: faceVars(f), "aria-hidden": "true" }));
+              });
+              toast(`${memberDef(n).label}의 외형을 ${person.label}(으)로 변경했어요.`);
+            }
+          }, el("span", { class: "appearance-portrait face", style: faceVars(window.SpriteChars.faces(person.id)), "aria-hidden": "true" }),
+          el("span", { text: person.label }), el("small", { text: person.age ? `${person.age}세` : "기존 캐릭터" }))))))),
     el("div", { class: "guide" }, el("b", { text: "새 에이전트 추가하기" }),
       "팀원은 서버의 team.toml 파일로 관리해요. 화면에서 바로 추가되지는 않습니다.",
       el("ol", null, el("li", { text: "아래 버튼으로 이름·제공사·모델·역할을 넣어 설정 조각을 만들고 복사해요." }), el("li", { text: "프로젝트의 team.toml 에 붙여 넣고 저장해요." }), el("li", { text: "서버(serve.py)를 다시 시작하면 새 팀원이 출근해요." })),
