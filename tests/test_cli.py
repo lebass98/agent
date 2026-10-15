@@ -97,6 +97,12 @@ def test_antigravity_cli_error_status(bin_dir):
         asyncio.run(member("antigravity-cli").ask("hi"))
 
 
+
+def test_antigravity_cli_empty_response(bin_dir):
+    fake(bin_dir, "agy", '''echo '{"status":"SUCCESS","response":"","denied_actions":[{"action":"RunCommand"}]}' ''')
+    with pytest.raises(RuntimeError, match="빈 응답.*RunCommand"):
+        asyncio.run(member("antigravity-cli").ask("hi"))
+
 def test_timeout(bin_dir, monkeypatch):
     monkeypatch.setattr(cli, "TIMEOUT", 0.3)
     fake(bin_dir, "claude", "sleep 5")

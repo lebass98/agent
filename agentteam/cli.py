@@ -164,7 +164,12 @@ async def antigravity_cli(m, prompt: str, system: str, workdir: str | None = Non
         return out.strip()
     if data.get("status", "SUCCESS") != "SUCCESS" or data.get("error"):
         raise RuntimeError(f"agy: {data.get('error') or data.get('status')}")
-    return str(data.get("response", "")).strip()
+    text = str(data.get("response", "")).strip()
+    if not text:  # 도구 사용이 막히면(denied_actions) 빈 답이 온다 → 실패로 알린다
+        denied = data.get("denied_actions") or []
+        names = ", ".join(str(d.get("action", d) if isinstance(d, dict) else d) for d in denied)
+        raise RuntimeError("agy: 빈 응답" + (f" (거부된 동작: {names})" if names else ""))
+    return text
 
 
 PROVIDERS = {"claude-cli": claude_cli, "codex-cli": codex_cli, "gemini-cli": gemini_cli, "antigravity-cli": antigravity_cli}

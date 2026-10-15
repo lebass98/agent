@@ -15,3 +15,7 @@ node_modules/
 cache/
 projects.json
 projects.tmp
+
+# 사용자 가이드 PPT·PDF (용량이 커서 Git 제외, docs/guide/ 에 둔다)
+docs/guide/*.pptx
+docs/guide/*.pdf
