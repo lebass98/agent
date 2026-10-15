@@ -1,0 +1,69 @@
+{
+  "tool": "built-in image_gen",
+  "people": [
+    {
+      "id": "hana",
+      "label": "하나",
+      "age": 24,
+      "subject": "Korean woman, short straight dark-brown bob, sage-green cardigan over white top, beige straight trousers, white sneakers"
+    },
+    {
+      "id": "jun",
+      "label": "준",
+      "age": 27,
+      "subject": "Korean man, short neat black side-part hair, navy rolled-sleeve shirt, light gray chinos, white sneakers"
+    },
+    {
+      "id": "sora",
+      "label": "소라",
+      "age": 31,
+      "subject": "Korean woman, shoulder-length auburn wavy hair, burgundy knit top, navy wide-leg trousers, white sneakers"
+    },
+    {
+      "id": "min",
+      "label": "민",
+      "age": 29,
+      "subject": "androgynous Korean adult, short ash-brown pixie hair, round silver glasses, lavender sweatshirt, charcoal trousers, white sneakers"
+    },
+    {
+      "id": "doyoon",
+      "label": "도윤",
+      "age": 34,
+      "subject": "Korean man aged 34, natural Korean facial features and light-medium warm skin, short textured black hair, clean-shaven, cream overshirt over rust T-shirt, dark blue trousers, white sneakers"
+    },
+    {
+      "id": "jiyu",
+      "label": "지유",
+      "age": 26,
+      "subject": "Korean woman aged 26, natural Korean facial features and light warm skin, long black braid, mustard blouse, forest-green wide-leg trousers, white sneakers"
+    },
+    {
+      "id": "hyunwoo",
+      "label": "현우",
+      "age": 38,
+      "subject": "Korean man aged 38, natural Korean facial features and light-medium skin, swept-back dark-brown hair, rectangular glasses, teal knit polo, sand chinos, white sneakers"
+    },
+    {
+      "id": "seojin",
+      "label": "서진",
+      "age": 43,
+      "subject": "Korean man aged 43, mature natural face with subtle smile lines, neat short black hair with slight gray at temples, thin metal glasses, charcoal blazer over pale blue open collar shirt, navy trousers, clean dark sneakers"
+    },
+    {
+      "id": "taeho",
+      "label": "태호",
+      "age": 48,
+      "subject": "Korean man aged 48, mature friendly face with smile lines, broad shoulders and average sturdy build, short salt-and-pepper side-part hair, no glasses, olive casual jacket over cream knit shirt, brown straight trousers, clean white sneakers"
+    },
+    {
+      "id": "sungwoo",
+      "label": "성우",
+      "age": 45,
+      "subject": "Korean man aged 45, mature Korean face with subtle smile lines, neatly side-parted short black hair, rectangular thin dark-rim eyeglasses, crisp WHITE formal dress shirt with collar and buttons tucked in (no jacket, no tie, no sweater), charcoal formal suit trousers with a black leather belt, black formal leather dress shoes. Professional office worker."
+    }
+  ],
+  "references": [
+    "docs/ref/people/<id>.png: 인물의 얼굴·헤어·복장",
+    "docs/ref/characters-office-life-v1.png: 기존 세 인물의 소파 착석·차·발표 자세"
+  ]
+}

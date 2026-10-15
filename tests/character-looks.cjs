@@ -41,3 +41,13 @@ w.CharacterLooks.reconcile(['claude','gpt','gemini']);
 assert.equal(new Set(['claude','gpt','gemini'].map(n=>w.CharacterLooks.get(n))).size,3);
 assert.equal(w.CharacterLooks.available('gpt',w.CharacterLooks.get('claude'),['claude','gpt','gemini']),false);
 console.log('중복 선택 거부·이전 중복 저장값 자동 정리 확인 통과');
+
+for(const {id} of w.CharacterLooks.list.filter(p=>p.age)){
+  const c=w.OFFICE_LIFE_META.chars[id];
+  for(const pose of ['lounge.front','lounge.sideR','lounge.back','tea','present','seatedTea']){
+    assert(c.frames[pose],`${id}:${pose}`);
+    const f=c.frames[pose],expected=pose.startsWith('lounge.')||pose==='seatedTea'?1.22:1.75;
+    assert(Math.abs(f[3]/f[5]-expected)<.001,`${id}:${pose} 실제 높이`);
+  }
+}
+console.log('신규 10명: 가구 없는 착석 3방향·전신 차/발표·앉아서 차 마시기 60포즈 및 높이 확인 통과');

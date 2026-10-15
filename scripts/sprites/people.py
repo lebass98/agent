@@ -5,7 +5,7 @@ python3 scripts/sprites/people.py (Pillow, numpy 필요)
 import json
 from pathlib import Path
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'web/sprites/people'
@@ -15,6 +15,21 @@ NAMES = ['기본', '웃음', '집중', '놀람', '생각', '측면']
 
 def power(n):
     return 2 ** (n - 1).bit_length()
+
+
+def clean_tile(tile):
+    """피사체와 연결되지 않은 이웃 칸의 신발·머리 조각을 제외한다."""
+    alpha = np.array(tile.getchannel('A'))
+    mask = Image.fromarray((alpha > 24).astype('uint8')*255).filter(ImageFilter.MaxFilter(5))
+    ys, xs = np.nonzero(np.array(mask))
+    if not len(xs):
+        raise ValueError('빈 프레임')
+    index = int(np.argmin((xs-xs.mean())**2 + (ys-ys.mean())**2))
+    ImageDraw.floodfill(mask, (int(xs[index]), int(ys[index])), 128)
+    main = np.array(mask) == 128
+    alpha[~main] = 0
+    tile.putalpha(Image.fromarray(alpha))
+    return tile.crop(tile.getchannel('A').getbbox())
 
 
 def tiles(image):
@@ -32,22 +47,18 @@ def tiles(image):
     for row in range(5):
         for col in range(4):
             tile = image.crop((col*w//4, rows[row], (col+1)*w//4, rows[row+1]))
-            mask = tile.getchannel('A').point(lambda v: 255 if v > 24 else 0)
-            box = mask.getbbox()
-            if not box:
-                raise ValueError(f'빈 프레임: {row}, {col}')
-            result.append(tile.crop(box))
+            result.append(clean_tile(tile))
     return result
 
 
-def pack(key, suffix, frames, heights):
+def pack(key, suffix, frames, heights, anchors=None):
     width = power(sum(im.width+4 for im in frames.values())+4)
     height = power(max(im.height for im in frames.values())+4)
     atlas = Image.new('RGBA', (width, height))
     coords, x = {}, 2
     for name, im in frames.items():
         atlas.paste(im, (x, 2))
-        coords[name] = [x, 2, im.width, im.height, round(im.width/2, 3), round(im.height/heights[name], 4)]
+        coords[name] = [x, 2, im.width, im.height, round(im.width*(anchors or {}).get(name, .5), 3), round(im.height/heights[name], 4)]
         x += im.width+4
     path = OUT / f'{key}{suffix}.png'
     atlas.save(path, optimize=True)
@@ -69,8 +80,20 @@ def main():
         body[key] = pack(key, '', frames, heights)
         wf = dict(zip(['work.front','work.sideR','work.back'], t[8:11]))
         work[key] = pack(key, '-work', wf, {n:1.46 for n in wf})
-        lf = dict(zip(['lounge','tea','present'], t[11:14]))
-        life[key] = pack(key, '-life', lf, {'lounge':1.4,'tea':1.75,'present':1.75})
+        life_source = SOURCE.parent / 'people-life' / f'{key}.png'
+        if life_source.exists():
+            sheet = Image.open(life_source).convert('RGBA')
+            projection = (np.array(sheet.getchannel('A')) > 24).sum(axis=1)
+            lo, hi = int(sheet.height*.43), int(sheet.height*.57)
+            middle = lo + int(np.argmin(np.convolve(projection, np.ones(7)/7, mode='same')[lo:hi]))
+            parts = [clean_tile(sheet.crop((c*sheet.width//3, y0, (c+1)*sheet.width//3, y1))) for y0,y1 in [(0,middle),(middle,sheet.height)] for c in range(3)]
+            lf = dict(zip(['lounge.front','lounge.sideR','lounge.back','tea','present','seatedTea'], parts))
+            heights = {name:1.22 if name.startswith('lounge.') or name=='seatedTea' else 1.75 for name in lf}
+            life[key] = pack(key, '-life', lf, heights, {'lounge.sideR':.32,'seatedTea':.38})
+            life[key]['frames']['lounge'] = life[key]['frames']['lounge.front']
+            life[key]['source'] = str(life_source.relative_to(ROOT))
+        else:
+            raise FileNotFoundError(f'필수 휴식 포즈 시트가 없습니다: {life_source}')
         faces = Image.new('RGBA', (128*6,128))
         for i, face in enumerate(t[14:20]):
             face.thumbnail((128,128), Image.Resampling.LANCZOS)

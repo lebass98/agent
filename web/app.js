@@ -139,7 +139,7 @@ let KEY = (() => {
    three.js 를 불러오지 못했거나(오프라인·차단) WebGL 을 쓸 수 없으면 HAS3D=false 로, 3D 없이 목록 모드로 동작한다.
    이때도 연결·이벤트 처리·보드·로그·카드·업무 지시는 그대로 돈다(캐릭터는 위치만 가진 '유령'이 된다). */
 const SMALL = mqMobile.matches || Math.min(screen.width, screen.height) < 700;
-/* 평면도(decor.js 의 Decor 가 기준). 방: 현관(앞-왼쪽)·탕비실(뒤-왼쪽)·업무 공간(가운데)·팀장실(뒤-오른쪽)·회의실(오른쪽)·라운지(앞-오른쪽).
+/* 평면도(decor.js 의 Decor 가 기준). 방: 앞쪽 현관·왼쪽 모서리 탕비실·업무 공간·오른쪽 회의실 2개·라운지·창가 베란다.
    decor.js 가 없으면 같은 좌표의 최소값으로 동작한다(가구 없는 단순 사무실·직선 이동). */
 const HAS_DECOR = typeof Decor !== "undefined" && !!Decor.rooms;
 const OW = HAS_DECOR ? Decor.OW : 32, OD = HAS_DECOR ? Decor.OD : 22;     // 사무실 가로·세로
@@ -150,7 +150,7 @@ const COUNTER = HAS_DECOR ? Decor.COUNTER : { x: -15.6, z: -8.6 };        // 탕
 const COFFEE = HAS_DECOR ? Decor.COFFEE : [{ x: -14.5, z: -8.4 }, { x: -9.5, z: -7.6 }, { x: -13.6, z: -5.3 }, { x: -14.5, z: -9.6 }, { x: -12.6, z: -5.1 },
   { x: -9.6, z: -9.8 }, { x: -14.5, z: -7.2 }, { x: -13.6, z: -10 }, { x: -9.6, z: -5.4 }]; // 카운터 앞·테이블 둘레를 번갈아(한 줄로 서지 않게)
 const ENTRANCE = HAS_DECOR ? Decor.ENTRANCE : { x: -14.3, z: 7.5 };       // 현관 유리문 바로 안(출근 지점)
-const DOOR_OUT = { x: (HAS_DECOR ? Decor.LOBBY_DOOR.x : -OW / 2) - 1.4, z: HAS_DECOR ? Decor.LOBBY_DOOR.z : 7.5 }; // 현관 유리문 바깥(출근할 때 나타나는 곳)
+const DOOR_OUT = HAS_DECOR && Decor.LOBBY_DOOR.axis === "x" ? { x: Decor.LOBBY_DOOR.x, z: Decor.LOBBY_DOOR.z + 1.4 } : { x: (HAS_DECOR ? Decor.LOBBY_DOOR.x : -OW / 2) - 1.4, z: HAS_DECOR ? Decor.LOBBY_DOOR.z : 7.5 };
 const PANTRY_TABLE = HAS_DECOR ? Decor.PANTRY_TABLE : { x: -11.6, z: -7.6 }; // 탕비실 타원 테이블(그 옆 커피 자리는 테이블을 본다)
 const REPORT_SPOT = HAS_DECOR && Decor.REPORT_SPOT ? Decor.REPORT_SPOT : { x: 12.9, z: -7.2 }; // 검수 보고 자리: 대표 책상 오른쪽 모서리에서 0.4 떨어진 앞쪽
 const ROOMS = HAS_DECOR ? Decor.rooms : {                                 // 이름 → { x0, x1, z0, z1, label, door }
@@ -162,7 +162,7 @@ const ROOMS = HAS_DECOR ? Decor.rooms : {                                 // 이
   lounge: { x0: 5, x1: 16, z0: 4.5, z1: 11, label: "라운지", door: null },
 };
 const BOOTH = { x0: ROOMS.meeting.x0, x1: ROOMS.meeting.x1, z0: ROOMS.meeting.z0, z1: ROOMS.meeting.z1, door: .8, h: HAS_DECOR ? Decor.PART_H : 2.6 }; // 회의실(유리 칸막이) 영역 — 예전 이름 유지
-const MAX_DESKS = 9; // 3D 자리는 9명까지(팀장실 1 + 업무 공간 3줄×3). 그 이상은 목록·보드에만 표시
+const MAX_DESKS = 17; // 서로 마주 보는 가로 3석 두 줄씩 3묶음에서 앞줄 오른쪽 1석 제외. 그 이상은 목록·보드에만 표시
 let renderer = null, scene = null, camera = null, controls = null, hemi = null, sun = null, teamGroup = null, CAM_OFF = null;
 let strokes = [], OFFICE_PTS = [], ACT_PTS = [];
 const themed = {};
@@ -274,7 +274,7 @@ function clearStrokes() { strokes.forEach(s => (s.visible = false)); strokeN = 0
 function desk(x, z, w, mats, opts = {}) {
   const g = teamGroup;
   if (HAS_DECOR && typeof Decor.deskSet === "function") {
-    const d = Decor.deskSet(g, { x, z, w, mats, exec: !!opts.exec, color: opts.color, label: opts.label, light: !!opts.light, cols: opts.cols || 1, col: opts.col || 0 });
+    const d = Decor.deskSet(g, { x, z, w, mats, exec: !!opts.exec, color: opts.color, label: opts.label, light: !!opts.light, cols: opts.cols || 1, col: opts.col || 0, facing: opts.facing || 0 });
     if (typeof d.dispose === "function") DESK_DISPOSERS.push(d.dispose); // 팀을 다시 놓을 때 layout() 이 부른다(명패 캔버스·램프 등록 해제)
     return { screen: d.screen, mug: d.mug };
   }
@@ -298,7 +298,7 @@ function desk(x, z, w, mats, opts = {}) {
   cyl(.32, .32, .1, 0x2a2d35, x, .5, sz, g); box(.52, .55, .08, 0x2a2d35, x, .85, sz + .26, g); cyl(.04, .04, .45, 0x40465a, x, .25, sz, g);
   return { screen: screens[0], mug };
 }
-/** 팀 자리 배치(0번이 팀장). 팀장은 팀장실 원목 책상, 나머지는 업무 공간 책상(가운데 줄 → 뒷줄 → 앞줄, 한 줄 3개).
+/** 팀 자리 배치(0번이 팀장). 기존 팀장 원목 책상과 팀원 책상을 업무 공간에 두고, 가로 3석의 두 줄을 서로 마주 보게 배치한다.
     회의 의자는 회의실 긴 테이블 둘레(장식이 놓은 의자 9개 중 앞 n개), 커피 자리는 탕비실. 길 찾기 격자도 여기서 다시 만든다.
     3D 가 없으면 위치만 계산한다(screen 없음). */
 const DESK_DISPOSERS = []; // Decor.deskSet 이 돌려준 정리 함수(명패 캔버스·책상 램프 등록 해제). 팀을 다시 놓기 전에 전부 부른다
@@ -309,17 +309,17 @@ function layout(order, leaderColor) {
   }
   const n = order.length, plan = HAS_DECOR ? Decor.spots(n) : fallbackSpots(n);
   const spots = plan.map((p, i) => {
-    const spot = { seat: p.seat, meet: p.meet, coffee: p.coffee, screen: null, mug: null, tv: null, tv2: null };
+    const spot = { seat: p.seat, monitorTarget: { x: p.desk.x, z: p.desk.z + (p.desk.facing ? .34 : -.34) }, meet: p.meet, coffee: p.coffee, screen: null, mug: null, tv: null, tv2: null };
     if (HAS3D) {
       spot.tv = new Screen(); spot.tv2 = new Screen();
       const label = typeof niceName === "function" ? niceName(order[i]) : String(order[i]);
       Object.assign(spot, desk(p.desk.x, p.desk.z, p.desk.w, [spot.tv.material, spot.tv2.material],
-        { exec: i === 0, color: leaderColor, label, light: i > 0 && i <= 2, cols: p.desk.cols || 1, col: p.desk.col || 0 })); // 점광원은 팀원 책상 2개까지
+        { exec: i === 0, color: leaderColor, label, light: i > 0 && i <= 2, cols: p.desk.cols || 1, col: p.desk.col || 0, facing: p.desk.facing || 0 })); // 점광원은 팀원 책상 2개까지
     }
     return spot;
   });
   // 팀 책상이 없는 줄은 빈 책상으로 채운다(모니터는 켜 둔 고정 화면). 길 찾기 격자에도 들어간다(Decor.navRects)
-  if (HAS3D && HAS_DECOR && typeof Decor.spareDesks === "function") for (const d of Decor.spareDesks(n)) desk(d.x, d.z, d.w, spareScreens(), { cols: d.cols, col: d.col });
+  if (HAS3D && HAS_DECOR && typeof Decor.spareDesks === "function") for (const d of Decor.spareDesks(n)) desk(d.x, d.z, d.w, spareScreens(), { cols: d.cols, col: d.col, facing: d.facing || 0 });
   if (HAS_DECOR) { Decor.nav.build(Decor.navRects(n)); navDebug(); }
   if (HAS3D) ACT_PTS = activityPts(plan);
   return spots;
@@ -364,7 +364,7 @@ const THEMES = {
 };
 /* 사무실 조명(낮 ↔ 밤). 기본은 실제 해를 따른다(decor.js 의 Decor.sun): 해 고도 +5° 에서 어두워지기 시작해 -5° 에서 완전히 밤이 되고
    (일몰·일출 앞뒤 약 40~50분), 낮에는 그림자가 실제 해의 방위를 따라 돈다. 설정의 '사무실 조명'에서 '화면 테마'를 고르면 예전처럼
-   화면 테마(라이트·다크)를 따른다. 화면(패널) 테마와는 따로 움직이며, 3D 바깥 배경색만 화면 테마를 따른다.
+   화면 테마(라이트·다크)를 따른다. 라이트 화면에서는 해를 따르되, 다크 화면에서는 밤 조명을 우선한다.
    위치는 설정에서 맞춘 좌표(agentOffice.place) > 기기 시간대의 대표 도시. 사무실은 +z 가 남쪽, +x 가 동쪽이다(뒷벽 창은 북향). */
 const OFFICE = { mode: store.get("agentOffice.officeLight") === "theme" ? "theme" : "sun", n: null, tween: null, now: null }; // now: 점검용 가상 시각
 const useSun = () => OFFICE.mode === "sun" && HAS_DECOR && !!Decor.sun;
@@ -374,7 +374,8 @@ function sunPlace() {
 }
 /** 지금 사무실의 밤 정도: 0(낮) ~ 1(밤) */
 function officeNight() {
-  if (!useSun()) return isDark() ? 1 : 0;
+  if (isDark()) return 1; // 다크 화면에서는 실제 시각보다 밤 조명을 우선한다.
+  if (!useSun()) return 0;
   const p = sunPlace();
   return Decor.sun.night(OFFICE.now || new Date(), p.lat, p.lng);
 }
@@ -445,7 +446,7 @@ function officeLightNote() {
   const p = sunPlace(), t = Decor.sun.times(new Date(), p.lat, p.lng);
   const hm = d => d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
   const today = t ? `오늘 일출 ${hm(t.sunrise)} · 일몰 ${hm(t.sunset)} (${p.label} 기준)` : `오늘은 해가 뜨거나 지지 않아요 (${p.label} 기준)`;
-  return OFFICE.mode === "sun" ? `해 뜨고 지는 시각에 맞춰 사무실이 서서히 밝아지고 어두워져요(앞뒤 약 40분). ${today}` : `화면 테마(라이트·다크)를 따라요. ${today}`;
+  return OFFICE.mode === "sun" ? `라이트 화면에서는 해를 따라 서서히 밝기가 바뀌고, 다크 화면에서는 즉시 밤 조명으로 바뀝니다. ${today}` : `화면 테마(라이트·다크)를 따라요. ${today}`;
 }
 function officeLightControl() {
   const custom = !!store.get("agentOffice.place");
@@ -1686,7 +1687,7 @@ function settingsView() {
     HAS3D ? row("사무실 조명", officeLightNote(), officeLightControl()) : null,
     row("기본 연출 속도", "말풍선·이동 연출의 빠르기. 상단 바에서도 바꿀 수 있어요.", speedControl()),
     row("움직임 줄이기", "카메라 이동과 전환 애니메이션을 최소화해요. 시스템의 '동작 줄이기' 설정은 항상 따릅니다.", switchControl(PREF.reduce, setReduce, "움직임 줄이기")),
-    HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·팀장실·회의실 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
+    HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·회의실·베란다 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
     row("프로젝트", "AI 팀이 파일을 읽고 고칠 수 있게 허락한 폴더를 관리해요.",
       el("button", { class: "tbtn", type: "button", onclick: () => showView("projects") }, icon("folder-open"), "프로젝트 관리")),
     row("접속 키", NET.mode === "auth" ? "이 서버는 접속 키가 있어야 쓸 수 있어요." : KEY ? "저장된 접속 키가 있어요." : "LAN 공개(--lan) 서버에서만 필요해요.",

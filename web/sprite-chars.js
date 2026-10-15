@@ -127,6 +127,18 @@
     const group = new T.Group();
     const pivot = new T.Group(); group.add(pivot); // 카메라 쪽으로 도는 축(발 중심)
     const geo = createReliefGeometry();
+    const baseDepth = Array.from({ length: geo.attributes.position.count }, (_, i) => geo.attributes.position.getZ(i));
+    let seatRelief = false;
+    function setSeatRelief(on) {
+      if (on === seatRelief) return;
+      seatRelief = on;
+      const positions = geo.attributes.position;
+      for (let i = 0; i < positions.count; i++) {
+        const y = positions.getY(i), t = Math.min(1, Math.max(0, (.55-y)/.25));
+        positions.setZ(i, baseDepth[i] + (on ? t*t*(3-2*t)*.65 : 0));
+      }
+      positions.needsUpdate = true; geo.computeVertexNormals();
+    }
     const baseTex = atlas(key);
     const mat = new T.MeshBasicMaterial({ map: baseTex, alphaTest: .08, color: tint(), toneMapped: false });
     mat.alphaToCoverage = true; // MSAA 서브픽셀 외곽선 안티앨리어싱
@@ -240,12 +252,21 @@
           else if (a.mode === "talk" && a.act === "gesture") bob = Math.abs(Math.sin(st.t * 3)) * .012;
           else breathe = Math.sin(st.t * 1.8) * .005;
         }
-        const workingSeat = kind === "sit" && seated && a.lifePose !== "lounge" && !!window.WORK_SEATED_META?.chars[key];
+        const workingSeat = kind === "sit" && seated && !["lounge", "seatedTea"].includes(a.lifePose) && !!window.WORK_SEATED_META?.chars[key];
         const [fname, mirror] = workingSeat ? (st.view === "front" || st.view === "back" ? [`work.${st.view}`, false] : ["work.sideR", st.view === "L"]) : pick(kind, st.view, cycle);
-        const lifePose = !walking && !rising && window.OFFICE_LIFE_META?.chars[key] && (["lounge", "tea"].includes(a.lifePose) ? a.lifePose : (a.presenting ? "present" : ""));
-        setFrame(lifePose ? `life.${lifePose}` : fname, lifePose ? st.view === "L" : mirror, (workingSeat || lifePose ? 1 : hk) * (1 + breathe));
-        pivot.position.y = bob + (a.lifeSeatY || 0);
-        hideChair((seated || kind === "rise") && lifePose !== "lounge");
+        const lifeMeta = window.OFFICE_LIFE_META?.chars[key];
+        const requested = a.lifePose === "seatedTea" && !lifeMeta?.frames.seatedTea ? "lounge" : a.lifePose;
+        const lifePose = !walking && !rising && lifeMeta && (["lounge", "tea", "seatedTea"].includes(requested) ? requested : (a.presenting ? "present" : ""));
+        let lifeFrame = lifePose, lifeMirror = st.view === "L";
+        if (lifePose === "lounge" && lifeMeta.frames["lounge.front"]) {
+          lifeFrame = `lounge.${st.view === "front" || st.view === "back" ? st.view : "sideR"}`;
+          lifeMirror = st.view === "L";
+        }
+        setFrame(lifePose ? `life.${lifeFrame}` : fname, lifePose ? lifeMirror : mirror, (workingSeat || lifePose ? 1 : hk) * (1 + breathe));
+        // 몸통은 좌판에 두고 무릎 아래만 카메라 쪽으로 내밀어 소파에 가려 잘리지 않게 한다.
+        setSeatRelief(["lounge", "seatedTea"].includes(lifePose));
+        pivot.position.set(0, bob + (a.lifeSeatY || 0), 0);
+        hideChair((seated || kind === "rise") && !["lounge", "seatedTea"].includes(lifePose));
         const s = kind === "sit" || kind === "rise" ? 1.08 : walking ? .82 - bob * 2 : .76;
         shadow.scale.set(s, s * .82, 1);
         rig.height = frameH + bob + .1;

@@ -3,6 +3,7 @@
 window.OfficeLife=(()=>{
   let generation=0,active=false,next=0,previous='',sceneName='';
   const participants=new Set();
+  const places=window.Decor?.LIFE;
   const lines={
     walk:['잠깐 걸으면서 생각을 정리할게요.','어깨 좀 풀고 올게요.','한 바퀴 돌고 오니 아이디어가 떠오르네요.'],
     tea:['오늘은 따뜻한 차로 시작할까요?','향이 좋네요. 잠깐 숨 돌릴게요.','커피 대신 차 한 잔도 괜찮네요.'],
@@ -19,28 +20,28 @@ window.OfficeLife=(()=>{
     participants.clear();sceneName='';
   }
   async function travel(a,p,g){const ok=await a.walkTo(p);return ok&&valid(g);}
-  function rest(a,pose,face,seatY=0){a.lifePose=pose;a.lifeSeatY=seatY;a.mode=pose==='lounge'?'sit':'coffee';a.face(face);}
+  function rest(a,pose,face,seatY=0){a.lifePose=pose;a.lifeSeatY=seatY;a.mode=['lounge','seatedTea'].includes(pose)?'sit':'coffee';a.face(face);}
   async function episode(type,people,g){
     const a=people[0],b=people[1];
     if(type==='walk'){
       a.say(pick(lines.walk),3300);
-      for(const p of [{x:1.8,z:7},{x:3.2,z:4},{x:1.8,z:1}])if(!await travel(a,p,g))return;
+      for(const p of places?.walk||[{x:1.8,z:7},{x:3.2,z:4},{x:1.8,z:1}])if(!await travel(a,p,g))return;
       a.mode='stand';await sleepLife(4000);
     }else if(type==='tea'){
       if(!await travel(a,a.coffee,g))return;
       rest(a,'tea',coffeeFace(a.coffee));a.say(pick(lines.tea),4200);await sleepLife(14000);
     }else if(type==='window'){
-      const p={x:2.6,z:-9.65};if(!await travel(a,p,g))return;
-      rest(a,'tea',{x:2.6,z:-12});a.say(pick(lines.window),4600);await sleepLife(15000);
+      const p=places?.window||{x:2.6,z:-9.65};if(!await travel(a,p,g))return;
+      rest(a,'tea',places?.windowFace||{x:2.6,z:-12});a.say(pick(lines.window),4600);await sleepLife(15000);
     }else if(type==='sofa'){
       // 길 찾기는 소파 앞에서 끝내고, 마지막 0.5m만 좌판으로 들어간다.
-      if(!await travel(a,{x:12,z:9.35},g))return;
-      if(!await travel(a,{x:12,z:8.65},g))return;
-      rest(a,'lounge',{x:12,z:11},-.05);a.say(pick(lines.sofa),4500);await sleepLife(17000);
+      if(!await travel(a,places?.sofaApproach||{x:12,z:9.35},g))return;
+      if(!await travel(a,places?.sofa||{x:12,z:8.65},g))return;
+      rest(a,'lounge',places?.sofaFace||{x:12,z:11},-.05);a.say(pick(lines.sofa),4500);await sleepLife(17000);
     }else if(type==='pantryChat'&&b){
-      const places=[{x:-12.95,z:-7.6},{x:-10.25,z:-7.6}];
-      const arrived=await Promise.all(people.map((p,i)=>travel(p,places[i],g)));if(!arrived.every(Boolean)||!valid(g))return;
-      rest(a,'lounge',places[1]);rest(b,'lounge',places[0]);
+      const chatPlaces=places?.chat||[{x:-12.95,z:-7.6},{x:-10.25,z:-7.6}];
+      const arrived=await Promise.all(people.map((p,i)=>travel(p,chatPlaces[i],g)));if(!arrived.every(Boolean)||!valid(g))return;
+      rest(a,'seatedTea',chatPlaces[1]);rest(b,'seatedTea',chatPlaces[0]);
       const exchange=pick(lines.pantryChat);a.say(exchange[0],4800);await sleepLife(5200);if(!valid(g))return;b.say(exchange[1],4800);await sleepLife(9000);
     }
     if(!valid(g))return;

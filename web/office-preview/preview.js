@@ -62,10 +62,11 @@
   // 가로 3석씩 배치한 마주 보는 책상 3묶음(18석). 오른쪽 복도는 비운다.
   for(let row=0;row<3;row++)for(let col=0;col<3;col++){
     const x=-4.9+col*2.85,z=-4.7+row*3.15;
-    box(2.5,.075,1.55,x,.76,z,wood);for(const dx of [-1.14,1.14])for(const dz of [-.65,.65])box(.045,.74,.045,x+dx,.37,z+dz,'#d9dddb');
+    box(2.5,.075,row===2&&col===2?.75:1.55,x,.76,row===2&&col===2?z-.4:z,wood);for(const dx of [-1.14,1.14])for(const dz of [-.65,.65])box(.045,.74,.045,x+dx,.37,z+dz,'#d9dddb');
     box(2.54,.8,.055,x,1.02,z,fabric);box(2.57,.035,.07,x,1.43,z,metal);
     for(const dx of [-1.26,1.26]){box(.055,1.42,2.3,x+dx,.71,z,fabric);box(.075,.035,2.3,x+dx,1.43,z,metal);}
     for(const side of [-1,1]){
+      if(row===2&&col===2&&side===1)continue;
       const rotation=side===1?0:Math.PI;monitor(x-.28,z+side*.38,rotation);monitor(x+.42,z+side*.38,rotation);
       box(.52,.018,.17,x,.815,z+side*.64,'#e0e3e1');cyl(.047,.047,.105,x+.93,.85,z+side*.56,'#e8ddd0');
       const cz=z+side*1.12;const c=chair(x,cz,side===1?0:Math.PI);seats.push({x,z:cz,rotation:side===1?Math.PI:0,chair:c});
@@ -75,11 +76,11 @@
   for(const z of [-4.65,.85]){box(1.7,.07,1.05,4.7,.74,z,wood);box(.08,.71,.08,4.7,.36,z,white);chair(4.7,z+.83);chair(4.7,z-.83,Math.PI);monitor(4.7,z-.2);}
 
   // 입구 기준 왼쪽 모서리의 탕비실. 출입구는 중앙 통로 쪽으로 연다.
-  box(1.9,2.8,.12,-5.55,1.4,4.3,white,wallGroup);
-  box(.4,2.8,.12,-3.2,1.4,4.3,white,wallGroup);
-  box(1.2,.45,.12,-4,2.575,4.3,white,wallGroup);
-  box(.12,2.8,3.2,-3,1.4,5.85,white,wallGroup);
-  box(.075,2.3,1.1,-3.4,1.15,4.85,white,wallGroup);
+  box(3.5,2.8,.12,-4.75,1.4,4.3,white,wallGroup);
+  box(.12,2.8,1.1,-3,1.4,4.85,white,wallGroup);
+  box(.12,2.8,.9,-3,1.4,7.05,white,wallGroup);
+  box(.12,.45,1.2,-3,2.575,6,white,wallGroup);
+  box(1.1,2.3,.075,-2.45,1.15,5.4,white,wallGroup);
   box(1.1,1.9,.75,-5.9,.95,6.8,'#eaeeeb');
   box(1.08,.025,.77,-5.9,1.25,6.8,'#bdc5c5');
   box(.035,.35,.035,-5.43,1.49,6.39,'#b2bcc1');
@@ -97,6 +98,23 @@
   const agents=[];const ids=['claude','gpt','gemini','hana','jun','sora','min','doyoon','jiyu','hyunwoo','seojin','taeho','sungwoo'];
   window.Decor={chairNear(x,z){return seats.find(s=>Math.hypot(s.x-x,s.z-z)<.15)?{mesh:seats.find(s=>Math.hypot(s.x-x,s.z-z)<.15).chair}:null;}};
   for(let i=0;i<seats.length;i++){const s=seats[i];const rig=window.SpriteChars?.build({},ids[i]);if(!rig)continue;s.occupied=true;rig.group.position.set(s.x,0,s.z);rig.group.rotation.y=s.rotation;peopleGroup.add(rig.group);agents.push({rig,mode:'type',act:'typing',targetRot:s.rotation,path:[],group:rig.group});}
+  const nightAccents=new T.Group();scene.add(nightAccents);nightAccents.visible=false;
+  const blueLED=new T.MeshBasicMaterial({color:0x4a85f3}),warmLED=new T.MeshBasicMaterial({color:0xffc68b});
+  box(.035,.035,11.2,2.8,2.88,-1.9,blueLED,nightAccents);
+  box(13,.035,.035,0,.16,-9.4,blueLED,nightAccents);
+  box(3.5,.035,.035,-4.75,2.87,4.3,warmLED,nightAccents);
+  const warmLights=[[-3,2,-2],[-4.8,2,5.8],[4.7,2,-3]].map(([x,y,z])=>{const l=new T.PointLight(0xffbe86,0,6,2);l.position.set(x,y,z);scene.add(l);return l;});
+  function previewTheme(dark){
+    const palette={'#d4d7d8':'#19263a','#e4e9ef':'#101928','#f1f1ed':'#29384f','#24539c':'#264a83','#b8b9ad':'#3e4b60','#c8ad85':'#715b48','#c3c8cc':'#24344a','#9faab3':'#3d4f65'};
+    for(const [key,m] of Object.entries(materials)){
+      const base=new T.Color(key).convertSRGBToLinear();
+      m.color.copy(dark?(palette[key]?new T.Color(palette[key]).convertSRGBToLinear():base.multiplyScalar(.35)):base);
+    }
+    glass.color.set(dark?'#5b7da5':'#bdd8df');glass.opacity=dark?.2:.23;
+    frost.color.set(dark?'#8ca4ba':'#e1e9e8');frost.opacity=dark?.38:.73;
+    windowMat.color.set(dark?'#5b7190':'#c7e2ec');windowMat.opacity=dark?.22:.32;
+    warmLights.forEach(l=>l.intensity=dark?.9:0);
+  }
   const labelSpecs=[['업무 공간',-3,.25,0],['유리 복도',2.25,.2,-2.2],['회의실 1',4.7,.9,-4.65],['회의실 2',4.7,.9,.85],['입구',-1,.1,7.1],['탕비실',-4.8,1,5.8],['창가',-.5,2,-7.3],['베란다',0,.4,-8.55]];
   const labelRoot=document.getElementById('roomLabels');const labels=labelSpecs.map(([text,x,y,z])=>{const node=document.createElement('span');node.className='room-label';node.textContent=text;labelRoot.append(node);return{node,pos:new T.Vector3(x,y,z)};});
   const views={whole:{pos:[17,17,21],target:[0,0,0],title:'함께 일하는 공간의 형태',desc:'창가의 빛, 파란 유리 프레임, 그리고 나란히 놓인 책상들.'},work:{pos:[-8,9,9],target:[-2.5,.6,-1.8],title:'낮은 칸막이 너머, 함께 일하기',desc:'밝은 우드 책상과 패브릭 파티션으로 이어지는 공용 업무 공간.'},corridor:{pos:[-.3,3.8,6.5],target:[2.8,1,-4],title:'파란 프레임을 따라 이어지는 길',desc:'사진 속 긴 유리 벽과 중간 높이의 반투명 시트지를 반영했습니다.'},entry:{pos:[-10,9,12],target:[-3.7,.8,5.6],title:'출근의 시작과 작은 휴식',desc:'유리 출입문, 체크 테이블, 프린터와 왼쪽 모서리의 탕비실.'},balcony:{pos:[11,9,-14],target:[0,.6,-7.8],title:'창가 너머 이어지는 베란다',desc:'긴 창 너머에 베란다 바닥과 유리 난간을 배치했습니다. 폭과 출입문 위치는 추정입니다.'},plan:{pos:[0,26,.02],target:[0,0,0],title:'위에서 살펴보는 공간 배치',desc:'왼쪽 업무 공간 · 오른쪽 유리 복도와 회의실 2개 · 왼쪽 모서리 탕비실 · 창가 너머 베란다.'}};
@@ -106,7 +124,7 @@
   document.getElementById('people').onchange=e=>{peopleGroup.visible=e.target.checked;seats.forEach(s=>s.chair.visible=!e.target.checked||!s.occupied);};
   document.getElementById('walls').onchange=e=>wallGroup.visible=e.target.checked;
   document.getElementById('labels').onchange=e=>{labelsOn=e.target.checked;labelRoot.hidden=!labelsOn;};
-  document.getElementById('light').onclick=e=>{night=!night;sun.intensity=night?.25:1.3;ambient.intensity=night?.6:.85;fill.intensity=night?.9:.55;renderer.toneMappingExposure=night?1:1.22;window.SpriteChars?.theme(night);e.currentTarget.textContent=night?'☾ 저녁 조명':'☀ 낮 조명';e.currentTarget.setAttribute('aria-pressed',String(night));};
+  document.getElementById('light').onclick=e=>{night=!night;nightAccents.visible=night;previewTheme(night);document.documentElement.dataset.theme=night?'dark':'light';sun.intensity=night?.25:1.3;ambient.intensity=night?.6:.85;fill.intensity=night?.9:.55;renderer.toneMappingExposure=night?1:1.22;window.SpriteChars?.theme(night);e.currentTarget.textContent=night?'☾ 저녁 조명':'☀ 낮 조명';e.currentTarget.setAttribute('aria-pressed',String(night));};
   controls.addEventListener('start',()=>transition=null);
   new ResizeObserver(()=>{const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();view(activeView);}).observe(host);
   const clock=new T.Clock();const projected=new T.Vector3();
