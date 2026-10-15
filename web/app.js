@@ -2281,31 +2281,40 @@ async function pRunStart(ev) {
 async function pPlanStart(ev) {
   const l = L();
   setPhase("계획 수립", true);
-  setMember(D.leader, { status: "계획 중", cls: "meet", task: "목표를 업무로 나누는 중", bar: "busy", t0: ev._at, t1: 0 });
-  log("업무 계획을 세우는 중입니다.", D.leader);
-  l.say("목표 확인! 계획 세워볼게요 📝", 2200);
-  if (await go(l, WHITEBOARD)) { l.face(BOARD_FACE); l.mode = "write"; strokeAt = performance.now(); }
-  // 계획(plan)이 올 때까지 필기는 계속된다(ambient 가 줄을 하나씩 채운다).
+  setMember(D.leader, { status: "계획 중", cls: "meet", task: "자리에서 업무 정리 중", bar: "busy", t0: ev._at, t1: 0 });
+  log("팀장이 자리에서 업무 계획을 정리하는 중입니다.", D.leader);
+  l.say("목표 확인! 자리에서 정리해 볼게요 📝", 2200);
+  // 팀장은 회의실로 가지 않고 자기 자리에서 정리한다. 정리(plan)가 끝나면 회의실에서 발표한다(pPlan).
+  if (await go(l, l.seat)) l.sitDesk("type");
 }
 
+/** 정리가 끝나면 모두 회의실로: 팀장은 TV 앞에서 발표(PT), 팀원은 회의 테이블에 앉아 경청한다.
+    TV 화면의 줄은 발표하면서 업무마다 한 장씩 넘기듯 채운다. */
+const PRESENT_SPOT = { x: 6.6, z: 1.4 }; // 회의실 TV 옆 발표 자리
 async function pPlan(ev) {
   const run = ev._run, l = L(), tasks = [...run.tasks.values()];
   setPhase("업무 배정 회의", true);
-  if (l.mode === "write") while (strokeN < strokes.length) { showStroke(); await wait(200); }
-  else for (let i = strokeN; i < strokes.length; i++) showStroke();
+  clearStrokes();
   renderBoard();
   log(`업무 ${tasks.length}건으로 분해했습니다.`, D.leader);
   if (run.summary) log(`계획: ${clip(run.summary, 200)}`, D.leader);
-  l.say("다들 회의실로 모여주세요!", 1800);
-  setMember(D.leader, { status: "회의", cls: "meet", task: "킥오프 회의", bar: "", t0: 0 });
+  l.say("정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
+  setMember(D.leader, { status: "회의", cls: "meet", task: "업무 계획 발표", bar: "", t0: 0 });
   await capped(Promise.all(D.names.map(async n => {
     const a = A(n);
-    if (n !== D.leader) setMember(n, { ...IDLE, status: "회의", cls: "meet", task: "킥오프 회의" });
     if (n === D.leader) {
-      if(await go(a,{x:6.6,z:1.4})){a.face(TABLE);a.mode="talk";a.presenting=true;}
-    } else if (await go(a,a.meet)){a.face({x:6.6,z:1.4});a.mode="talk";}
+      if (await go(a, PRESENT_SPOT)) { a.face(TABLE); a.mode = "talk"; a.presenting = true; }
+      return;
+    }
+    setMember(n, { ...IDLE, status: "회의", cls: "meet", task: "팀장 발표 경청" });
+    if (await go(a, a.meet)) { a.face(PRESENT_SPOT); a.mode = "sit"; }
   })), 25000);
+  l.face(TABLE); l.mode = "talk"; l.presenting = true;
+  l.say(`업무 계획 발표하겠습니다 📊 총 ${tasks.length}건이에요`, 1700);
+  await wait(900);
+  const per = Math.max(1, Math.ceil(strokes.length / Math.max(1, tasks.length)));
   for (const t of tasks) {
+    for (let i = 0; i < per; i++) showStroke(); // TV 화면을 한 장씩 넘기듯
     const a = A(t.assignee);
     l.say(`#${t.id} ${clip(t.title, 26)} → ${a.def.label}`, 1500);
     await wait(550);
@@ -2313,10 +2322,11 @@ async function pPlan(ev) {
     log(`#${t.id} ${t.title} 배정`, t.assignee);
     await wait(450);
   }
-  l.say("그럼 시작해 볼까요? 🚀", 1400);
+  while (strokeN < strokes.length) showStroke();
+  l.say("질문 없으면 시작해 볼까요? 🚀", 1400);
   await wait(500);
   setPhase("업무 진행", true);
-  for (const n of D.names) { A(n).presenting=false; A(n).mode = "stand"; setMember(n, { ...IDLE }); }
+  for (const n of D.names) { A(n).presenting = false; A(n).mode = "stand"; setMember(n, { ...IDLE }); }
   openGate(run);
   for (const n of D.names) if (!lane(n).n) idle(n, run); // 바로 할 일이 없는 팀원은 커피/회의 테이블로
 }
@@ -2466,12 +2476,12 @@ function applySnapshot(s, first) {
   if (run.report) D.lastRun = run;
   renderBoard();
   const tasks = [...run.tasks.values()];
-  if (ph === "plan") { showStroke(); showStroke(); } else if (ph !== "done") strokes.forEach(showStroke);
+  if (ph !== "plan" && ph !== "done") strokes.forEach(showStroke); // 계획 중에는 TV 가 비어 있다(발표 때 채운다)
   for (const n of D.names) {
     const a = A(n), mine = tasks.filter(t => t.assignee === n), doing = mine.find(t => t.state === "doing");
     if (ph === "plan" && n === D.leader) {
-      a.teleport(WHITEBOARD, -Math.PI / 2); a.mode = "write";
-      setMember(n, { status: "계획 중", cls: "meet", task: "목표를 업무로 나누는 중", bar: "busy", t0: now, approx: true });
+      a.teleport(a.seat, Math.PI); a.sitDesk("type"); // 계획은 자기 자리에서 정리한다
+      setMember(n, { status: "계획 중", cls: "meet", task: "자리에서 업무 정리 중", bar: "busy", t0: now, approx: true });
     } else if (ph === "review" && n === D.leader) {
       a.teleport(a.seat, Math.PI); a.sitDesk("type");
       setMember(n, { status: "검수 중", cls: "meet", task: "결과물 검수", bar: "busy", t0: now, approx: true });
