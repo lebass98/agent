@@ -1,7 +1,7 @@
 # Agent — 멀티 에이전트 팀 (GPT · Claude · Gemini)
 
 ## 구조
-- `team.toml` : 팀원·역할·모델 설정 (팀장 지정 포함)
+- `team.toml` : 팀원·역할·모델 설정 (팀장 지정 포함). 웹 '에이전트' 화면의 [설정]·[에이전트 추가](`web/team-settings.js` → `server/teamcfg.py`, `GET/PUT /api/team/config`)로도 고친다. 테스트는 실제 team.toml 을 쓰지 말고 임시 사본으로(tests/test_teamcfg.py)
 - `agentteam/providers.py` : 사별 API 래퍼 (anthropic / openai / google / mock)
 - `agentteam/team.py` : 계획 → 의존순 병렬 실행 → 검수 보고
 - `main.py` : CLI (`run`, `ask`, `team`, `--mock`)

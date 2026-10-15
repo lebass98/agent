@@ -1,0 +1,31 @@
+/* 에이전트 설정(team-settings.js) + '에이전트' 화면 머리줄 버튼 */
+.members-head { display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px; }
+.members-head > p { margin:0; }
+.members-actions { display:flex;gap:8px;margin-left:auto; }
+.members-actions .tbtn { white-space:nowrap; }
+
+.ts-form textarea.text-input { resize:vertical;line-height:1.55;min-height:0; }
+.ts-form select.text-input { appearance:auto; }
+.ts-note { display:flex;gap:8px;align-items:flex-start;margin:0 0 14px;padding:10px 12px;border-radius:10px;background:var(--accent-weak);color:var(--text-2);font-size:13px; }
+.ts-note .ic { flex:none;width:16px;height:16px;margin-top:2px; }
+.ts-sec { margin-bottom:18px; }
+.ts-h { display:flex;align-items:center;gap:7px;margin:0 0 10px;font-size:15px; }
+.ts-h .ic { width:16px;height:16px;color:var(--accent-text); }
+.ts-h-row { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px; }
+.ts-h-row .ts-h { margin:0; }
+.ts-members { display:grid;gap:12px; }
+.ts-card { border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px 2px;background:var(--panel); }
+.ts-card.leader { box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 30%,transparent); }
+.ts-card-head { display:flex;align-items:center;gap:8px;margin-bottom:10px; }
+.ts-dot { width:10px;height:10px;border-radius:50%;background:var(--c);flex:none; }
+.ts-title { font-size:15px; }
+.ts-name { max-width:220px;min-height:36px;padding:6px 10px;font-size:14px; }
+.ts-del { margin-left:auto; }
+.ts-del .ic { width:14px;height:14px; }
+.ts-grid { display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:0 12px; }
+.ts-warn { color:#b45309!important; }
+.ts-err { margin-top:10px; }
+@media(max-width:760px) {
+  .ts-grid { grid-template-columns:1fr; }
+  .members-actions { margin-left:0; }
+}

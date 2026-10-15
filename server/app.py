@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import outside, projects
+from . import outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -93,6 +93,12 @@ class Hub:
 
     def send(self, q: asyncio.Queue, event: dict) -> None:
         self._put(q, _dump(event))
+
+    def broadcast(self, event: dict) -> None:
+        """스냅샷은 그대로 두고 모든 접속자에게 보낸다(팀 구성 변경 후 hello 재전송)."""
+        text = _dump(event)
+        for q in list(self.clients):
+            self._put(q, text)
 
     def publish(self, event: dict) -> None:
         """Team.run 의 emit. 기다리지 않고 바로 반환한다."""
@@ -324,6 +330,41 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     @api.get("/team")
     def get_team():
         return team.info()
+
+    # ── 에이전트 설정(team.toml) ──
+    def config_file() -> Path:
+        path = getattr(team, "config_path", None)
+        if not path or not Path(path).is_file():
+            raise HTTPException(404, "팀 설정 파일(team.toml)을 찾을 수 없습니다.")
+        return Path(path)
+
+    @api.get("/team/config")
+    def get_team_config():
+        try:
+            cfg = teamcfg.read_config(config_file())
+        except (OSError, ValueError) as e:
+            raise HTTPException(500, f"team.toml 을 읽지 못했습니다: {e}")
+        return {"config": cfg, "providers": teamcfg.provider_options(), "mock": team.mock,
+                "limits": {"members": teamcfg.MEMBER_LIMIT, "role": teamcfg.ROLE_LIMIT, "guide": teamcfg.GUIDE_LIMIT}}
+
+    @api.put("/team/config")
+    def put_team_config(body: dict):
+        if app.state.chatting or (app.state.task and not app.state.task.done()):
+            raise HTTPException(409, "진행 중인 업무나 대화가 끝난 뒤 저장해 주세요.")
+        try:
+            cfg = teamcfg.validate(body.get("config") if isinstance(body, dict) else None)
+        except teamcfg.ConfigError as e:
+            raise HTTPException(400, str(e))
+        path = config_file()
+        try:
+            teamcfg.write_config(path, cfg)
+            team.reload()
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            log.exception("팀 설정 저장 실패")
+            raise HTTPException(500, f"설정을 저장하지 못했습니다: {e}")
+        info = team.info()
+        hub.broadcast({"type": "hello", "team": info, "mock": team.mock, "snapshot": hub.snapshot})
+        return {"ok": True, "team": info, "config": cfg}
 
     @api.post("/run")
     async def start_run(body: RunIn):

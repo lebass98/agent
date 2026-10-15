@@ -58,6 +58,8 @@
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | `GET` | `/api/team` | 팀 구성 (`team` 과 같은 형식) |
+| `GET` | `/api/team/config` | 에이전트 설정 화면용: `{config: {leader, guide, members: [{name, provider, model, role}]}, providers: [{id, brand, label, kind, models, ready, hint}], mock, limits}`. 모의 실행이어도 team.toml 에 적힌 실제 provider 를 돌려준다. `ready` 는 CLI 설치·API 키 준비 여부 |
+| `PUT` | `/api/team/config` | `{config}` 를 검사해 team.toml 에 쓴다(맨 위 설명 주석 유지, 바로 전 파일은 `team.toml.bak`). 팀을 그 자리에서 다시 꾸리고 모든 접속자에게 `hello`(새 `team`, 현재 `snapshot`)를 다시 보낸다 → `{ok, team, config}`. 이름 `^[a-z][a-z0-9_-]{0,19}$`·중복 금지, provider 는 등록된 것만, claude-cli 모델은 opus·sonnet·haiku, 하는 일 1~300자, 팀장은 팀원 중, 배정 원칙 2,000자, 팀원 1~12명. 틀리면 `400`(파일 그대로), 업무·대화 진행 중 `409`. 개발 모드에서는 team.toml 저장으로 서버가 재시작되어 재접속 hello 로도 반영된다 |
 | `POST` | `/api/run` | `{ "goal": "...", "project_id"?: "..." }` 업무 시작 → `{ "run_id": "..." }`. `project_id` 가 있으면 그 프로젝트 폴더 안에서 실행(아래 '프로젝트'). 빈 목표·4,000자 초과·프로젝트 폴더가 사라졌거나 위험 경로로 바뀜 `400`, 없는 프로젝트 `404`, 진행 중 `409`, 형식 오류 `422` |
 | `POST` | `/api/ask` | `{name, message, history?: [{role: "user" 또는 "assistant", content}]}` → `{name, answer, mock}`. 선택한 팀원에게 개인 질문. 빈 질문·4,000자 초과·이력 12건/24,000자 초과 `400`, 없는 팀원 `404`, 팀 업무/응답 진행 중 `409`, 연결 실패 `502`, 180초 초과 `504`. 동일 접속 키 인증 사용. |
 | `GET` | `/api/runs` | 지난 실행 목록(최신순, 최대 50건) `[{run_id, goal, created, project, has_report, has_error}]` — `project` 는 프로젝트 이름 또는 `null` |

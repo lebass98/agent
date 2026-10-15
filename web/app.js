@@ -1637,14 +1637,17 @@ function openAppearancePicker(n) {
 /** 팀원 관리: 팀원 카드 + 새 에이전트 추가 안내 */
 function membersView() {
   const conn = NET.mode === "live" ? (D.mock ? "서버 연결됨 · 모의 실행" : "서버 연결됨") : NET.mode === "demo" ? "데모 팀 (서버 없음)" : NET.mode === "auth" ? "접속 키 필요" : "서버 연결 대기";
+  const live = NET.mode === "live", TS = window.TeamSettings;
   return [
-    el("p", { class: "muted small", text: `팀원 ${D.names.length}명 · 팀장 ${memberDef(D.leader).label} · ${conn}` }),
+    // 팀원 카드 위 머리줄: 왼쪽 요약, 오른쪽 [설정]·[에이전트 추가] (에이전트 설정 창: team-settings.js)
+    el("div", { class: "members-head" },
+      el("p", { class: "muted small", text: `팀원 ${D.names.length}명 · 팀장 ${memberDef(D.leader).label} · ${conn}` }),
+      el("div", { class: "members-actions" },
+        el("button", { class: "tbtn", type: "button", disabled: !live || !TS, title: live ? "AI 선택·모델·하는 일·팀장 바꾸기" : "서버에 연결되면 바꿀 수 있어요", onclick: () => TS?.open() }, icon("gear"), "설정"),
+        el("button", { class: "tbtn accent", type: "button", disabled: !live || !TS, title: live ? "새 팀원 추가" : "서버에 연결되면 추가할 수 있어요", onclick: () => TS?.add() }, icon("plus"), "에이전트 추가"))),
     MEMBERS_EL,
-    el("p", { class: "muted small", text: "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다." }),
-    el("div", { class: "guide" }, el("b", { text: "새 에이전트 추가하기" }),
-      "팀원은 서버의 team.toml 파일로 관리해요. 화면에서 바로 추가되지는 않습니다.",
-      el("ol", null, el("li", { text: "아래 버튼으로 이름·제공사·모델·역할을 넣어 설정 조각을 만들고 복사해요." }), el("li", { text: "프로젝트의 team.toml 에 붙여 넣고 저장해요." }), el("li", { text: "서버(serve.py)를 다시 시작하면 새 팀원이 출근해요." })),
-      el("button", { class: "btn", type: "button", onclick: openNewAgent }, icon("plus"), "새 에이전트 설정 만들기")),
+    el("p", { class: "muted small", text: "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
+    live ? null : el("p", { class: "muted small", text: "데모 모드에서는 설정을 바꿀 수 없어요. 서버(start-mac.command 등)를 켜고 다시 열어 주세요." }),
   ];
 }
 /** 자료실: 지난 실행 목록 + 검색. 항목을 누르면 보고서를 연다 */
@@ -1817,7 +1820,7 @@ function paletteItems(q) {
   const hit = s => !q || String(s).toLowerCase().includes(q), items = [];
   const run = D.shown;
   if (!q) items.push(...Object.entries(VIEW_TITLES).map(([v, label]) => ({ group: "바로 가기", icon: { board: "kanban", timeline: "timeline", stats: "chart", members: "users", projects: "folder-open", library: "folder", settings: "gear" }[v], text: label, go: () => showView(v) })),
-    { group: "바로 가기", icon: "plus", text: "새 에이전트 설정 만들기", go: openNewAgent });
+    { group: "바로 가기", icon: "plus", text: "에이전트 추가", go: openNewAgent });
   if (run) for (const t of sortedTasks(run)) {
     const d = memberDef(t.assignee);
     if (hit(`#${t.id} ${t.title} ${d.label}`)) items.push({ group: "업무", kind: STATE_KO[t.vstate], text: `#${t.id} ${t.title}`, color: d.color, go: () => (isFin(t) ? openTask(run, t.id) : showView("board")) });
@@ -1863,6 +1866,7 @@ function pickPalette(i) { const it = PAL.items[i]; closePalette(); it?.go(); }
 const PROVIDERS = [["anthropic", "Anthropic (Claude)", "claude-opus-5-5"], ["openai", "OpenAI (GPT)", "gpt-5"], ["google", "Google (Gemini)", "gemini-flash-latest"]];
 const tomlStr = s => `"${String(s).replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/[\r\n]+/g, " ")}"`;
 function openNewAgent() {
+  if (NET.mode === "live" && window.TeamSettings) return window.TeamSettings.add(); // 서버가 있으면 화면에서 바로 추가(team-settings.js)
   closeMenu(); closePalette(); setDrawer(false);
   const name = el("input", { id: "naName", class: "text-input", type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", placeholder: "예: mistral", maxlength: "24", "aria-describedby": "naNameHelp" });
   const provider = el("select", { id: "naProvider", class: "select-input" }, ...PROVIDERS.map(([v, label]) => el("option", { value: v, text: label })));

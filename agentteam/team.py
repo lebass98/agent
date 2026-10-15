@@ -61,7 +61,8 @@ REVIEW_PROMPT = """당신은 팀장입니다. 팀원들의 결과물을 검수�
 
 class Team:
     def __init__(self, config_path: str | Path = "team.toml", mock: bool = False):
-        cfg = tomllib.loads(Path(config_path).read_text(encoding="utf-8"))
+        self.config_path = Path(config_path)  # 웹 화면 '에이전트 설정'이 다시 쓰는 파일
+        cfg = tomllib.loads(self.config_path.read_text(encoding="utf-8"))
         self.members = {
             name: Member(name=name, **({**m, "provider": "mock"} if mock else m))
             for name, m in cfg["members"].items()
@@ -69,6 +70,11 @@ class Team:
         self.leader = self.members[cfg["leader"]["member"]]
         self.guide = str(cfg["leader"].get("guide", "")).strip()  # team.toml [leader] guide: 업무 배정 원칙
         self.mock = mock
+
+    def reload(self) -> None:
+        """team.toml 을 다시 읽어 팀원·팀장·배정 원칙을 바꾼다(진행 중인 업무가 없을 때만 부른다)."""
+        fresh = Team(self.config_path, mock=self.mock)
+        self.members, self.leader, self.guide = fresh.members, fresh.leader, fresh.guide
 
     def guide_text(self) -> str:
         return f"\n[배정 원칙]\n{self.guide}\n" if self.guide else ""
