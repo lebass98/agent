@@ -36,7 +36,7 @@ const store = {
 
 /* 테마 설정(시스템/라이트/다크)과 '움직임 줄이기'. <html data-theme> 로 강제하고, 3D 테마(applyTheme)는 isDark() 를 읽는다. */
 const PREF = {
-  theme: ["system", "light", "dark"].includes(store.get("agentOffice.theme")) ? store.get("agentOffice.theme") : "dark",
+  theme: ["system", "light", "dark"].includes(store.get("agentOffice.theme")) ? store.get("agentOffice.theme") : "system", // 직접 고르기 전에는 기기(시스템) 설정을 따른다
   reduce: store.get("agentOffice.reduce") === "1", rooms: store.get("agentOffice.rooms") !== "0", lastDark: null,
 };
 if (PREF.theme !== "system") document.documentElement.dataset.theme = PREF.theme;
