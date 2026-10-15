@@ -200,7 +200,7 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
    1줄 아이콘·목표·단계 문구 / 2줄 프로젝트 칩(있을 때) / 3줄 단계 체크 / 4줄 완료율·새 업무 */
 @media(min-width:761px) {
   .office-frame { top:88px; }
-  .run-strip { top:100px;left:auto;right:calc(var(--dash-right) + 12px);width:min(400px,calc(100vw - var(--dash-left) - var(--dash-right) - 24px));height:auto;
+  .run-strip { top:100px;left:auto;right:calc(var(--dash-right) + 12px);width:min(280px,calc(100vw - var(--dash-left) - var(--dash-right) - 24px));height:auto;
     padding:12px 14px;display:grid;grid-template-columns:32px max-content minmax(0,1fr) max-content;
     grid-template-areas:"sym info info info" "proj proj proj proj" "steps steps steps steps" "comp comp comp btn";align-items:center;gap:10px;
     border-radius:12px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(8px);box-shadow:0 8px 24px #0f172a14; }
@@ -218,7 +218,7 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
   .room-switch button { text-align:left;padding:7px 12px;white-space:nowrap; }
 }
 @media(max-width:1250px) and (min-width:761px) {
-  .run-strip { width:300px;grid-template-areas:"sym info info info" "proj proj proj proj" "steps steps steps steps" "comp comp comp btn"; }
+  .run-strip { width:210px;grid-template-areas:"sym info info info" "proj proj proj proj" "steps steps steps steps" "comp comp comp btn"; }
   .run-strip:has(.run-project[hidden]) { grid-template-areas:"sym info info info" "steps steps steps steps" "comp comp comp btn"; }
   .run-strip .run-steps { display:flex; }
 }
