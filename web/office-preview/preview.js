@@ -38,27 +38,27 @@
   const frost=new T.MeshStandardMaterial({color:'#e1e9e8',transparent:true,opacity:.73,roughness:.85,depthWrite:false,side:T.DoubleSide});
   for(let z=-7.4;z<=3.6;z+=1.1){box(.095,2.8,.075,2.8,1.4,z,blue,wallGroup);box(.045,2.7,1.03,2.8,1.4,z+.55,glass,wallGroup);box(.05,1.1,1.03,2.79,1.22,z+.55,frost,wallGroup);}
   box(.12,.12,11.2,2.8,2.8,-1.9,blue,wallGroup);box(.13,.1,11.2,2.8,.05,-1.9,blue,wallGroup);
-  for(const z of [-7.4,-3.7,0,3.6]){box(3.7,2.8,.1,4.65,1.4,z,white,wallGroup);}
+  for(const z of [-7.4,-1.9,3.6]){box(3.7,2.8,.1,4.65,1.4,z,white,wallGroup);}
   box(.13,2.8,11.1,6.5,1.4,-1.9,white,wallGroup);
-  for(const z of [-5.5,-1.8,1.8]){box(.055,.3,.045,2.64,1.2,z,'#b9c3cb',wallGroup);}
+  for(const z of [-4.65,.85]){box(.055,.3,.045,2.64,1.2,z,'#b9c3cb',wallGroup);}
   function chair(x,z,rot=0,parent=scene){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=rot;parent.add(g);box(.55,.1,.55,0,.5,0,'#525c62',g);box(.55,.62,.09,0,.86,.25,'#6c7478',g);cyl(.045,.055,.42,0,.25,0,'#9da4a9',g);for(let i=0;i<5;i++){const a=i*Math.PI*2/5;const leg=box(.035,.035,.48,Math.sin(a)*.13,.07,Math.cos(a)*.13,'#566069',g);leg.rotation.y=a;cyl(.055,.055,.045,Math.sin(a)*.32,.04,Math.cos(a)*.32,'#37424b',g).rotation.z=Math.PI/2;}return g;}
   function monitor(x,z,rot=0,parent=scene){const g=new T.Group();g.position.set(x,.78,z);g.rotation.y=rot;parent.add(g);box(.66,.43,.045,0,.34,0,'#313b47',g);box(.605,.366,.009,0,.34,.028,'#9fbacb',g);box(.018,.29,.01,-.23,.34,.035,'#6f91bb',g);box(.35,.018,.012,.04,.44,.035,'#e6edf2',g);box(.21,.018,.012,-.03,.38,.035,'#b9cedf',g);box(.29,.018,.012,.01,.32,.035,'#b9cedf',g);box(.05,.16,.04,0,.07,0,metal,g);box(.25,.025,.16,0,.015,.02,metal,g);return g;}
   const seats=[];
-  // 공용 좌석 12개: 3줄의 마주 보는 책상 두 묶음, 오른쪽은 복도로 비운다.
-  for(let row=0;row<3;row++)for(let col=0;col<2;col++){
-    const x=-4.6+col*3.35,z=-4.7+row*3.15;
-    box(2.9,.075,1.55,x,.76,z,wood);for(const dx of [-1.34,1.34])for(const dz of [-.65,.65])box(.045,.74,.045,x+dx,.37,z+dz,'#d9dddb');
-    box(2.94,.8,.055,x,1.02,z,fabric);box(2.97,.035,.07,x,1.43,z,metal);
-    for(const dx of [-1.46,1.46]){box(.055,1.42,2.3,x+dx,.71,z,fabric);box(.075,.035,2.3,x+dx,1.43,z,metal);}
+  // 가로 3석씩 배치한 마주 보는 책상 3묶음(18석). 오른쪽 복도는 비운다.
+  for(let row=0;row<3;row++)for(let col=0;col<3;col++){
+    const x=-4.9+col*2.85,z=-4.7+row*3.15;
+    box(2.5,.075,1.55,x,.76,z,wood);for(const dx of [-1.14,1.14])for(const dz of [-.65,.65])box(.045,.74,.045,x+dx,.37,z+dz,'#d9dddb');
+    box(2.54,.8,.055,x,1.02,z,fabric);box(2.57,.035,.07,x,1.43,z,metal);
+    for(const dx of [-1.26,1.26]){box(.055,1.42,2.3,x+dx,.71,z,fabric);box(.075,.035,2.3,x+dx,1.43,z,metal);}
     for(const side of [-1,1]){
       const rotation=side===1?0:Math.PI;monitor(x-.28,z+side*.38,rotation);monitor(x+.42,z+side*.38,rotation);
       box(.52,.018,.17,x,.815,z+side*.64,'#e0e3e1');cyl(.047,.047,.105,x+.93,.85,z+side*.56,'#e8ddd0');
       const cz=z+side*1.12;const c=chair(x,cz,side===1?0:Math.PI);seats.push({x,z:cz,rotation:side===1?Math.PI:0,chair:c});
     }
   }
-  // 소형 회의·집중 공간(용도 추정).
-  for(const z of [-5.5,-1.8]){box(1.7,.07,1.05,4.7,.74,z,wood);box(.08,.71,.08,4.7,.36,z,white);chair(4.7,z+.83);chair(4.7,z-.83,Math.PI);monitor(4.7,z-.2);}
-  box(1.9,.8,.6,5.2,.4,2.9,'#d3d8d5');box(1.95,.06,.64,5.2,.82,2.9,wood);
+  // 사진 오른쪽 유리 공간: 회의실 2개.
+  for(const z of [-4.65,.85]){box(1.7,.07,1.05,4.7,.74,z,wood);box(.08,.71,.08,4.7,.36,z,white);chair(4.7,z+.83);chair(4.7,z-.83,Math.PI);monitor(4.7,z-.2);}
+
   // 앞쪽 입구와 탕비·보관실: 유리문, 정수기, 프린터, 냉장고와 체크 테이블.
   box(3.45,2.8,.12,4.75,1.4,4.3,white,wallGroup);box(.12,2.8,3.2,3,1.4,5.85,white,wallGroup);
   box(.12,2.8,3.2,6.5,1.4,5.85,white,wallGroup);
@@ -74,16 +74,16 @@
   function plant(x,z){cyl(.19,.13,.3,x,.15,z,'#efe9dd');for(let i=0;i<9;i++){const a=i*2.4;const leaf=new T.Mesh(new T.SphereGeometry(.18,10,8),mat('#60836a'));leaf.scale.set(.5,1.6,.7);leaf.position.set(x+Math.sin(a)*.16,.5+(i%3)*.16,z+Math.cos(a)*.16);scene.add(leaf);}}
   plant(-5.8,-6.7);plant(1.6,-6.8);box(.04,1.8,.04,1.75,.9,-5.9,metal);box(.9,.04,.04,1.75,1.8,-5.9,metal);for(const dx of [-.25,.25])box(.34,.7,.07,1.75+dx,1.35,-5.9,'#343d48');
   // 기존 한국인 에셋의 앉은 자세를 재사용한다. 사진 속 인물의 신원은 재현하지 않는다.
-  const agents=[];const ids=['claude','gpt','gemini','hana','jun','sora','min','doyoon','jiyu','hyunwoo','seojin','sungwoo'];
+  const agents=[];const ids=['claude','gpt','gemini','hana','jun','sora','min','doyoon','jiyu','hyunwoo','seojin','taeho','sungwoo'];
   window.Decor={chairNear(x,z){return seats.find(s=>Math.hypot(s.x-x,s.z-z)<.15)?{mesh:seats.find(s=>Math.hypot(s.x-x,s.z-z)<.15).chair}:null;}};
-  for(let i=0;i<seats.length;i++){const s=seats[i];const rig=window.SpriteChars?.build({},ids[i]);if(!rig)continue;rig.group.position.set(s.x,0,s.z);rig.group.rotation.y=s.rotation;peopleGroup.add(rig.group);agents.push({rig,mode:'type',act:'typing',targetRot:s.rotation,path:[],group:rig.group});}
-  const labelSpecs=[['업무 공간',-3,.25,0],['유리 복도',2.25,.2,-2.2],['회의 · 집중실',4.7,.9,-5.5],['입구',-1,.1,7.1],['탕비 · 보관',4.7,1,5.8],['창가',-.5,2,-7.3]];
+  for(let i=0;i<seats.length;i++){const s=seats[i];const rig=window.SpriteChars?.build({},ids[i]);if(!rig)continue;s.occupied=true;rig.group.position.set(s.x,0,s.z);rig.group.rotation.y=s.rotation;peopleGroup.add(rig.group);agents.push({rig,mode:'type',act:'typing',targetRot:s.rotation,path:[],group:rig.group});}
+  const labelSpecs=[['업무 공간',-3,.25,0],['유리 복도',2.25,.2,-2.2],['회의실 1',4.7,.9,-4.65],['회의실 2',4.7,.9,.85],['입구',-1,.1,7.1],['탕비 · 보관',4.7,1,5.8],['창가',-.5,2,-7.3]];
   const labelRoot=document.getElementById('roomLabels');const labels=labelSpecs.map(([text,x,y,z])=>{const node=document.createElement('span');node.className='room-label';node.textContent=text;labelRoot.append(node);return{node,pos:new T.Vector3(x,y,z)};});
-  const views={whole:{pos:[17,17,21],target:[0,0,0],title:'함께 일하는 공간의 형태',desc:'창가의 빛, 파란 유리 프레임, 그리고 나란히 놓인 책상들.'},work:{pos:[-8,9,9],target:[-2.5,.6,-1.8],title:'낮은 칸막이 너머, 함께 일하기',desc:'밝은 우드 책상과 패브릭 파티션으로 이어지는 공용 업무 공간.'},corridor:{pos:[-.3,3.8,6.5],target:[2.8,1,-4],title:'파란 프레임을 따라 이어지는 길',desc:'사진 속 긴 유리 벽과 중간 높이의 반투명 시트지를 반영했습니다.'},entry:{pos:[-7,8,12],target:[2,.8,5.6],title:'출근의 시작과 작은 휴식',desc:'유리 출입문, 체크 테이블, 프린터와 탕비·보관 공간.'},plan:{pos:[0,26,.02],target:[0,0,0],title:'위에서 살펴보는 공간 배치',desc:'왼쪽 업무 공간 · 오른쪽 유리 복도와 개별실 · 앞쪽 입구와 탕비 공간.'}};
+  const views={whole:{pos:[17,17,21],target:[0,0,0],title:'함께 일하는 공간의 형태',desc:'창가의 빛, 파란 유리 프레임, 그리고 나란히 놓인 책상들.'},work:{pos:[-8,9,9],target:[-2.5,.6,-1.8],title:'낮은 칸막이 너머, 함께 일하기',desc:'밝은 우드 책상과 패브릭 파티션으로 이어지는 공용 업무 공간.'},corridor:{pos:[-.3,3.8,6.5],target:[2.8,1,-4],title:'파란 프레임을 따라 이어지는 길',desc:'사진 속 긴 유리 벽과 중간 높이의 반투명 시트지를 반영했습니다.'},entry:{pos:[-7,8,12],target:[2,.8,5.6],title:'출근의 시작과 작은 휴식',desc:'유리 출입문, 체크 테이블, 프린터와 탕비·보관 공간.'},plan:{pos:[0,26,.02],target:[0,0,0],title:'위에서 살펴보는 공간 배치',desc:'왼쪽 업무 공간 · 오른쪽 유리 복도와 회의실 2개 · 앞쪽 입구와 탕비 공간.'}};
   let transition=null,night=false,labelsOn=true,activeView="whole";
   function view(id){activeView=id;const v=views[id],target=new T.Vector3(...v.target),fit=Math.max(1,.95/camera.aspect),position=new T.Vector3(...v.pos).sub(target).multiplyScalar(fit).add(target);transition={from:camera.position.clone(),to:position,start:performance.now(),old:controls.target.clone(),target:new T.Vector3(...v.target)};document.getElementById('viewTitle').textContent=v.title;document.getElementById('viewDesc').textContent=v.desc;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));}
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));document.getElementById('reset').onclick=()=>view('whole');
-  document.getElementById('people').onchange=e=>{peopleGroup.visible=e.target.checked;seats.forEach(s=>s.chair.visible=!e.target.checked);};
+  document.getElementById('people').onchange=e=>{peopleGroup.visible=e.target.checked;seats.forEach(s=>s.chair.visible=!e.target.checked||!s.occupied);};
   document.getElementById('walls').onchange=e=>wallGroup.visible=e.target.checked;
   document.getElementById('labels').onchange=e=>{labelsOn=e.target.checked;labelRoot.hidden=!labelsOn;};
   document.getElementById('light').onclick=e=>{night=!night;sun.intensity=night?.25:1.3;ambient.intensity=night?.6:.85;fill.intensity=night?.9:.55;renderer.toneMappingExposure=night?1:1.22;window.SpriteChars?.theme(night);e.currentTarget.textContent=night?'☾ 저녁 조명':'☀ 낮 조명';e.currentTarget.setAttribute('aria-pressed',String(night));};
