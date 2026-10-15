@@ -71,25 +71,55 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .dashboard-v2 .dock,.dashboard-v2 .panes,.dashboard-v2 .dock-card { display:contents; }
 .dashboard-v2 .dock-handle,.dashboard-v2 .tabs { display:none; }
 .dashboard-v2 .right { top:88px;right:16px;bottom:16px;width:326px;padding:14px;display:flex;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:none;overflow:hidden; }
-.activity-heading { display:flex;align-items:center;gap:6px;margin-bottom:12px;flex:none; }
+.activity-heading { display:flex;align-items:center;gap:6px;margin-bottom:10px;flex:none; }
 .activity-heading>div { flex:1; }
 .activity-heading h2 { margin:0;font-size:17px;letter-spacing:-.03em; }
 .activity-heading p { margin:4px 0 0;color:var(--muted);font-size:11.5px; }
 .activity-close { display:none; }
-.activity-agents { flex:0 1 auto;max-height:58%;display:grid;gap:8px;padding-bottom:14px; }
-.activity-agent { width:100%;text-align:left;display:flex;align-items:flex-start;gap:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text); }
+/* 팀원: 얼굴만 한 줄로. 얼굴 둘레 링 = 그 팀원의 업무 진행률(--p %). 남는 높이는 실시간 활동(로그)에 준다 */
+.activity-agents { flex:none;display:flex;flex-wrap:nowrap;align-items:center;gap:12px;margin-bottom:12px;padding:10px 12px;max-height:none;overflow-x:auto;overflow-y:hidden;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:12px;scrollbar-width:none; }
+.activity-agents::-webkit-scrollbar { display:none; }
+.activity-agents .activity-agent { flex:none; }
+.dashboard-v2 .activity-agents .activity-agent { width:auto;display:block;padding:0;border:0;border-radius:50%;background:none;box-shadow:none;cursor:pointer; }
+.dashboard-v2 .activity-agents .activity-agent:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+.face-ring { --track:color-mix(in srgb,var(--c) 22%,var(--line));position:relative;display:grid;place-items:center;width:50px;height:50px;border-radius:50%;padding:3px;
+  background:conic-gradient(var(--c) calc(var(--p,0) * 1%),var(--track) 0);transition:background .4s,transform .15s; }
+.face-ring>.activity-avatar { width:100%!important;height:100%!important;border:2.5px solid var(--panel);box-sizing:border-box; }
+.activity-agent:hover .face-ring { transform:translateY(-1px) scale(1.04); }
+.face-ring.busy { animation:faceRingPulse 1.6s ease-in-out infinite; }
+.face-ring.failed { background:conic-gradient(var(--danger,#e5484d) calc(var(--p,0) * 1%),var(--track) 0); }
+@keyframes faceRingPulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 0%,transparent); } 50% { box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 28%,transparent); } }
+/* 얼굴 호버 상태 카드 */
+.face-tip { position:fixed;z-index:60;width:230px;padding:11px 12px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:10px;box-shadow:0 10px 30px #0f172a26;pointer-events:none;font-size:12px; }
+.face-tip .ft-head { display:flex;align-items:center;gap:8px; }
+.face-tip .ft-head strong { font-size:14px; }
+.face-tip .ft-status { margin-left:auto;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--muted); }
+.face-tip .ft-status.busy { background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--text); }
+.face-tip .ft-status.failed { background:color-mix(in srgb,#e5484d 14%,transparent);color:#c62a2f; }
+.face-tip .ft-role { margin:4px 0 0;color:var(--muted);font-size:11px; }
+.face-tip .ft-task { margin:8px 0 0;line-height:1.5;color:var(--text-2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden; }
+.face-tip .ft-prog { display:flex;align-items:center;gap:8px;margin-top:9px; }
+.face-tip .ft-prog .bar { flex:1;height:4px;border-radius:4px;background:var(--line);overflow:hidden; }
+.face-tip .ft-prog .bar i { display:block;height:100%;background:var(--c);border-radius:4px; }
+.face-tip .ft-prog small { color:var(--muted);font-size:10.5px;white-space:nowrap; }
+.face-tip .ft-model { display:block;margin-top:6px;color:var(--muted);font-size:10px; }
+@media (prefers-reduced-motion:reduce) { .face-ring.busy { animation:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent); } }
+.activity-agent { width:100%;text-align:left;display:flex;align-items:center;gap:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:7px 9px;color:var(--text); }
 .activity-agent:hover { border-color:var(--line-strong);background:var(--panel-3); }
-.activity-avatar { width:48px;height:48px;flex:none;border-radius:50%;background-color:var(--c);display:grid;place-items:center;font-size:18px;font-weight:700;overflow:hidden; }
+.activity-avatar { width:34px;height:34px;flex:none;border-radius:50%;background-color:var(--c);display:grid;place-items:center;font-size:14px;font-weight:700;overflow:hidden; }
 .activity-detail { flex:1;min-width:0;display:block; }
 .activity-name { display:flex;align-items:center;gap:6px; }
-.activity-name strong { font-size:14px; }
+.activity-name { min-width:0; }
+.activity-name strong { font-size:13px;flex:none; }
 .activity-dot { width:6px;height:6px;background:var(--ok-dot);border-radius:50%;flex:none; }
 .activity-dot.working { background:var(--accent);box-shadow:0 0 0 3px #6aabff15; }
 .activity-model { margin-left:auto;max-width:108px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:4px;padding:1px 4px; }
-.activity-role { display:block;font-size:11.5px;color:var(--text-2);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.activity-status { display:inline-block;font-size:10.5px;color:var(--accent-text);margin-top:3px; }
-.activity-task { font-size:11.5px;color:var(--muted);margin:4px 0 0;line-height:1.65;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden; }
-.activity-agent .bar { margin-top:9px;height:3px; }
+.activity-role { display:none; }
+.activity-status { flex:none;font-size:10.5px;color:var(--muted);background:var(--chip);border-radius:999px;padding:0 6px;line-height:16px; }
+.activity-dot.working ~ .activity-status { color:var(--accent-text);background:color-mix(in srgb,var(--accent) 12%,transparent); }
+.activity-task { font-size:11px;color:var(--muted);margin:2px 0 0;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.activity-agent .bar { margin-top:5px;height:2px; }
 .dashboard-v2 .right>.card { border:0;border-radius:0;box-shadow:none;background:none; }
 .dashboard-v2 .right .card h3 { border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;margin-bottom:8px;font-size:13px;color:var(--accent-text); }
 .dashboard-v2 .log { padding:0; }
@@ -122,10 +152,10 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .dashboard-v2 button:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
 .dashboard-v2 button:disabled { opacity:.55; }
 .dashboard-v2.no3d .stage-empty { position:absolute;left:var(--dash-left);right:var(--dash-right);top:168px;bottom:var(--dash-bottom);display:grid;place-items:center; }
-@media(min-width:1500px) { :root { --right-w:350px; --dash-right:382px; } .dashboard-v2 .right { width:350px; } .run-info strong { font-size:15px; }.activity-avatar { width:54px;height:54px; }.activity-agent { padding:14px; }.activity-task { font-size:12.5px; } }
-@media(max-width:1250px) { :root { --right-w:290px;--dash-right:322px;--dash-left:88px; }.dashboard-v2 .right { width:290px;padding:12px; }.dashboard-v2 .left { width:72px; }.run-steps { display:none; }.dashboard-v2 #searchBtn { width:190px; }.activity-model { max-width:80px; }.activity-avatar { width:40px;height:40px; }.activity-agent { gap:8px;padding:10px; } }
+@media(min-width:1500px) { :root { --right-w:350px; --dash-right:382px; } .dashboard-v2 .right { width:350px; } .run-info strong { font-size:15px; }.face-ring { width:54px;height:54px; } }
+@media(max-width:1250px) { :root { --right-w:290px;--dash-right:322px;--dash-left:88px; }.dashboard-v2 .right { width:290px;padding:12px; }.dashboard-v2 .left { width:72px; }.run-steps { display:none; }.dashboard-v2 #searchBtn { width:190px; }.activity-model { max-width:80px; }.face-ring { width:44px;height:44px; } }
 @media(max-width:1000px) and (min-width:761px) { .dashboard-v2 #searchBtn { width:36px;padding:8px; }.search-hint,#searchBtn kbd { display:none; }.run-completion progress { display:none; }.run-strip { gap:9px;padding:10px; }.run-symbol { display:none; }.dashboard-v2 .task-shelf .trow { flex-basis:190px;max-width:85%; }.dashboard-v2 .speed { display:none; }.dashboard-v2 .speed-cycle { display:block; } }
-@media(max-height:700px) and (min-width:761px) { :root { --dash-bottom:218px; }.task-shelf { height:114px; }.dashboard-v2 .task-shelf .trow { height:78px;padding:9px; }.activity-task { -webkit-line-clamp:1; }.activity-avatar { width:38px;height:38px; }.activity-agents { max-height:52%; } }
+@media(max-height:700px) and (min-width:761px) { :root { --dash-bottom:218px; }.task-shelf { height:114px; }.dashboard-v2 .task-shelf .trow { height:78px;padding:9px; }.face-ring { width:42px;height:42px; } }
 @media(max-width:760px) {
   :root { --dash-left:12px;--dash-right:12px;--dash-bottom:264px;--tb-h:70px; }
   .dashboard-v2 .topbar { left:12px;right:12px;height:70px;padding:8px 0;gap:4px; }.dashboard-v2 .brand { font-size:19px; }.breadcrumb { font-size:10.5px;margin-bottom:1px; }.dashboard-v2 .tb-left { gap:8px; }.dashboard-v2 .topbar .menu-btn { display:grid;width:30px;height:34px; }.dashboard-v2 #conn { font-size:10.5px;padding:0 3px; }.dashboard-v2 #clock,.dashboard-v2 #speedCycle,.dashboard-v2 #searchBtn,.dashboard-v2 .speed { display:none; }
@@ -133,7 +163,7 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
   .run-strip { top:76px;height:64px;padding:10px;gap:9px; }.run-symbol,.run-steps,.run-completion progress { display:none; }.run-info strong { font-size:12.5px; }.run-info small { font-size:10.5px; }#newTaskBtn { width:32px;padding:0;font-size:0; }#newTaskBtn .ic { width:16px;height:16px; }.run-completion strong { font-size:13px; }
   .office-frame { top:150px;min-height:100px; }.room-switch { left:8px;top:8px; }.room-switch button { padding:5px 8px;font-size:10.5px; }.team-toggle { position:absolute;top:10px;right:8px;display:flex;gap:5px;align-items:center;border:1px solid var(--line);background:var(--panel);color:var(--text-2);border-radius:7px;padding:5px 7px;font-size:10.5px; }.team-toggle .ic { width:13px;height:13px; }.office-tools button { width:30px;height:30px; }.office-tools { gap:8px; }.office-live { font-size:10.5px;bottom:12px;left:10px; }
   .task-shelf { bottom:96px;height:156px; }.dashboard-v2 .task-shelf .trow { flex:0 0 240px;max-width:85%;height:110px;padding:14px; }.dashboard-v2 .task-shelf .h-sub { display:none; }.dashboard-v2 .task-shelf h3 { font-size:13px; }.dashboard-v2 .task-shelf .empty { font-size:12.5px; }.dashboard-v2 .command { bottom:calc(12px + var(--safe-b));height:64px; }.dashboard-v2 .command .spark { display:none; }.dashboard-v2 .command input, .dashboard-v2 .command textarea { font-size:14px; }.dashboard-v2 .att-chip { max-width:100px; }
-  .dashboard-v2 .right { display:none; }.dashboard-v2 .dock.open .right { display:flex;position:fixed;inset:150px 12px 12px;width:auto;z-index:7;background:var(--panel);box-shadow:0 0 0 100vmax #0005; }.dashboard-v2 .dock.open .right [data-pane="log"] { display:flex; }.activity-close { display:grid; }.activity-agents { max-height:48%; }.activity-avatar { width:42px;height:42px; }.activity-model { max-width:150px; }
+  .dashboard-v2 .right { display:none; }.dashboard-v2 .dock.open .right { display:flex;position:fixed;inset:150px 12px 12px;width:auto;z-index:7;background:var(--panel);box-shadow:0 0 0 100vmax #0005; }.dashboard-v2 .dock.open .right [data-pane="log"] { display:flex; }.activity-close { display:grid; }.face-ring { width:46px;height:46px; }.activity-model { max-width:150px; }
   .dashboard-v2 .view { inset:70px 12px 88px;border:1px solid var(--line);border-radius:12px;padding:0;z-index:8; }.dashboard-v2 .kanban { grid-template-columns:1fr; }.dashboard-v2.no3d .stage-empty { top:150px; }.dashboard-v2 .stage-empty-card { padding:14px; }.dashboard-v2 .stage-empty-card span { font-size:11.5px; }
 }
 @media(max-height:650px) and (max-width:760px) { :root { --dash-bottom:205px; }.task-shelf { height:100px;bottom:92px; }.dashboard-v2 .task-shelf .trow { height:67px;padding:8px; }.dashboard-v2 .task-shelf .empty { font-size:11.5px;padding:8px; }.office-frame { top:144px; }.office-live { display:none; } }
@@ -158,11 +188,37 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
   body.dashboard-v2.team-collapsed .activity-heading { flex-direction:column;margin-bottom:10px; }
   body.dashboard-v2.team-collapsed .activity-heading>div, body.dashboard-v2.team-collapsed #activityMembers { display:none; }
   body.dashboard-v2.team-collapsed .activity-collapse .ic { transform:rotate(180deg); }
-  body.dashboard-v2.team-collapsed .activity-agents { gap:10px;overflow:visible; }
+  body.dashboard-v2.team-collapsed .activity-agents { flex-direction:column;align-items:center;gap:10px;overflow:visible;padding:8px 0;margin-bottom:10px; }
   body.dashboard-v2.team-collapsed .activity-agent { padding:0;border:0;background:none;box-shadow:none;justify-content:center;position:relative; }
   body.dashboard-v2.team-collapsed .activity-detail { display:none; }
-  body.dashboard-v2.team-collapsed .activity-avatar { width:40px;height:40px; }
-  body.dashboard-v2.team-collapsed .activity-agent::after { content:"";position:absolute;right:0;bottom:0;width:10px;height:10px;border-radius:50%;background:var(--c);border:2px solid var(--panel); }
+  body.dashboard-v2.team-collapsed .face-ring { width:44px;height:44px; }
   body.dashboard-v2.team-collapsed .right>.card { display:none; }
 }
 @media(max-width:760px) { .activity-collapse { display:none; } }
+
+/* 현재 업무 카드: 사무실 화면 안쪽 오른쪽 위에 떠 있는 카드(컴퓨터 화면). 사무실은 그만큼 위로 넓어진다.
+   1줄 아이콘·목표·단계 문구 / 2줄 프로젝트 칩(있을 때) / 3줄 단계 체크·완료율·새 업무 */
+@media(min-width:761px) {
+  .office-frame { top:88px; }
+  .run-strip { top:100px;left:auto;right:calc(var(--dash-right) + 12px);width:min(400px,calc(100vw - var(--dash-left) - var(--dash-right) - 24px));height:auto;
+    padding:12px 14px;display:grid;grid-template-columns:32px max-content minmax(0,1fr) max-content;
+    grid-template-areas:"sym info info info" "proj proj proj proj" "steps steps comp btn";align-items:center;gap:10px;
+    border-radius:12px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(8px);box-shadow:0 8px 24px #0f172a14; }
+  .run-strip:has(.run-project[hidden]) { grid-template-areas:"sym info info info" "steps steps comp btn"; }
+  .run-strip .run-symbol { grid-area:sym;width:32px;height:32px; }
+  .run-strip .run-info { grid-area:info; }
+  .run-strip .run-info strong { font-size:13.5px; }
+  .run-strip .run-project { grid-area:proj;justify-self:start;max-width:100%; }
+  .run-strip .run-steps { grid-area:steps;gap:12px; }
+  .run-strip .run-completion { grid-area:comp;min-width:0; }
+  .run-strip .run-completion progress { flex:1;min-width:30px;width:auto; }
+  .run-strip #newTaskBtn { grid-area:btn;height:32px;white-space:nowrap;min-width:max-content; }
+  /* 공간 탭(전체 보기·현관…)은 사무실 왼쪽에 세로로 */
+  .room-switch { flex-direction:column;align-items:stretch;gap:2px;max-height:calc(100% - 80px);overflow-y:auto;scrollbar-width:none; }
+  .room-switch button { text-align:left;padding:7px 12px;white-space:nowrap; }
+}
+@media(max-width:1250px) and (min-width:761px) {
+  .run-strip { width:300px;grid-template-areas:"sym info info info" "proj proj proj proj" "comp comp comp btn"; }
+  .run-strip:has(.run-project[hidden]) { grid-template-areas:"sym info info info" "comp comp comp btn"; }
+  .run-strip .run-steps { display:none; }
+}

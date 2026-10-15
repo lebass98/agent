@@ -4,6 +4,37 @@ window.Dashboard = (() => {
   let pending = 0, lastTeam = "", selectedRoom = "all";
   const cards = new Map();
   function schedule() { if (!pending) pending = requestAnimationFrame(() => { pending = 0; render(); }); }
+  /* 얼굴에 마우스를 올리거나 키보드로 포커스하면 상태 카드(이름·역할·상태·지금 하는 일·진행률)를 띄운다.
+     패널이 overflow 로 잘리지 않게 body 에 붙인 고정 위치 요소 하나를 같이 쓴다. */
+  let tip = null, tipFor = "";
+  function showTip(n) {
+    tipFor = n;
+    if (!tip) { tip = el("div",{class:"face-tip",role:"tooltip",id:"faceTip"}); document.body.append(tip); }
+    fillTip();
+    const b = cards.get(n)?.button.getBoundingClientRect();
+    if (!b) return;
+    tip.hidden = false;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    const x = Math.max(8, Math.min(innerWidth - w - 8, b.left + b.width / 2 - w / 2));
+    const below = b.bottom + 8 + h < innerHeight - 8;
+    tip.style.left = `${Math.round(x)}px`; tip.style.top = `${Math.round(below ? b.bottom + 8 : b.top - h - 8)}px`;
+    cards.get(n).button.setAttribute("aria-describedby", "faceTip");
+  }
+  function hideTip() { if (tip) tip.hidden = true; if (tipFor) cards.get(tipFor)?.button.removeAttribute("aria-describedby"); tipFor = ""; }
+  function fillTip() {
+    const c = cards.get(tipFor), i = c?.info;
+    if (!tip || !c || !i) return;
+    tip.style.setProperty("--c", c.d.color);
+    tip.replaceChildren(
+      el("div",{class:"ft-head"}, el("strong",{text:c.d.label}), el("span",{class:`ft-status${i.busy ? " busy" : ""}${i.failed ? " failed" : ""}`,text:i.failed ? `${i.status} · 실패 있음` : i.status})),
+      c.d.role ? el("p",{class:"ft-role",text:c.d.role}) : null,
+      el("p",{class:"ft-task",text:i.task}),
+      el("div",{class:"ft-prog"}, el("span",{class:"bar"},el("i",{style:{width:`${i.pct}%`}})), el("small",{text:i.total ? `업무 ${i.fin}/${i.total} · ${i.pct}%` : "배정된 업무 없음"})),
+      el("small",{class:"ft-model",text:c.d.model || PROVIDER_KO[c.d.provider] || c.d.provider || ""}));
+  }
+  addEventListener("scroll", hideTip, true);
+  addEventListener("keydown", e => { if (e.key === "Escape") hideTip(); });
+
   function render() {
     if (!document.getElementById("activityAgents")) return;
     const names = D.names, teamKey = names.map(n => `${n}:${A(n).def.model}:${A(n).def.provider}:${A(n).def.role}:${appearanceOf(n)}`).join("|");
@@ -12,20 +43,27 @@ window.Dashboard = (() => {
       $("activityAgents").replaceChildren(...names.map(n => {
         const d = A(n).def;
         const avatar = facesOf(n) ? el("span", {class:"activity-avatar face",style:faceVars(facesOf(n)),"aria-hidden":"true"}) : el("span",{class:"activity-avatar",text:d.initial,"aria-hidden":"true"});
-        const status = el("span",{class:"activity-status"}), task = el("p",{class:"activity-task"});
-        const dot = el("i",{class:"activity-dot"}), bar = el("span",{class:"bar"},el("i"));
-        const button = el("button",{type:"button",class:"activity-agent",style:{"--c":d.color},onclick:()=>window.CharacterChat?.open(n),"aria-label":`${d.label}에게 말 걸기`}, avatar,
-          el("span",{class:"activity-detail"}, el("span",{class:"activity-name"},dot,el("strong",{text:d.label}),el("small",{class:"activity-model",text:d.model || PROVIDER_KO[d.provider] || d.provider || "미설정"})),
-          el("span",{class:"activity-role",text:d.role}),status,task,bar));
-        cards.set(n,{status,task,dot,bar,avatar}); return button;
+        // 얼굴만 보이는 팀원 칩: 얼굴 둘레 테두리(링)가 그 팀원의 업무 진행률. 이름·역할·상태는 툴팁·스크린리더로
+        const ring = el("span",{class:"face-ring","aria-hidden":"true"}, avatar);
+        const button = el("button",{type:"button",class:"activity-agent",style:{"--c":d.color,"--p":0},onclick:()=>{ hideTip(); window.CharacterChat?.open(n); },
+          onpointerenter:()=>showTip(n),onpointerleave:hideTip,onfocus:()=>showTip(n),onblur:hideTip}, ring);
+        cards.set(n,{button,ring,avatar,d}); return button;
       }));
     }
+    const runNow = D.shown, all = runNow ? [...runNow.tasks.values()] : [];
     for (const n of names) {
       const state = A(n).card?.st || IDLE, c = cards.get(n), busy = BUSY.includes(state.status);
-      c.status.textContent = state.status; c.task.textContent = state.task && state.task !== "—" ? state.task : "새 업무를 기다리고 있어요";
-      c.dot.classList.toggle("working",busy); c.bar.className = `bar ${busy ? "busy" : ""}`; c.bar.hidden = !busy;
+      const mine = all.filter(t => t.assignee === n), fin = mine.filter(isFin).length, failed = mine.some(t => t.vstate === "failed");
+      const pct = mine.length ? Math.round(fin / mine.length * 100) : 0;
+      const task = state.task && state.task !== "—" ? state.task : "새 업무를 기다리고 있어요";
+      c.button.style.setProperty("--p", busy && pct < 8 ? 8 : pct); // 작업 중인데 0% 면 조금 채워 움직임이 보이게
+      c.ring.className = `face-ring${busy ? " busy" : ""}${mine.length ? " has" : ""}${failed ? " failed" : ""}`;
+      const prog = mine.length ? `업무 ${fin}/${mine.length} (${pct}%)` : "배정된 업무 없음";
+      c.info = { status: state.status, busy, task, fin, total: mine.length, pct, failed };
+      c.button.setAttribute("aria-label", `${c.d.label}, ${state.status}, ${prog}. 말 걸기`);
       if (facesOf(n)) for (const [k,v] of Object.entries(faceVars(facesOf(n),A(n).expr))) c.avatar.style.setProperty(k,v);
     }
+    if (tipFor) fillTip();
     $("teamActivityCount").textContent = `${names.length}명의 에이전트 · ${names.filter(n=>BUSY.includes(A(n).card?.st.status)).length}명 작업 중`;
     const run = D.shown, tasks = run ? [...run.tasks.values()] : [], completed = tasks.filter(isFin).length;
     const percent = tasks.length ? Math.round(completed / tasks.length * 100) : 0;
