@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'web/sprites/people'
 SOURCE = ROOT / 'docs/ref/people'
 NAMES = ['기본', '웃음', '집중', '놀람', '생각', '측면']
+# 원본 시트 시각 검수: 이 다섯 인물은 서기 좌/우 칸을 요청과 반대로 그렸다.
+REVERSED_STANDING = {'jun', 'sora', 'min', 'jiyu', 'seojin'}
 
 
 def power(n):
@@ -75,6 +77,8 @@ def main():
         im = Image.open(source).convert('RGBA')
         t = tiles(im)
         frames = dict(zip(['stand.front','stand.sideL','stand.sideR','stand.back','walk.front','walk.sideR','walk.back','rise.middle','sit.front','sit.sideR','sit.back'], t[:11]))
+        if key in REVERSED_STANDING:
+            frames['stand.sideL'], frames['stand.sideR'] = frames['stand.sideR'], frames['stand.sideL']
         frames['rise.before'] = t[9]; frames['rise.after'] = t[2]
         heights = {n: 1.46 if n.startswith('sit.') else 1.5 if n == 'rise.middle' else 1.75 for n in frames}
         body[key] = pack(key, '', frames, heights)
