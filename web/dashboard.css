@@ -47,7 +47,7 @@
 .run-steps { list-style:none;display:flex;align-items:center;gap:18px;margin:0;padding:0;flex:none; }
 .run-steps li { display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11.5px; }
 .run-steps li::before { content:"";width:16px;height:16px;border:1px solid var(--faint);border-radius:50%; }
-.run-steps li.complete::before { content:"✓";display:grid;place-items:center;background:var(--accent);border-color:var(--accent);color:#111; }
+.run-steps li.complete::before { content:"✓";display:grid;place-items:center;background:var(--accent-btn);border-color:var(--accent-btn);color:#fff;font-weight:800; } /* 파란 원 + 흰 체크 */
 .run-steps li.current::before { background:var(--accent);border:3px solid var(--panel);outline:1px solid var(--accent); }
 .run-completion { display:flex;align-items:center;gap:9px;flex:none; }
 .run-completion strong { font-size:15px;color:var(--accent-text);font-variant-numeric:tabular-nums; }
@@ -104,11 +104,12 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .dashboard-v2 .task-shelf h3>.ic { display:none; }
 .dashboard-v2 .task-shelf .board { display:flex;gap:10px;padding:0 0 4px;flex:1;overflow:auto;scroll-snap-type:x proximity; }
 .dashboard-v2 .task-shelf .trow { flex:1 0 220px;max-width:calc(50% - 5px);height:84px;display:grid;grid-template-columns:24px minmax(0,1fr) auto;grid-template-rows:1fr 1fr;gap:8px;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:11px;scroll-snap-align:start; }
-.dashboard-v2 .task-shelf .trow .sdot { width:22px;height:22px;border:1px solid var(--line-strong);background:none;grid-column:1;grid-row:1; }
-.dashboard-v2 .task-shelf .trow.done .sdot { background:var(--ok);border-color:var(--ok); }
-.dashboard-v2 .task-shelf .trow.done .sdot::after { content:"✓";display:grid;place-items:center;color:#18342a;font-size:15px; }
+.dashboard-v2 .task-shelf .trow .sdot { width:22px;height:22px;border:1px solid var(--line-strong);background:none;grid-column:1;grid-row:1;display:grid;place-items:center; }
+.dashboard-v2 .task-shelf .trow.done .sdot { background:#15965a;border-color:#15965a; } /* 라이트·다크 모두 흰 체크가 보이는 진한 초록 */
+.dashboard-v2 .task-shelf .trow.done .sdot::after { content:"✓";color:#fff;font-size:13px;font-weight:800;line-height:1; } /* 초록 원 + 흰 체크 */
 .dashboard-v2 .task-shelf .trow.doing .sdot { border:2px solid var(--accent);box-shadow:inset 0 0 0 4px var(--panel);background:var(--accent); }
-.dashboard-v2 .task-shelf .trow.failed .sdot { border-color:var(--err);background:var(--err-weak); }
+.dashboard-v2 .task-shelf .trow.failed .sdot { border-color:var(--err);background:var(--err); }
+.dashboard-v2 .task-shelf .trow.failed .sdot::after { content:"!";color:#fff;font-size:13px;font-weight:800;line-height:1; } /* 빨간 원 + 흰 느낌표 */
 .dashboard-v2 .task-shelf .trow .ttl { grid-column:2 / 4;grid-row:1;font-size:13px;color:var(--text); }
 .dashboard-v2 .task-shelf .trow .mchip { grid-column:2;grid-row:2;justify-self:start;font-size:10.5px; }
 .dashboard-v2 .task-shelf .trow .val { grid-column:3;grid-row:2;font-size:11.5px; }
