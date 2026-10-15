@@ -2160,6 +2160,7 @@ function dispatch(ev) {
   ev._at = performance.now();
   const T = ev.type;
   if (T === "hello") return onHello(ev);
+  if (T === "retry") return onRetry(ev);
   if (T === "task_start" || T === "task_done") return onTask(ev);
   const play = PLAY[T];
   if (!play || !model(ev)) return;
@@ -2184,6 +2185,11 @@ function model(ev) {
     run.planned = true;
     run.summary = String(ev.summary || "");
     for (const t of Array.isArray(ev.tasks) ? ev.tasks : []) if (t && typeof t === "object") addTask(run, t);
+  } else if (T === "rework") { // 팀장 보완 요청: 새 업무(보완: 원래 제목)로 보드에 붙는다
+    const fresh = (Array.isArray(ev.tasks) ? ev.tasks : []).filter(t => t && typeof t === "object" && !run.tasks.has(tid(t.id)));
+    if (!fresh.length) return false;
+    for (const t of fresh) addTask(run, t);
+    ev.tasks = fresh;
   } else if (T === "report") {
     run.report = String(ev.report || ""); run.dir = String(ev.dir || ""); D.lastRun = run;
   } else if (T === "run_error") run.error = String(ev.message || "알 수 없는 오류");
@@ -2212,8 +2218,37 @@ function onTask(ev) {
   lane(ev.assignee).push(() => (ev.type === "task_start" ? pTaskStart(ev) : pTaskDone(ev)), 150000);
 }
 
-const CAP = { run_start: 15000, plan_start: 30000, plan: 90000, review_start: 200000, report: 30000, run_error: 15000, run_end: 20000 };
-const PLAY = { run_start: pRunStart, plan_start: pPlanStart, plan: pPlan, review_start: pReview, report: pReport, run_error: pError, run_end: pEnd };
+const CAP = { run_start: 15000, plan_start: 30000, plan: 90000, rework: 200000, review_start: 200000, report: 30000, run_error: 15000, run_end: 20000 };
+const PLAY = { run_start: pRunStart, plan_start: pPlanStart, plan: pPlan, rework: pRework, review_start: pReview, report: pReport, run_error: pError, run_end: pEnd };
+
+/** 일시 오류로 다시 시도: 로그와 말풍선만(업무 순서는 그대로). */
+function onRetry(ev) {
+  const n = who(ev.assignee), a = A(n), what = ev.stage === "plan" ? "계획" : ev.stage === "review" ? "최종 보고" : ev.stage === "check" ? "중간 검수" : ev.id != null ? `#${ev.id}` : "업무";
+  log(`${what} 다시 시도 (${ev.attempt}번째) · ${clip(String(ev.error || ""), 80)}`, n, "err");
+  a?.say(pick(["잠깐 오류가 났어요, 다시 해볼게요 🔁", "한 번 더 시도할게요 💪", "연결이 끊겼네요, 다시!"]), 1600);
+}
+
+/** 팀장 중간 검수 → 보완 요청: 팀장이 자리에서 담당자를 불러 말해 준다. 보완 업무는 이어서 task_start/task_done 으로 진행된다. */
+async function pRework(ev) {
+  const g = epoch, run = ev._run, l = L();
+  await capped(Promise.all(Object.values(D.lanes).map(x => x.p)), 150000); alive(g); // 첫 업무 연출이 끝난 뒤
+  setPhase(ev.resumed ? "보완 업무 이어 하기" : "보완 요청", true);
+  renderBoard();
+  log(`중간 검수: 보완 요청 ${ev.tasks.length}건`, D.leader);
+  if (!ev.resumed) l.say(`검토해 보니 ${ev.tasks.length}건만 보완하면 좋겠어요 🔁`, 2000);
+  for (const t of ev.tasks) {
+    const n = who(t.assignee), a = A(n);
+    log(`#${t.of ?? t.id} 보완 요청: ${clip(String(t.feedback || ""), 120)}`, D.leader);
+    if (ev.resumed || !a) continue;
+    l.face(a.group.position);
+    l.say(`${a.def.label}님, ${clip(String(t.feedback || "조금만 더 보완해 주세요"), 36)}`, 1900);
+    await wait(1000);
+    if (n !== D.leader) a.say(pick(["네, 바로 보완할게요!", "알겠습니다 ✍️", "좋은 지적이에요, 고칠게요"]), 1300);
+    await wait(700);
+  }
+  setPhase("업무 진행", true);
+  if (!ev.resumed && await go(l, l.seat)) l.sitDesk("sit");
+}
 
 /** 이동 + 시간 제한. 도착하면 true, 다른 이동에 밀리면 false. via: 거쳐 갈 지점(현관 문 안) */
 async function go(a, p, cap = 20000, via) {
@@ -2682,11 +2717,15 @@ async function submitGoal() {
     toast(NET.mode === "connecting" ? "서버에 연결하는 중이에요. 잠시 후 다시 시도해 주세요." : "서버와 다시 연결하는 중이에요. 잠시 후 다시 시도해 주세요.", "warn");
     return;
   }
+  // 외부 도구(MCP)가 등록돼 있으면 이번 업무에 쓸지 먼저 묻는다(extras.js). null = 취소
+  const consent = window.Extras?.beforeRun ? await window.Extras.beforeRun() : {};
+  if (consent === null) return;
   UI.submitting = true; updateInput();
   let ok = false;
   try {
     const project_id = window.Projects?.currentId() || undefined; // 고른 프로젝트 폴더 안에서 실행
-    const r = await api("/api/run", { method: "POST", body: JSON.stringify({ goal: full, project_id }) });
+    const tools = consent?.tools?.length ? consent.tools : undefined;
+    const r = await api("/api/run", { method: "POST", body: JSON.stringify({ goal: full, project_id, tools }) });
     if (r.ok) {
       ok = true; $("goal").value = ""; fitGoal(); clearAttachment(); if (mqMobile.matches) $("goal").blur();
       if (truncated) toast("첨부 내용이 길어 4,000자에 맞춰 잘라 보냈어요.", "warn");

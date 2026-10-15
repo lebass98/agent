@@ -9,15 +9,17 @@
 | type | 필드 | 의미 / UI 연출 |
 |---|---|---|
 | `hello` | `team`, `mock`, `snapshot` | 접속 직후 1회. 팀 구성, 모의 실행 여부, 현재(또는 마지막) 실행 상태 |
-| `run_start` | `run_id`, `goal`, `project` | 새 업무 시작. `project` 는 프로젝트 폴더에서 실행하면 `{id, name, path}`, 아니면 `null` |
-| `plan_start` | `leader` | 팀장이 계획 수립 시작 → 화이트보드로 이동, 필기 |
-| `plan` | `summary`, `tasks[]` | 계획 확정 → 회의 소집, 업무 배정 |
+| `run_start` | `run_id`, `goal`, `project`, `tools`, `resumed` | 새 업무 시작. `project` 는 프로젝트 폴더에서 실행하면 `{id, name, path}`, 아니면 `null`. `tools` 는 이번 업무에 허락된 외부 도구(MCP 서버) 이름 목록. `resumed: true` 면 끊긴 업무를 이어 하는 것(같은 `run_id`) |
+| `plan_start` | `leader` | 팀장이 계획 수립 시작 → 자기 자리에서 정리(이어 하기로 저장된 계획을 쓰면 오지 않는다) |
+| `plan` | `summary`, `tasks[]`, `usage`, `resumed` | 계획 확정 → 회의실 발표, 업무 배정. `usage` 는 계획 호출 사용량(이어 하기면 `null`) |
 | `task_start` | `id`, `assignee` | 팀원이 업무 착수 → 자리로 가서 타이핑 |
-| `task_done` | `id`, `assignee`, `ok`, `result` | 업무 완료(또는 실패) |
+| `task_done` | `id`, `assignee`, `ok`, `result`, `usage`, `resumed`? | 업무 완료(또는 실패). `usage`: `{ms, provider, model, input_tokens?, output_tokens?, cost_usd?, turns?}`(재시도 끝에 실패하면 `null`). 이어 하기에서 이미 끝난 업무는 `task_start`·`task_done` 에 `resumed: true` 로 바로 온다 |
+| `retry` | `stage`(plan·task·check·review), `id`, `assignee`, `attempt`, `error` | 일시 오류(시간 초과·빈 응답 등)로 다시 시도. 기본 1번(`AGENT_RETRIES`), 설치·로그인·키 문제는 다시 하지 않는다. 계획 JSON 이 깨져도 1번 다시 받는다 |
+| `rework` | `round`, `tasks[]`(`id`, `of`, `assignee`, `title`, `feedback`, `depends_on`), `resumed`? | 팀장 중간 검수 → 보완 요청. 새 업무(`보완: 원래 제목`, `of` = 원래 업무 id)로 이어서 `task_start`/`task_done` 이 온다. 최대 횟수는 team.toml `[leader] rework`(기본 1, 0이면 끔, `AGENT_REWORK` 로 덮어씀). 최종 보고에는 성공한 보완본이 원래 업무 자리에 들어간다 |
 | `review_start` | `leader` | 팀장 검수 시작 → 팀원들이 보고하러 이동 |
-| `report` | `report`(마크다운), `dir` | 최종 보고서 |
+| `report` | `report`(마크다운), `dir`, `usage` | 최종 보고서 |
 | `run_error` | `message` | 실행 중 오류(계획 JSON 해석 실패, API 오류 등) |
-| `run_end` | `run_id`, `ok` | 실행 종료(성공/실패 무관 항상 마지막) |
+| `run_end` | `run_id`, `ok`, `usage` | 실행 종료(성공/실패 무관 항상 마지막). `usage` 는 이번 실행 합계 `{calls, ms, input_tokens, output_tokens, cost_usd}`. 결과 알림이 켜져 있으면 이때 웹훅을 보낸다(서버 종료로 끊긴 경우는 보내지 않음) |
 | `pong` | — | 클라이언트 `ping` 에 대한 응답 |
 
 ### 공통 구조
@@ -60,10 +62,20 @@
 | `GET` | `/api/team` | 팀 구성 (`team` 과 같은 형식) |
 | `GET` | `/api/team/config` | 에이전트 설정 화면용: `{config: {leader, guide, members: [{name, provider, model, role}]}, providers: [{id, brand, label, kind, models, ready, hint}], mock, limits}`. 모의 실행이어도 team.toml 에 적힌 실제 provider 를 돌려준다. `ready` 는 CLI 설치·API 키 준비 여부 |
 | `PUT` | `/api/team/config` | `{config}` 를 검사해 team.toml 에 쓴다(맨 위 설명 주석 유지, 바로 전 파일은 `team.toml.bak`). 팀을 그 자리에서 다시 꾸리고 모든 접속자에게 `hello`(새 `team`, 현재 `snapshot`)를 다시 보낸다 → `{ok, team, config}`. 이름 `^[a-z][a-z0-9_-]{0,19}$`·중복 금지, provider 는 등록된 것만, claude-cli 모델은 opus·sonnet·haiku, 하는 일 1~300자, 팀장은 팀원 중, 배정 원칙 2,000자, 팀원 1~12명. 틀리면 `400`(파일 그대로), 업무·대화 진행 중 `409`. 개발 모드에서는 team.toml 저장으로 서버가 재시작되어 재접속 hello 로도 반영된다 |
-| `POST` | `/api/run` | `{ "goal": "...", "project_id"?: "..." }` 업무 시작 → `{ "run_id": "..." }`. `project_id` 가 있으면 그 프로젝트 폴더 안에서 실행(아래 '프로젝트'). 빈 목표·4,000자 초과·프로젝트 폴더가 사라졌거나 위험 경로로 바뀜 `400`, 없는 프로젝트 `404`, 진행 중 `409`, 형식 오류 `422` |
+| `POST` | `/api/run` | `{ "goal": "...", "project_id"?: "...", "tools"?: ["mcp 서버 이름"] }` 업무 시작 → `{ "run_id": "..." }`. `project_id` 가 있으면 그 프로젝트 폴더 안에서 실행(아래 '프로젝트'). `tools` 는 사용자가 확인 창에서 이번 업무에 허락한 외부 도구 — claude-cli 팀원에게만 `--mcp-config`·`--strict-mcp-config` 로 붙고 그 서버 도구만 미리 허용된다(없는 이름 `400`). n8n 등 외부 자동화도 이 주소로 업무를 시작할 수 있다(`--lan` 이면 `X-Access-Key` 헤더). 빈 목표·4,000자 초과·프로젝트 폴더가 사라졌거나 위험 경로로 바뀜 `400`, 없는 프로젝트 `404`, 진행 중 `409`, 형식 오류 `422` |
 | `POST` | `/api/ask` | `{name, message, history?: [{role: "user" 또는 "assistant", content}]}` → `{name, answer, mock}`. 선택한 팀원에게 개인 질문. 빈 질문·4,000자 초과·이력 12건/24,000자 초과 `400`, 없는 팀원 `404`, 팀 업무/응답 진행 중 `409`, 연결 실패 `502`, 180초 초과 `504`. 동일 접속 키 인증 사용. |
 | `GET` | `/api/runs` | 지난 실행 목록(최신순, 최대 50건) `[{run_id, goal, created, project, has_report, has_error}]` — `project` 는 프로젝트 이름 또는 `null` |
-| `GET` | `/api/runs/{run_id}` | `{run_id, goal, project, plan, tasks: [{file, content}], report, error}` — `project` 는 `runs/<id>/project.json`(`{id, name, path}`, 없으면 `null`) — `plan` 은 plan.json(없으면 `null`), `tasks` 는 task-*.md 번호순, `report`·`error` 는 없으면 `null`. 없는 id 는 `404` |
+| `GET` | `/api/runs/resumable` | 이어 할 수 있는 실행(끊김 `interrupted`·오류 `error`, 보고서 없음, 최근 7일, 최대 5건) `{runs: [{run_id, goal, created, status, stage, done, total, project, error, tools}]}`. 업무 진행 중이면 빈 목록. 서버가 켜질 때 `state.json` 이 `running` 으로 남은 실행은 `interrupted` 로 바뀐다 |
+| `POST` | `/api/runs/{run_id}/resume` | `{tools?}` → 저장된 계획(plan.json)을 다시 쓰고 `state.json` 에 성공으로 남은 업무는 건너뛰며 이어 한다. 같은 `run_id`. 프로젝트 폴더를 더 쓸 수 없으면·이어 할 상태가 아니면 `400`, 진행 중 `409` |
+| `POST` | `/api/runs/{run_id}/dismiss` | 이어 하기 목록에서 뺀다(`status: dismissed`) |
+| `GET` | `/api/usage?days=7` | 최근 N일(1~90) 사용량 `{days, runs, total, by_member, by_day, by_stage, by_provider}` (각 값은 `{calls, ms, input_tokens, output_tokens, cost_usd}`). `runs/<id>/usage.json` 을 모은 것. 토큰·비용은 CLI 가 알려 준 만큼(claude-cli 는 정확, 비용은 API 환산값) |
+| `GET` | `/api/notify` | 결과 알림 설정 `{url, enabled, has_secret, last}` (비밀 키는 내보내지 않음) |
+| `PUT` | `/api/notify` | `{url, enabled, secret?}` 저장(`cache/notify.json`, Git 제외). `secret` 생략=그대로, `""`=지움. http(s) 주소만 |
+| `POST` | `/api/notify/test` | 시험 알림 1건 보내기 → `{ok, status, error}` |
+| `GET` | `/api/tools` | 외부 도구(MCP 서버) 목록 `{servers: [{name, description, kind(stdio·http·sse), target}], members: [도구를 쓸 수 있는 팀원]}` — env·headers 는 내보내지 않음 |
+| `PUT` | `/api/tools/{name}` | `{config, description}` 등록·수정(`mcp-servers.json`, Git 제외, Claude Code mcpServers 형식). **서버가 켜진 컴퓨터에서만**(아니면 `403`) |
+| `DELETE` | `/api/tools/{name}` | 삭제(같은 컴퓨터에서만). 없으면 `404` |
+| `GET` | `/api/runs/{run_id}` | `{run_id, goal, project, plan, usage, status, tasks: [{file, content}], report, error}` — `project` 는 `runs/<id>/project.json`(`{id, name, path}`, 없으면 `null`) — `plan` 은 plan.json(없으면 `null`), `tasks` 는 task-*.md 번호순, `report`·`error` 는 없으면 `null`. 없는 id 는 `404` |
 | `GET` | `/api/outside/geocode?q=` | 바깥 풍경: 주소·장소 검색(OpenStreetMap Nominatim) → `{results: [{lat, lng, label, kind, exact}]}`(최대 5개, `exact: false` 는 도로·지역처럼 넓은 결과). 좌표("37.5665, 126.978")는 검색 없이 그대로 1개. 빈 값·200자 초과 `400`, 검색 서버 연결 실패 `502` |
 | `GET` | `/api/outside/map?lat=&lng=&r=350&w=32&d=22&turn=0` | 반경 `r`(100~600m) 지도를 사무실 좌표로 다듬은 장면(형식은 `web/outside.js` 머리말). 처음 한 번 Overpass 에서 받아 `cache/outside/` 에 두고 이후는 캐시(인터넷 없이). 값 오류 `400`, 지도 서버 실패 `502` |
 | `GET`·`PUT`·`DELETE` | `/api/outside/place` | 사무실 위치 `{place: {lat, lng, label, floor, show, turn, r}}`(없으면 `null`). 휴대폰 등 다른 기기도 같은 위치를 쓴다. 형식 오류 `422` |

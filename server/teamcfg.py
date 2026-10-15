@@ -55,7 +55,11 @@ def read_config(path: Path) -> dict:
     members = [{"name": n, "provider": str(m.get("provider", "")), "model": str(m.get("model", "")), "role": str(m.get("role", ""))}
                for n, m in cfg.get("members", {}).items()]
     lead = cfg.get("leader", {})
-    return {"leader": str(lead.get("member", "")), "guide": str(lead.get("guide", "")).strip(), "members": members}
+    try:
+        rework = int(lead.get("rework", 1))
+    except (TypeError, ValueError):
+        rework = 1
+    return {"leader": str(lead.get("member", "")), "guide": str(lead.get("guide", "")).strip(), "rework": rework, "members": members}
 
 
 def validate(data: dict) -> dict:
@@ -97,7 +101,13 @@ def validate(data: dict) -> dict:
     guide = str(data.get("guide", "") or "").replace("\r\n", "\n").strip()
     if len(guide) > GUIDE_LIMIT:
         raise ConfigError(f"업무 배정 원칙은 {GUIDE_LIMIT:,}자 이내로 적어 주세요.")
-    return {"leader": leader, "guide": guide, "members": members}
+    try:
+        rework = int(data.get("rework", 1))
+    except (TypeError, ValueError):
+        raise ConfigError("보완 요청 횟수는 0~3 사이 숫자여야 합니다.")
+    if not 0 <= rework <= 3:
+        raise ConfigError("보완 요청 횟수는 0~3 사이 숫자여야 합니다.")
+    return {"leader": leader, "guide": guide, "rework": rework, "members": members}
 
 
 def _s(v: str) -> str:
@@ -116,6 +126,7 @@ def render(cfg: dict, header: str = "") -> str:
     lines += ["[leader]", f"member = {_s(cfg['leader'])}   # 업무 분배·검수·최종 보고 담당"]
     if cfg["guide"]:
         lines += ["# 업무 배정 원칙 — 팀장이 계획을 세울 때 가장 먼저 따른다", f"guide = {_multiline(cfg['guide'])}"]
+    lines += [f"rework = {int(cfg.get('rework', 1))}   # 팀장 중간 검수 후 보완 요청 최대 횟수(0~3, 0이면 끔)"]
     for m in cfg["members"]:
         lines += ["", f"[members.{m['name']}]", f"provider = {_s(m['provider'])}", f"model = {_s(m['model'])}", f"role = {_s(m['role'])}"]
     return "\n".join(lines) + "\n"

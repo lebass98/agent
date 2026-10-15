@@ -5,6 +5,8 @@ import logging
 import os
 import random
 import re
+import time
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from . import cli
@@ -12,6 +14,25 @@ from . import cli
 
 # .env 의 키가 SDK 프로필 자동탐색보다 우선한다는 안내 경고는 의도된 동작이라 숨긴다
 logging.getLogger("anthropic.lib.credentials._auth").setLevel(logging.ERROR)
+
+
+# 호출 1회의 사용량(토큰·비용·턴). provider 가 알 수 있는 만큼 report_usage 로 채운다(Member.call 이 모은다)
+_USAGE: ContextVar[dict | None] = ContextVar("agent_usage", default=None)
+MCP_PROVIDERS = {"claude-cli"}  # 외부 도구(MCP)를 붙일 수 있는 provider
+
+
+def report_usage(**kw) -> None:
+    """provider 안에서 부른다. None 값은 버리고, 숫자는 같은 키끼리 더한다."""
+    sink = _USAGE.get()
+    if sink is None:
+        return
+    for k, v in kw.items():
+        if v is None:
+            continue
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and isinstance(sink.get(k), (int, float)):
+            sink[k] += v
+        else:
+            sink[k] = v
 
 
 @dataclass
@@ -30,16 +51,37 @@ class Member:
             "지시받은 업무만 정확히 수행하고, 결과물은 한국어로 간결하게 작성하세요."
         )
 
-    async def ask(self, prompt: str, system: str | None = None, workdir: str | None = None) -> str:
+    @property
+    def can_use_tools(self) -> bool:
+        """외부 도구(MCP)를 쓸 수 있는 팀원인지(지금은 claude-cli 만)."""
+        return self.provider in MCP_PROVIDERS
+
+    async def ask(self, prompt: str, system: str | None = None, workdir: str | None = None, mcp: dict | None = None) -> str:
         """workdir: 프로젝트 폴더(절대 경로). CLI provider 는 그 폴더에서 파일 도구를 켜고 실행한다.
         API provider 는 파일 도구가 없어 무시한다(프롬프트의 폴더 안내만 받는다)."""
-        call = _PROVIDERS.get(self.provider)
-        if call is None:
+        return (await self.call(prompt, system, workdir, mcp))[0]
+
+    async def call(self, prompt: str, system: str | None = None, workdir: str | None = None,
+                   mcp: dict | None = None) -> tuple[str, dict]:
+        """ask 와 같지만 (답변, 사용량)을 돌려준다. 사용량: {ms, provider, model, input_tokens?, output_tokens?, cost_usd?, turns?}
+        mcp: 사용자가 이번 업무에 허락한 외부 도구 {서버 이름: 설정}. 쓸 수 있는 팀원(can_use_tools)에게만 넘긴다."""
+        fn = _PROVIDERS.get(self.provider)
+        if fn is None:
             raise ValueError(f"알 수 없는 provider: {self.provider}")
         _require_key(self)
+        kw: dict = {}
         if workdir:
-            return await call(self, prompt, system or self.system, workdir=workdir)
-        return await call(self, prompt, system or self.system)
+            kw["workdir"] = workdir
+        if mcp and self.can_use_tools:
+            kw["mcp"] = mcp
+        sink: dict = {}
+        token = _USAGE.set(sink)
+        t0 = time.perf_counter()
+        try:
+            text = await fn(self, prompt, system or self.system, **kw)
+        finally:
+            _USAGE.reset(token)
+        return text, {"ms": round((time.perf_counter() - t0) * 1000), "provider": self.provider, "model": self.model, **sink}
 
 
 API_TIMEOUT = float(os.getenv("API_TIMEOUT", "600"))  # 초
@@ -111,6 +153,9 @@ async def _google(m: Member, prompt: str, system: str, workdir: str | None = Non
     return resp.text or ""
 
 
+_MOCK_FAILED: set[str] = set()
+
+
 async def _mock(m: Member, prompt: str, system: str, workdir: str | None = None) -> str:
     """API 키 없이 흐름을 점검하기 위한 가짜 응답. MOCK_DELAY(초) 만큼 생각하는 척한다.
     workdir(프로젝트 폴더)가 있으면 결과에 폴더 이름을 적는다(파일은 건드리지 않는다)."""
@@ -118,6 +163,16 @@ async def _mock(m: Member, prompt: str, system: str, workdir: str | None = None)
     delay = float(os.getenv("MOCK_DELAY", "0"))
     if delay:
         await asyncio.sleep(delay * random.uniform(0.6, 1.6))
+    report_usage(input_tokens=len(prompt) // 3 + 200, output_tokens=120, turns=1)  # 모의 사용량(화면 점검용)
+    fail = os.getenv("MOCK_FAIL_ONCE", "")  # 테스트: 이 문자열이 든 업무는 처음 한 번 실패(재시도 확인)
+    if fail and fail in prompt and fail not in _MOCK_FAILED:
+        _MOCK_FAILED.add(fail)
+        raise RuntimeError("모의 일시 오류")
+    if "##CHECK##" in prompt:  # 팀장 중간 검수: MOCK_REWORK=1 이면 첫 번째 업무를 한 번 보완 요청
+        ids = [int(x) for x in re.findall(r"^### #(\d+) ", prompt, re.M)]
+        want = os.getenv("MOCK_REWORK") == "1" and ids and "보완:" not in prompt
+        return json.dumps({"rework": [{"id": ids[0], "feedback": "근거 자료와 예시를 더 보강해 주세요."}] if want else []},
+                          ensure_ascii=False)
     if prompt.startswith("##CHAT##"):
         question = prompt.rsplit("[사용자 질문]\n", 1)[-1]
         return f"{m.name}입니다. 말씀하신 ‘{question[:120]}’ 잘 들었어요. 제 역할은 {m.role.split('.')[0]}입니다. 함께 정리해 볼까요?\n\n(모의 답변입니다. 실제 실행에서는 연결된 모델이 질문에 답합니다.)"

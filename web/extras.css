@@ -1,0 +1,34 @@
+/* 팀 실행 보강(extras.js): 이어 하기 카드 · 사용량 막대 · 결과 알림 · 외부 도구 */
+.resume-card { position:fixed;z-index:30;right:calc(var(--dash-right,16px) + 16px);bottom:calc(var(--dash-bottom,200px) + 12px);width:min(360px,calc(100vw - 32px));
+  padding:14px 16px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;box-shadow:0 12px 32px #0f172a26; }
+.resume-card .rc-head { display:flex;align-items:center;gap:8px; }
+.resume-card .rc-head .ic { width:16px;height:16px;color:var(--accent-text); }
+.resume-card .rc-head strong { font-size:14px; }
+.resume-card .rc-x { margin-left:auto;width:28px;height:28px; }
+.resume-card .rc-goal { margin:8px 0 4px;font-size:13px;line-height:1.5;color:var(--text-2); }
+.resume-card .rc-meta { margin:0;font-size:11.5px;color:var(--muted); }
+.resume-card .rc-err { margin:6px 0 0;font-size:11.5px;color:#c62a2f; }
+.resume-card .rc-actions { display:flex;justify-content:flex-end;gap:8px;margin-top:12px; }
+.resume-card .btn { display:inline-flex;align-items:center;gap:6px; }
+.resume-card .btn .ic { width:14px;height:14px; }
+@media(max-width:760px) { .resume-card { right:12px;left:12px;width:auto;bottom:calc(150px + var(--safe-b,0px)); } }
+
+.ubar { display:block;height:10px;border-radius:5px;background:var(--track,var(--line));overflow:hidden; }
+.ubar i { display:block;height:100%;background:var(--c);border-radius:5px; }
+
+.nt-msg { margin:10px 0 0; }
+.ok-text { color:#15965a; }
+.nt-help { margin-top:16px;font-size:13px;color:var(--text-2); }
+.nt-help summary { cursor:pointer;font-weight:600; }
+.nt-help p { line-height:1.6; }
+
+.text-input.mono { font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical; }
+.tl-list { list-style:none;margin:0 0 6px;padding:0;display:grid;gap:8px; }
+.tl-list li { display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2); }
+.tl-list li > div { flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px; }
+.tl-list li small { flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.tl-picks { display:grid;gap:8px;margin-top:12px; }
+.tl-pick { display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer; }
+.tl-pick input { margin-top:3px; }
+.tl-pick span { display:grid;gap:2px; }
+.link { background:none;border:0;padding:0;color:var(--accent-text);cursor:pointer;font:inherit;text-decoration:underline; }

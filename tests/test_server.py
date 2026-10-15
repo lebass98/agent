@@ -52,8 +52,9 @@ def test_full_mock_run(make_client):
     types = [e["type"] for e in events]
     assert types[:3] == ["run_start", "plan_start", "plan"]
     assert types[-3:] == ["review_start", "report", "run_end"]
-    assert events[0] == {"type": "run_start", "run_id": run_id, "goal": "모의 목표", "project": None}
-    assert events[-1] == {"type": "run_end", "run_id": run_id, "ok": True}
+    assert events[0] == {"type": "run_start", "run_id": run_id, "goal": "모의 목표", "project": None, "tools": [], "resumed": False}
+    assert {k: v for k, v in events[-1].items() if k != "usage"} == {"type": "run_end", "run_id": run_id, "ok": True}
+    assert events[-1]["usage"]["calls"] >= 6  # 계획 1 + 업무 4 + 중간 검수 1 + 보고 1
 
     tasks = {t["id"]: t for t in events[2]["tasks"]}
     started, done = set(), set()
@@ -132,7 +133,7 @@ def test_runs_list_and_detail(make_client, runs_dir):
     assert len(detail["tasks"]) == len(detail["plan"]["tasks"])
     assert [t["file"][:7] for t in detail["tasks"]] == [f"task-{t['id']:02d}" for t in detail["plan"]["tasks"]]
     assert failed == {"run_id": "20200101-000000-2", "goal": "옛 목표 20200101-000000-2", "project": None, "plan": None,
-                      "tasks": [], "report": None, "error": "API 오류"}
+                      "tasks": [], "report": None, "error": "API 오류", "usage": None, "status": None}
 
 
 @pytest.mark.parametrize("url", [

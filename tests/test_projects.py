@@ -143,7 +143,7 @@ def test_run_with_project_passes_workdir(make_client, home, runs_dir, monkeypatc
         listed = client.get("/api/runs").json()[0]
 
     project = {"id": pid, "name": "site", "path": site}
-    assert events[0] == {"type": "run_start", "run_id": run_id, "goal": "폴더 정리", "project": project}
+    assert events[0] == {"type": "run_start", "run_id": run_id, "goal": "폴더 정리", "project": project, "tools": [], "resumed": False}
     assert events[-1]["ok"] is True and snap["project"] == project
     assert seen and all(w == site for _, w, _ in seen)                 # 계획·업무·검수 모두 프로젝트 폴더에서
     assert all(f"[프로젝트 폴더]\n{site}" in p for _, _, p in seen)     # 팀원에게 폴더 안내

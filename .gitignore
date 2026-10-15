@@ -21,3 +21,5 @@ docs/guide/*.pptx
 docs/guide/*.pdf
 team.toml.bak
 team.toml.tmp
+mcp-servers.json
+mcp-servers.json.tmp

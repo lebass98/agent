@@ -19,7 +19,9 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import outside, projects, teamcfg
+from agentteam.team import summarize
+
+from . import mcptools, notify, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -61,8 +63,15 @@ def _task(state: str | None):
     return change
 
 
+def _rework(s: dict, e: dict) -> None:
+    have = {t.get("id") for t in s["tasks"]}
+    s["phase"] = "work"
+    s["tasks"] += [{**t, "state": "todo", "result": None} for t in e.get("tasks", []) if t.get("id") not in have]
+
+
 _CHANGES = {
     "plan": _plan,
+    "rework": _rework,
     "task_start": _task("doing"),
     "task_done": _task(None),
     "review_start": lambda s, e: s.update(phase="review"),
@@ -217,6 +226,87 @@ def _created(d: Path) -> str:
         return datetime.fromtimestamp(d.stat().st_mtime).isoformat(timespec="seconds")
 
 
+def _state(d: Path) -> dict:
+    try:
+        data = json.loads(_read(d / "state.json") or "null")
+        return data if isinstance(data, dict) else {}
+    except ValueError:
+        return {}
+
+
+def _set_state(d: Path, **kw) -> None:
+    st = _state(d)
+    st.update(kw, updated=datetime.now().isoformat(timespec="seconds"))
+    tmp = d / "state.json.tmp"
+    tmp.write_text(json.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(d / "state.json")
+
+
+def _mark_interrupted(runs_dir: Path) -> None:
+    """서버가 막 켜졌을 때: '진행 중'으로 남은 실행은 서버 종료·재시작으로 끊긴 것이다 → 이어 할 수 있게 표시."""
+    if not runs_dir.is_dir():
+        return
+    for d in runs_dir.iterdir():
+        if d.is_dir() and RUN_ID.fullmatch(d.name) and _state(d).get("status") == "running":
+            with contextlib.suppress(OSError):
+                _set_state(d, status="interrupted")
+
+
+RESUME_DAYS = 7
+
+
+def _resumable(runs_dir: Path) -> list[dict]:
+    """이어 할 수 있는 실행(끊김·오류, 최근 7일, 최신 5건)."""
+    if not runs_dir.is_dir():
+        return []
+    cut = datetime.now().timestamp() - RESUME_DAYS * 86400
+    out = []
+    for d in sorted((d for d in runs_dir.iterdir() if d.is_dir() and RUN_ID.fullmatch(d.name)), key=_run_key, reverse=True):
+        st = _state(d)
+        if st.get("status") not in ("interrupted", "error") or (d / "report.md").is_file():
+            continue
+        if d.stat().st_mtime < cut:
+            continue
+        try:
+            plan = json.loads(_read(d / "plan.json") or "null") or {}
+        except ValueError:
+            plan = {}
+        total = len(plan.get("tasks", [])) if isinstance(plan, dict) else 0
+        done = sum(1 for v in (st.get("tasks") or {}).values() if isinstance(v, dict) and v.get("ok"))
+        out.append({"run_id": d.name, "goal": _read(d / "goal.txt") or "", "created": _created(d), "status": st.get("status"),
+                    "stage": st.get("stage", "plan"), "done": done, "total": total, "project": _project_name(d),
+                    "error": (st.get("error") or _read(d / "error.txt") or "")[:300], "tools": st.get("tools") or []})
+        if len(out) >= 5:
+            break
+    return out
+
+
+def _usage_report(runs_dir: Path, days: int) -> dict:
+    """최근 days 일 동안의 사용량: 전체·팀원별·하루별·단계별."""
+    since = datetime.now().timestamp() - days * 86400
+    calls = []
+    if runs_dir.is_dir():
+        for d in runs_dir.iterdir():
+            if not (d.is_dir() and RUN_ID.fullmatch(d.name)):
+                continue
+            try:
+                t = datetime.strptime(d.name[:15], "%Y%m%d-%H%M%S")
+            except ValueError:
+                continue
+            if t.timestamp() < since:
+                continue
+            try:
+                data = json.loads(_read(d / "usage.json") or "null") or {}
+            except ValueError:
+                continue
+            for c in data.get("calls", []) if isinstance(data, dict) else []:
+                if isinstance(c, dict):
+                    calls.append({**c, "day": t.strftime("%Y-%m-%d"), "run_id": d.name})
+    group = lambda key: {k: summarize([c for c in calls if c.get(key) == k]) for k in sorted({str(c.get(key)) for c in calls})}  # noqa: E731
+    return {"days": days, "runs": len({c["run_id"] for c in calls}), "total": summarize(calls),
+            "by_member": group("name"), "by_day": group("day"), "by_stage": group("stage"), "by_provider": group("provider")}
+
+
 def _project_name(d: Path) -> str | None:
     try:
         return (json.loads(_read(d / "project.json") or "null") or {}).get("name")
@@ -246,6 +336,22 @@ def _new_run_id(root: Path) -> str:
 class RunIn(BaseModel):
     goal: str = ""
     project_id: str | None = Field(None, max_length=64)  # 있으면 그 프로젝트 폴더 안에서 실행
+    tools: list[str] | None = Field(None, max_length=20)  # 사용자가 이번 업무에 허락한 외부 도구(MCP 서버 이름)
+
+
+class ResumeIn(BaseModel):
+    tools: list[str] | None = Field(None, max_length=20)
+
+
+class NotifyIn(BaseModel):
+    url: str = Field("", max_length=2000)
+    enabled: bool = False
+    secret: str | None = Field(None, max_length=200)  # None: 그대로 · "": 지우기
+
+
+class ToolIn(BaseModel):
+    config: dict
+    description: str = Field("", max_length=200)
 
 
 class ProjectIn(BaseModel):
@@ -282,7 +388,8 @@ class PlaceIn(BaseModel):
 
 # ── 앱 ────────────────────────────────────────────────
 def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False,
-               cache_dir: Path | None = None, projects_file: Path | None = None) -> FastAPI:
+               cache_dir: Path | None = None, projects_file: Path | None = None,
+               notify_file: Path | None = None, tools_file: Path | None = None) -> FastAPI:
     """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일).
     cache_dir: 바깥 풍경 지도 원본·사무실 위치를 두는 곳(기본: runs 옆 cache/outside, Git 제외).
     projects_file: 등록한 프로젝트(폴더 접근) 목록(기본: runs 옆 projects.json, Git 제외)."""
@@ -292,6 +399,22 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     map_lock = asyncio.Lock()
     hub = Hub()
     dev_hub = DevReload() if dev else None
+    notifier = notify.Notify(Path(notify_file) if notify_file else runs_dir.parent / "cache" / "notify.json")
+    tools_store = mcptools.Store(Path(tools_file) if tools_file else runs_dir.parent / "mcp-servers.json")
+    _mark_interrupted(runs_dir)
+    background: set[asyncio.Task] = set()
+
+    def publish(event: dict) -> None:
+        """Team.run 의 emit: 화면에 중계하고, 업무가 끝나면(끊긴 경우 제외) 결과 알림을 보낸다."""
+        hub.publish(event)
+        if event.get("type") == "run_end" and notifier.load()["enabled"]:
+            rid = str(event.get("run_id", ""))
+            d = runs_dir / rid
+            if RUN_ID.fullmatch(rid) and _state(d).get("status") != "interrupted":
+                payload = notify.run_payload(d, rid, bool(event.get("ok")), event.get("usage"))
+                task = asyncio.get_running_loop().create_task(asyncio.to_thread(notifier.send, payload))
+                background.add(task)
+                task.add_done_callback(background.discard)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -382,10 +505,14 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
                 raise HTTPException(404, str(e))
             except projects.ProjectError as e:
                 raise HTTPException(400, str(e))
+        try:
+            tools = tools_store.select(body.tools)
+        except mcptools.ToolError as e:
+            raise HTTPException(400, str(e))
         if app.state.chatting or (app.state.task and not app.state.task.done()):
             raise HTTPException(409, "이미 진행 중인 업무가 있습니다.")
         run_id = _new_run_id(runs_dir)
-        task = asyncio.create_task(team.run(goal, runs_dir, emit=hub.publish, run_id=run_id, project=project))
+        task = asyncio.create_task(team.run(goal, runs_dir, emit=publish, run_id=run_id, project=project, tools=tools))
         task.add_done_callback(finished)
         app.state.task = task  # 강한 참조 유지 (GC 방지)
         return {"run_id": run_id}
@@ -415,6 +542,99 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         finally:
             app.state.chatting = False
 
+    # ── 중단된 업무 이어 하기 ──
+    @api.get("/runs/resumable")
+    def resumable():
+        busy = bool(app.state.task and not app.state.task.done())
+        return {"runs": [] if busy else _resumable(runs_dir)}
+
+    @api.post("/runs/{run_id}/resume")
+    async def resume_run(run_id: str, body: ResumeIn | None = None):
+        d = run_dir(run_id)
+        st = _state(d)
+        if st.get("status") not in ("interrupted", "error") or (d / "report.md").is_file():
+            raise HTTPException(400, "이어 할 수 있는 업무가 아닙니다.")
+        project = None
+        try:
+            saved = json.loads(_read(d / "project.json") or "null")
+        except ValueError:
+            saved = None
+        if isinstance(saved, dict) and saved.get("id"):
+            try:
+                project = store.usable(saved["id"])
+            except (LookupError, projects.ProjectError) as e:
+                raise HTTPException(400, f"이 업무의 프로젝트 폴더를 쓸 수 없어 이어 할 수 없습니다: {e}")
+        try:
+            tools = tools_store.select(body.tools if body else None)
+        except mcptools.ToolError as e:
+            raise HTTPException(400, str(e))
+        if app.state.chatting or (app.state.task and not app.state.task.done()):
+            raise HTTPException(409, "이미 진행 중인 업무가 있습니다.")
+        with contextlib.suppress(OSError):
+            (d / "error.txt").unlink()
+        goal = _read(d / "goal.txt") or ""
+        task = asyncio.create_task(team.run(goal, runs_dir, emit=publish, run_id=run_id, project=project, tools=tools, resume=True))
+        task.add_done_callback(finished)
+        app.state.task = task
+        return {"run_id": run_id, "resumed": True}
+
+    @api.post("/runs/{run_id}/dismiss")
+    def dismiss_run(run_id: str):
+        d = run_dir(run_id)
+        if _state(d).get("status") in ("interrupted", "error"):
+            _set_state(d, status="dismissed")
+        return {"ok": True}
+
+    # ── 사용량 ──
+    @api.get("/usage")
+    def usage(days: int = 7):
+        return _usage_report(runs_dir, max(1, min(90, days)))
+
+    # ── 결과 알림(웹훅·n8n) ──
+    @api.get("/notify")
+    def get_notify():
+        return notifier.public()
+
+    @api.put("/notify")
+    def put_notify(body: NotifyIn):
+        try:
+            return notifier.save(body.url, body.enabled, body.secret)
+        except notify.NotifyError as e:
+            raise HTTPException(400, str(e))
+
+    @api.post("/notify/test")
+    async def test_notify():
+        if not notifier.load()["url"]:
+            raise HTTPException(400, "받을 주소(URL)를 먼저 저장하세요.")
+        return await asyncio.to_thread(notifier.send, notify.sample_payload(), True)
+
+    # ── 외부 도구(MCP) ──
+    def local_only(request: Request) -> None:
+        client = request.client.host if request.client else None
+        server = (request.scope.get("server") or (None,))[0]
+        if not projects.is_local_client(client, server):
+            raise HTTPException(403, "외부 도구 등록·삭제는 서버가 켜진 컴퓨터에서만 할 수 있습니다.")
+
+    @api.get("/tools")
+    def list_tools():
+        return {"servers": tools_store.public(),
+                "members": [m.name for m in team.members.values() if m.can_use_tools]}
+
+    @api.put("/tools/{name}")
+    def put_tool(name: str, body: ToolIn, request: Request):
+        local_only(request)
+        try:
+            return {"server": tools_store.put(name, body.config, body.description)}
+        except mcptools.ToolError as e:
+            raise HTTPException(400, str(e))
+
+    @api.delete("/tools/{name}")
+    def delete_tool(name: str, request: Request):
+        local_only(request)
+        if not tools_store.remove(name):
+            raise HTTPException(404, "등록되지 않은 외부 도구입니다.")
+        return {"ok": True}
+
     @api.get("/runs")
     def list_runs():
         dirs = sorted((d for d in runs_dir.iterdir() if d.is_dir() and RUN_ID.fullmatch(d.name)),
@@ -435,7 +655,12 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             project = json.loads(_read(d / "project.json") or "null")
         except ValueError:
             project = None
+        try:
+            used = json.loads(_read(d / "usage.json") or "null")
+        except ValueError:
+            used = None
         return {"run_id": run_id, "goal": _read(d / "goal.txt") or "", "project": project, "plan": plan,
+                "usage": used.get("total") if isinstance(used, dict) else None, "status": _state(d).get("status"),
                 "tasks": [{"file": f.name, "content": _read(f)}
                           for f in sorted(d.glob("task-*.md"), key=_task_key)],
                 "report": _read(d / "report.md"), "error": _read(d / "error.txt")}

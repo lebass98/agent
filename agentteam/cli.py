@@ -82,15 +82,27 @@ def _workdir(workdir: str | None, prefix: str):
         yield d
 
 
-def claude_args(m, system: str, workdir: str | None = None) -> list[str]:
-    """claude -p 인자. 프로젝트 모드에서는 파일 도구를 켜되 허용 규칙을 그 폴더 안으로 좁힌다."""
+def claude_args(m, system: str, workdir: str | None = None, mcp_file: str | None = None,
+                mcp_names: list[str] | None = None) -> list[str]:
+    """claude -p 인자. 프로젝트 모드에서는 파일 도구를 켜되 허용 규칙을 그 폴더 안으로 좁힌다.
+    mcp_file·mcp_names: 사용자가 이번 업무에 허락한 외부 도구(MCP 서버). 그 서버들만 읽고(--strict-mcp-config) 미리 허용한다.
+    허락하지 않았으면 MCP 도구는 모두 막는다."""
     cmd = ["-p", "--output-format", "json", "--system-prompt", system]
+    tools = bool(mcp_file and mcp_names)
+    if tools:
+        cmd += ["--mcp-config", mcp_file, "--strict-mcp-config"]
+        for name in mcp_names:
+            cmd += ["--allowedTools", f"mcp__{name}"]  # 서버 이름 규칙 = 그 서버의 모든 도구
     if workdir:
         rule = "/" + workdir.rstrip("/") + "/**"  # 절대 경로 규칙은 '//' 로 시작한다 (예: Read(//Users/me/site/**))
         cmd += ["--tools", CLAUDE_FILE_TOOLS, "--add-dir", workdir,
-                "--allowedTools", f"Read({rule})", "--allowedTools", f"Edit({rule})",  # Edit 규칙은 Write 에도 적용된다
-                "--disallowedTools", "mcp__*", "--disallowedTools", "Bash", "--disallowedTools", "WebFetch",
+                "--allowedTools", f"Read({rule})", "--allowedTools", f"Edit({rule})"]  # Edit 규칙은 Write 에도 적용된다
+        if not tools:
+            cmd += ["--disallowedTools", "mcp__*"]
+        cmd += ["--disallowedTools", "Bash", "--disallowedTools", "WebFetch",
                 "--max-turns", str(PROJECT_TURNS), "--permission-mode", "acceptEdits"]
+    elif tools:  # 파일 도구 없이 외부 도구만: 여러 턴(도구 호출)이 필요하다
+        cmd += ["--tools", "", "--max-turns", str(PROJECT_TURNS), "--permission-mode", "dontAsk"]
     else:
         cmd += ["--tools", "", "--disallowedTools", "mcp__*", "--max-turns", "1", "--permission-mode", "dontAsk"]
     cmd += ["--no-session-persistence", "--disable-slash-commands"]
@@ -99,18 +111,37 @@ def claude_args(m, system: str, workdir: str | None = None) -> list[str]:
     return cmd
 
 
-async def claude_cli(m, prompt: str, system: str, workdir: str | None = None) -> str:
-    """claude -p: Claude Code 의 claude.ai 로그인(Max/Pro)으로 호출. 사용량은 구독 한도에서 차감된다."""
-    cmd = [_need("claude"), *claude_args(m, system, workdir)]
-    with _workdir(workdir, "agent-claude-") as cwd:
+async def claude_cli(m, prompt: str, system: str, workdir: str | None = None, mcp: dict | None = None) -> str:
+    """claude -p: Claude Code 의 claude.ai 로그인(Max/Pro)으로 호출. 사용량은 구독 한도에서 차감된다.
+    mcp: {서버 이름: 설정} — 이번 업무에 허락된 외부 도구. 설정 파일은 임시 폴더에 쓰고 끝나면 지운다."""
+    claude = _need("claude")
+    with tempfile.TemporaryDirectory(prefix="agent-mcp-") as tmp, _workdir(workdir, "agent-claude-") as cwd:
+        mcp_file = None
+        if mcp:
+            mcp_file = os.path.join(tmp, "mcp.json")
+            with open(mcp_file, "w", encoding="utf-8") as f:
+                json.dump({"mcpServers": mcp}, f, ensure_ascii=False)
+        cmd = [claude, *claude_args(m, system, workdir, mcp_file, sorted(mcp) if mcp else None)]
         out = await _run(cmd, prompt, cwd, _env("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"))
     try:
         data = json.loads(out)
     except ValueError:
         return out.strip()
+    u = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    _usage(input_tokens=_num(u.get("input_tokens")) + _num(u.get("cache_read_input_tokens")) + _num(u.get("cache_creation_input_tokens")) or None,
+           output_tokens=_num(u.get("output_tokens")) or None, cost_usd=data.get("total_cost_usd"), turns=data.get("num_turns"))
     if data.get("is_error"):
         raise RuntimeError(f"claude: {data.get('result') or data}")
     return str(data.get("result", "")).strip()
+
+
+def _num(v) -> int:
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else 0
+
+
+def _usage(**kw) -> None:
+    from .providers import report_usage  # providers 가 cli 를 불러오므로 함수 안에서 가져온다
+    report_usage(**kw)
 
 
 async def codex_cli(m, prompt: str, system: str, workdir: str | None = None) -> str:
@@ -162,6 +193,10 @@ async def antigravity_cli(m, prompt: str, system: str, workdir: str | None = Non
         data = json.loads(out)
     except ValueError:
         return out.strip()
+    if isinstance(data.get("usage"), dict):
+        u = data["usage"]
+        _usage(input_tokens=_num(u.get("input_tokens") or u.get("prompt_tokens")) or None,
+               output_tokens=_num(u.get("output_tokens") or u.get("completion_tokens")) or None)
     if data.get("status", "SUCCESS") != "SUCCESS" or data.get("error"):
         raise RuntimeError(f"agy: {data.get('error') or data.get('status')}")
     text = str(data.get("response", "")).strip()

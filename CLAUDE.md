@@ -21,6 +21,10 @@
   지도 원본·사무실 위치(실제 주소)는 `cache/outside/`(Git 제외)에만 둔다. 실제 주소를 커밋·문서·테스트에 넣지 말 것
 - `scripts/launch.py` : 실행 메뉴(모든 OS 공용), `scripts/bootstrap.sh` : macOS·Linux 가상환경 준비
 - `docs/events.md` : 서버 ↔ 웹 UI 이벤트 프로토콜 (변경 시 서버·UI 함께 수정)
+- 팀 실행 보강(`agentteam/team.py`): 일시 오류 자동 재시도(`retry`), 팀장 중간 검수 → 보완 요청(`rework`, team.toml `[leader] rework`),
+  `runs/<id>/state.json` 체크포인트로 끊긴 업무 이어 하기, `usage.json` 사용량 기록. 화면은 `web/extras.js`(이어 하기 카드·분석 사용량·
+  설정 '결과 알림(n8n·웹훅)'·'외부 도구(MCP)'·업무 지시 전 도구 허락 창). 서버는 `server/notify.py`(cache/notify.json)·`server/mcptools.py`(mcp-servers.json, 둘 다 Git 제외)
+- `web/npcs.js` : 에이전트가 아닌 사무실 사람(디자인팀장 — 계속 돌아다님, 본부장 — 회의실·자기 자리·팀원 응원·명언). D.names 에 넣지 않는다
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)
 - `runs/<시각>/` : plan.json, task-*.md, report.md (Git 제외)
 
