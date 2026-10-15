@@ -364,3 +364,4 @@ pytest -v
 - 실행 도우미(`scripts/launch.py`): 명령줄에 준 옵션은 다시 묻지 않음(`--lan` 이 메뉴 답변에 덮어써지던 버그), 한글 자판 ㅛ/ㅜ 답변 인식, 실제 실행 전 점검을 team.toml 의 팀원별 연결 방식(CLI 설치·API 키)에 맞게 변경
 - Gemini CLI 의 개인·AI Pro/Ultra 로그인이 2026-06-18 종료되어, 후속인 Antigravity CLI(`agy -p`, 구독 로그인)용 provider `antigravity-cli` 추가 (JSON 응답 파싱, 제한 시간, 가짜 CLI 테스트 2건)
 - `team.toml` Gemini 를 `antigravity-cli` + `gemini-3.8-flash-medium` 으로 전환 (세 팀원 모두 구독 로그인, API 크레딧 불필요). CLAUDE.md 연결 방식 설명 갱신
+- 카메라 도구 버튼 정리: 화살표·축소·확대를 글자 기호에서 SVG 아이콘으로 바꾸고 32×32 로 통일, [동네]·[이동]·[전체 보기]·[축소·확대] 묶음 간격 정리, '동네' 버튼에 지도 아이콘 추가

@@ -11,7 +11,7 @@
 .outside-floor input { width: 64px; height: 34px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); }
 .outside-credit { position: absolute; right: 12px; bottom: 48px; font-size: 10px; color: var(--muted); background: color-mix(in srgb, var(--panel) 85%, transparent); padding: 2px 7px; border-radius: 6px; pointer-events: auto; }
 .outside-credit a { color: inherit; }
-.office-tools .outside-zoom { width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; }
+.office-tools .outside-zoom { width: auto; padding: 0 11px 0 9px; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; line-height: 1; }
 @media (max-width: 760px) { /* 휴대폰: 도구 줄이 꽉 차므로 '동네'는 그 위에, 출처는 오른쪽 위(팀 활동 버튼 아래)에 */
   .office-tools .outside-zoom { position: absolute; right: 0; bottom: calc(100% + 6px); height: 28px; }
   .outside-credit { bottom: auto; top: 50px; right: 8px; }

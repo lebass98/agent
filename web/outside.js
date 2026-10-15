@@ -673,6 +673,13 @@
       S.saved = null;
     }
   }
+  /** 카메라 도구와 같은 SVG 아이콘(지도) */
+  function mapIcon() {
+    const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), use = document.createElementNS(NS, "use");
+    svg.setAttribute("class", "ic"); svg.setAttribute("aria-hidden", "true");
+    use.setAttribute("href", "#i-map"); svg.append(use);
+    return svg;
+  }
   /** 지도 출처(ODbL 필수)와 '동네 보기' 버튼 */
   function credit(on) {
     const host = document.getElementById("officeFrame") || document.getElementById("stage");
@@ -682,10 +689,10 @@
       host.append(S.credit);
       const tools = host.querySelector(".office-tools");
       if (tools) {
-        S.btn = el("button", { type: "button", class: "outside-zoom", "aria-label": "동네 보기", title: "동네 보기 / 사무실로 돌아가기", onclick: toggleZoom }, "동네");
-        tools.prepend(S.btn);
+        S.btn = el("button", { type: "button", class: "outside-zoom", "aria-label": "동네 보기", title: "동네 보기 / 사무실로 돌아가기", onclick: toggleZoom }, mapIcon(), el("span", { text: "동네" }));
+        tools.prepend(el("span", { class: "tool-group" }, S.btn)); // 카메라 도구와 같은 묶음 간격
       }
-    } else if (!on) { S.credit?.remove(); S.btn?.remove(); S.credit = S.btn = null; }
+    } else if (!on) { S.credit?.remove(); S.btn?.parentElement?.remove(); S.credit = S.btn = null; }
   }
   function toggleZoom() {
     if (!S.group) return;
