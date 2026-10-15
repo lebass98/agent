@@ -50,6 +50,10 @@ window.Dashboard = (() => {
     $("taskShelf").append(document.querySelector('[data-pane="board"]'));
     $("railProfile").onclick=()=>showView("settings");
     $("activityMembers").onclick=()=>showView("members");
+    // 팀 활동 접기·펼치기 (브라우저에 기억). 접힌 띠에서 얼굴을 누르면 대화창, 화살표를 누르면 다시 펼친다
+    const setTeamCollapsed=on=>{document.body.classList.toggle("team-collapsed",on);const b=$("activityCollapse");b.setAttribute("aria-expanded",String(!on));b.setAttribute("aria-label",on?"팀 활동 펼치기":"팀 활동 접기");b.title=on?"팀 활동 펼치기":"팀 활동 접기";store.set("agentOffice.teamCollapsed",on?"1":"0");};
+    $("activityCollapse").onclick=()=>setTeamCollapsed(!document.body.classList.contains("team-collapsed"));
+    setTeamCollapsed(store.get("agentOffice.teamCollapsed")==="1");
     $("activityClose").onclick=()=>{setDock(false);$("teamToggle").setAttribute("aria-expanded","false");$("teamToggle").focus();};
     $("teamToggle").onclick=()=>{const open=!$("dock").classList.contains("open");setDock(open,"log");$("teamToggle").setAttribute("aria-expanded",String(open));};
     $("newTaskBtn").onclick=()=>{closeView();$("goal").focus();};

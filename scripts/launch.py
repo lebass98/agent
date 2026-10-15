@@ -125,7 +125,7 @@ def open_when_ready(url: str, port: int) -> None:
 
 def main() -> int:
     os.chdir(ROOT)
-    p = argparse.ArgumentParser(description="Agent Office 실행")
+    p = argparse.ArgumentParser(description="WordNCode Agent Office 실행")
     p.add_argument("--mock", action="store_true", help="API 키 없이 모의 실행")
     p.add_argument("--real", action="store_true", help="실제 API 로 실행")
     p.add_argument("--lan", action="store_true", help="같은 Wi-Fi 의 휴대폰에서도 접속")

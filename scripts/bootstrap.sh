@@ -9,7 +9,7 @@ pause_exit() {
 }
 
 echo "=================================="
-echo "   Agent Office 로컬 서버"
+echo "   WordNCode Agent Office 로컬 서버"
 echo "=================================="
 
 if [ ! -x .venv/bin/python ]; then

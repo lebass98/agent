@@ -568,7 +568,10 @@
     c.shadowColor = "#4f86ff"; c.shadowBlur = h * .18; c.strokeStyle = "#6f9bff"; c.lineWidth = h * .06;
     c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke(); c.stroke();
     c.shadowBlur = h * .06; c.shadowColor = "rgba(160,190,255,.6)";
-    c.fillStyle = "#ffffff"; c.font = `700 ${h * .4}px ${FONT}`; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText("Agent Office", w * .05 + h * .65, h * .52);
+    const label = "WordNCode Agent Office", x0 = w * .05 + h * .65, room = w * .95 - x0; // 간판 폭에 맞춰 글자 크기를 줄인다
+    let fs = h * .4; c.font = `700 ${fs}px ${FONT}`;
+    const tw = c.measureText(label).width; if (tw > room) { fs *= room / tw; c.font = `700 ${fs}px ${FONT}`; }
+    c.fillStyle = "#ffffff"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(label, x0, h * .52);
   }
 
   /** 장면 전체를 만든다. helpers: {box, cyl, mat, small, agents()}. 돌려주는 값: { strokes } */

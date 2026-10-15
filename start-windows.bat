@@ -3,14 +3,14 @@ chcp 65001 >nul
 rem Agent Office 로컬 서버 실행 (Windows) - 더블클릭으로 실행
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Agent Office
+title WordNCode Agent Office
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 set "VENV=.venv-win"
 set "VPY=%VENV%\Scripts\python.exe"
 
 echo ==================================
-echo    Agent Office 로컬 서버
+echo    WordNCode Agent Office 로컬 서버
 echo ==================================
 
 if exist "%VPY%" goto :deps
