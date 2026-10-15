@@ -97,9 +97,9 @@ const HAIR = ["#3b2a22", "#1f1f1f", "#5a3b1c", "#2c2c3a", "#6b4a2b", "#43302a"];
 const DEMO_TEAM = {
   leader: "claude",
   members: [
-    { name: "claude", provider: "anthropic", model: "claude-opus-5-5", role: "팀장 겸 퍼블리셔. 업무 분해·배정, 결과 검수, HTML/CSS 마크업, 문서화" },
-    { name: "gpt", provider: "openai", model: "gpt-5", role: "개발자. 코드 구현, 리팩터링, 자동화 스크립트 작성" },
-    { name: "gemini", provider: "google", model: "gemini-2.5-pro", role: "분석가. 긴 문서·대용량 자료 분석, 리서치, 요약" },
+    { name: "claude", provider: "anthropic", model: "opus", role: "팀장 겸 메인 담당. 기획·설계·개발·문서 등 핵심 업무 대부분, 업무 분해·배정, 결과 검수" },
+    { name: "gpt", provider: "openai", model: "default", role: "디자이너. 이미지·그림 제작, UI/UX 탐색과 시안, 화면 개선 제안" },
+    { name: "gemini", provider: "google", model: "gemini-3.8-flash-medium", role: "지원 담당. 자료 정리·요약·번역·확인 등 잡무" },
   ],
 };
 const EXAMPLE_GOAL = "아르떼365 뉴스레터 자동화 도구 만들기";
@@ -873,10 +873,10 @@ class Agent {
     const shock = /😥|👀|오류|문제|실패/.test(text);
     this.emote(shock ? "놀람" : "웃음", shock ? 2000 : 1400);
     this.bubble.textContent = text;
-    this.bubble.classList.add("show");
+    this.bubble.classList.add("show"); this._lw = 0; // 말풍선이 생기면 이름표 크기를 다시 잰다
     this.label.style.zIndex = ++SAY_Z;
     clearTimeout(this._bt);
-    if (ms) this._bt = setTimeout(() => { this.bubble.classList.remove("show", "covered"); this.bubble.style.translate = ""; }, ms / SPEED);
+    if (ms) this._bt = setTimeout(() => { this.bubble.classList.remove("show", "covered"); this.bubble.style.translate = ""; this._lw = 0; }, ms / SPEED);
   }
   _settle(ok) { const f = this._arrive; this._arrive = null; f && f(ok); }
   /** 아직 출근 전(문 밖)이면 캐릭터와 이름표를 숨긴다. 이동·순간 이동하면 다시 보인다. */
@@ -1090,8 +1090,17 @@ class Agent {
     this.ax = (v.x * .5 + .5) * w; this.ay = (-v.y * .5 + .5) * h; this.az = v.z; this.ly = 0;
     this.moveLabel();
   }
-  moveLabel() { this.label.style.transform = `translate3d(${this.ax.toFixed(1)}px, ${(this.ay - this.ly).toFixed(1)}px, 0) translate(-50%, -100%)`; }
+  /** 이름표를 화면 픽셀 격자에 맞춰 놓는다(소수점 위치·% 이동은 글자를 뿌옇게 만든다). 크기는 20프레임마다 또는 말풍선이 바뀔 때만 잰다 */
+  moveLabel() {
+    const L = this.label;
+    if (!this._lw || this._bw === 0 || (this._mn = (this._mn || 0) + 1) % 20 === 0) { this._lw = L.offsetWidth; this._lh = L.offsetHeight; this._bw = 1; }
+    const x = snapPx(this.ax - this._lw / 2), y = snapPx(this.ay - this.ly - this._lh);
+    L.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  }
 }
+
+/** 화면 픽셀(기기 픽셀) 격자로 반올림 — 글자가 번지지 않게 */
+function snapPx(v) { const d = devicePixelRatio || 1; return Math.round(v * d) / d; }
 
 /* ───────────────────────── 상태 ───────────────────────── */
 /* 이름 → 객체 표(agents·lanes)는 프로토타입 없는 객체: 팀원 이름이 constructor·toString 같아도 Object.prototype 을 타지 않는다 */

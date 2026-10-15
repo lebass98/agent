@@ -1030,8 +1030,9 @@
       c.el.style.display = "";
       _v.set(c.x, 3.2, c.z).project(cam);
       const cx = (_v.x * .5 + .5) * W, cy = (-_v.y * .5 + .5) * H;
-      c.el.style.transform = `translate3d(${cx.toFixed(1)}px, ${cy.toFixed(1)}px, 0) translate(-50%, -50%)`;
       if (!c.w || (c.n = (c.n || 0) + 1) % 60 === 0) { c.w = c.el.offsetWidth; c.h = c.el.offsetHeight; } // 크기는 1초에 한 번만 잰다
+      const d = devicePixelRatio || 1, px = v => Math.round(v * d) / d; // 픽셀 격자에 맞춰야 글자가 또렷하다
+      c.el.style.transform = `translate3d(${px(cx - c.w / 2)}px, ${px(cy - c.h / 2)}px, 0)`;
       if (!tags) tags = [...document.querySelectorAll("#labels .tagwrap .nametag, #labels .tagwrap .roletag")].map(n => n.getBoundingClientRect()).filter(r => r.width > 0);
       const x0 = cx - c.w / 2, x1 = cx + c.w / 2, y0 = cy - c.h / 2, y1 = cy + c.h / 2;
       const covered = tags.some(r => x0 < r.right && x1 > r.left && y0 < r.bottom && y1 > r.top);
