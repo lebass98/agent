@@ -23,12 +23,23 @@ window.CharacterLooks = (() => {
     try { saved = localStorage.getItem(storageKey(name)); } catch {}
     return valid(saved) ? saved : name;
   }
-  function set(name, id) {
-    if (!valid(id)) return false;
+  function set(name, id, names = []) {
+    if (!valid(id) || !available(name, id, names)) return false;
     overrides.set(name, id);
     try { localStorage.setItem(storageKey(name), id); } catch {}
     return true;
   }
   const overrides = new Map();
-  return { list, get: name => overrides.get(name) || get(name), set };
+  const selected = name => overrides.get(name) || get(name);
+  const available = (name, id, names) => !names.some(other => other !== name && selected(other) === id);
+  function reconcile(names) {
+    const used = new Set();
+    for (const name of names) {
+      let id = selected(name);
+      if (valid(id) && used.has(id)) id = list.find(person => !used.has(person.id))?.id;
+      if (id && valid(id)) { set(name, id); used.add(id); }
+      else if (!id) { overrides.set(name, `unassigned:${name}`); }
+    }
+  }
+  return { list, get: selected, set, available, reconcile };
 })();

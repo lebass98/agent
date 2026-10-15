@@ -733,3 +733,8 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
 .appearance-option:focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; }
 .appearance-option small { opacity: .65; }
 .appearance-portrait.face { display: block; width: 64px; height: 64px; border-radius: 12px; }
+.member .avatar { border: 0; flex-shrink: 0; cursor: pointer; }
+.member .avatar:focus-visible { outline: 3px solid var(--c); outline-offset: 4px; }
+.member-chat { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.member-chat:hover .name { text-decoration: underline; }
+.appearance-option:disabled { opacity: .4; cursor: not-allowed; filter: grayscale(.5); }

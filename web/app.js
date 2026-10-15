@@ -1151,6 +1151,7 @@ function buildTeam(team) {
   for (const n of D.names) A(n).dispose();
   D.agents = Object.create(null); D.leader = team.leader; D.teamKey = JSON.stringify(team);
   const order = [team.leader, ...team.members.map(m => m.name).filter(n => n !== team.leader)];
+  window.CharacterLooks?.reconcile(order);
   const used = new Set();
   let extra = 0;
   const defs = order.map((n, i) => {
@@ -1218,10 +1219,10 @@ function buildMembers() {
     const badge = el("span", { class: "badge", text: "대기" }), task = el("span", { class: "task-text", text: "—" });
     const time = el("span", { class: "task-time" }), bar = el("span", { class: "bar" }, el("i"));
     const title = `${d.label}에게 말 걸기`;
-    MEMBERS_EL.append(el("button", { class: "member", type: "button", style: { "--c": d.color }, title, onclick: () => { closeView(); window.CharacterChat?.open(n); } },
+    MEMBERS_EL.append(el("article", { class: "member", style: { "--c": d.color } },
       el("span", { class: "row" },
-        facesOf(n) ? el("span", { class: "avatar face", style: faceVars(facesOf(n)), "aria-hidden": "true" }) : el("span", { class: "avatar", text: d.initial }),
-        el("span", { class: "who" },
+        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": `${d.label} 사람 이미지 변경`, title: "사람 이미지 변경", onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
+        el("button", { class: "who member-chat", type: "button", title, onclick: () => { closeView(); window.CharacterChat?.open(n); } },
           el("span", { class: "name" }, d.label, d.leader ? el("span", { title: "팀장", text: " 👑" }) : null),
           el("span", { class: "role", text: d.role })),
         badge),
@@ -1604,33 +1605,40 @@ function statsView() {
     el("p", { class: "muted small", text: "집계 범위: 이 화면에서 본 실행 + 서버에서 불러온 오늘 실행 상세(최대 10건). 평균 시간은 이번 세션에서 실측한 시작→완료 시간이며, 접속 전에 시작된 업무는 제외합니다." }),
   ];
 }
+/** 사람 이미지 클릭 시에만 전체 외형 목록을 연다. */
+function openAppearancePicker(n) {
+  const options = window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id));
+  openModal([
+    sheetHead(`${memberDef(n).label} 사람 이미지`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
+    el("div", { class: "sheet-body" },
+      el("div", { class: "appearance-grid", role: "group", "aria-label": `${memberDef(n).label} 외형 선택` },
+        ...options.map(person => el("button", {
+          type: "button", class: "appearance-option", "aria-pressed": appearanceOf(n) === person.id ? "true" : "false",
+          disabled: !window.CharacterLooks.available(n, person.id, D.names),
+          onclick: () => {
+            if (!window.CharacterLooks.set(n, person.id, D.names)) {
+              toast("다른 팀원이 사용 중인 사람이에요.", "warn"); return;
+            }
+            A(n).changeAppearance(person.id);
+            const node = MEMBERS_EL.children[D.names.indexOf(n)]?.querySelector(".avatar");
+            if (node) {
+              node.classList.add("face"); node.textContent = "";
+              for (const [k, v] of Object.entries(faceVars(facesOf(n)))) node.style.setProperty(k, v);
+            }
+            window.Dashboard?.schedule(); closeModal();
+            toast(`${memberDef(n).label}의 외형을 ${person.label}(으)로 변경했어요.`);
+          }
+        }, el("span", { class: "appearance-portrait face", style: faceVars(window.SpriteChars.faces(person.id)), "aria-hidden": "true" }),
+        el("span", { text: person.label }), el("small", { text: !window.CharacterLooks.available(n, person.id, D.names) ? "다른 팀원 사용 중" : person.age ? `${person.age}세` : "기존 캐릭터" }))))),
+  ]);
+}
 /** 팀원 관리: 팀원 카드 + 새 에이전트 추가 안내 */
 function membersView() {
   const conn = NET.mode === "live" ? (D.mock ? "서버 연결됨 · 모의 실행" : "서버 연결됨") : NET.mode === "demo" ? "데모 팀 (서버 없음)" : NET.mode === "auth" ? "접속 키 필요" : "서버 연결 대기";
   return [
     el("p", { class: "muted small", text: `팀원 ${D.names.length}명 · 팀장 ${memberDef(D.leader).label} · ${conn}` }),
     MEMBERS_EL,
-    el("section", { class: "appearance-settings" },
-      el("h3", { text: "에이전트 사람 이미지 선택" }),
-      el("p", { class: "muted small", text: "팀원별로 13종의 외형을 선택하세요. 선택은 이 브라우저에 저장되고 사무실과 얼굴 아바타에 바로 적용됩니다." }),
-      ...D.names.map(n => el("div", { class: "appearance-agent" },
-        el("h4", { text: memberDef(n).label }),
-        el("div", { class: "appearance-grid", role: "group", "aria-label": `${memberDef(n).label} 사람 이미지` },
-          ...window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id)).map(person => el("button", {
-            type: "button", class: "appearance-option", "aria-pressed": appearanceOf(n) === person.id ? "true" : "false",
-            onclick: () => {
-              window.CharacterLooks.set(n, person.id);
-              A(n).changeAppearance(person.id);
-              scheduleView(); window.Dashboard?.schedule();
-              D.names.forEach((name, i) => {
-                const node = MEMBERS_EL.children[i]?.querySelector(".avatar");
-                const f = facesOf(name);
-                if (node && f) node.replaceWith(el("span", { class: "avatar face", style: faceVars(f), "aria-hidden": "true" }));
-              });
-              toast(`${memberDef(n).label}의 외형을 ${person.label}(으)로 변경했어요.`);
-            }
-          }, el("span", { class: "appearance-portrait face", style: faceVars(window.SpriteChars.faces(person.id)), "aria-hidden": "true" }),
-          el("span", { text: person.label }), el("small", { text: person.age ? `${person.age}세` : "기존 캐릭터" }))))))),
+    el("p", { class: "muted small", text: "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다." }),
     el("div", { class: "guide" }, el("b", { text: "새 에이전트 추가하기" }),
       "팀원은 서버의 team.toml 파일로 관리해요. 화면에서 바로 추가되지는 않습니다.",
       el("ol", null, el("li", { text: "아래 버튼으로 이름·제공사·모델·역할을 넣어 설정 조각을 만들고 복사해요." }), el("li", { text: "프로젝트의 team.toml 에 붙여 넣고 저장해요." }), el("li", { text: "서버(serve.py)를 다시 시작하면 새 팀원이 출근해요." })),

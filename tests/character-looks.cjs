@@ -33,3 +33,11 @@ for (const {id} of w.CharacterLooks.list) {
   assert(fs.existsSync(path.join(root,face.src)),face.src);
 }
 console.log('13종: 선택 검증·새로고침 복원·저장소 차단·행동 좌표·표정 파일 확인 통과');
+w=context();
+w.CharacterLooks.reconcile(['claude','gpt','gemini']);
+assert.equal(w.CharacterLooks.set('gpt',w.CharacterLooks.get('claude'),['claude','gpt','gemini']),false);
+w.CharacterLooks.set('claude','sungwoo');w.CharacterLooks.set('gpt','sungwoo');
+w.CharacterLooks.reconcile(['claude','gpt','gemini']);
+assert.equal(new Set(['claude','gpt','gemini'].map(n=>w.CharacterLooks.get(n))).size,3);
+assert.equal(w.CharacterLooks.available('gpt',w.CharacterLooks.get('claude'),['claude','gpt','gemini']),false);
+console.log('중복 선택 거부·이전 중복 저장값 자동 정리 확인 통과');
