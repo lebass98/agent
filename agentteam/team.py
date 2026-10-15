@@ -24,9 +24,9 @@ PLAN_PROMPT = """##PLAN##
 
 [팀원과 역할]
 {roster}
-
+{guide}
 규칙:
-- 각 업무는 역할에 가장 잘 맞는 팀원 1명에게 배정합니다 (팀장 본인도 가능).
+- 각 업무는 역할에 가장 잘 맞는 팀원 1명에게 배정합니다 (팀장 본인도 가능). [배정 원칙]이 있으면 그것을 가장 먼저 따릅니다.
 - 다른 업무 결과가 필요하면 depends_on에 해당 id를 넣습니다. 서로 독립적이면 비워 두어 병렬로 진행합니다.
 - instruction은 다른 맥락 없이도 수행 가능할 만큼 구체적으로 씁니다.
 
@@ -57,7 +57,11 @@ class Team:
             for name, m in cfg["members"].items()
         }
         self.leader = self.members[cfg["leader"]["member"]]
+        self.guide = str(cfg["leader"].get("guide", "")).strip()  # team.toml [leader] guide: 업무 배정 원칙
         self.mock = mock
+
+    def guide_text(self) -> str:
+        return f"\n[배정 원칙]\n{self.guide}\n" if self.guide else ""
 
     def roster(self) -> str:
         return "\n".join(f"- {m.name}: {m.role}" for m in self.members.values())
@@ -99,7 +103,7 @@ class Team:
             print(f"📋 [{self.leader.name}] 업무 계획 수립 중…")
             await send({"type": "plan_start", "leader": self.leader.name})
             plan = _parse_json(await self.leader.ask(
-                PLAN_PROMPT.format(goal=goal, roster=self.roster())
+                PLAN_PROMPT.format(goal=goal, roster=self.roster(), guide=self.guide_text())
             ))
             tasks = self._normalize(plan.get("tasks", []))
             if not tasks:
