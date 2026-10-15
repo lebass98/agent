@@ -251,8 +251,9 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
   background: var(--panel); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 12px 36px rgba(28, 39, 66, .14);
 }
 .command .spark { width: 20px; height: 20px; color: var(--accent); margin-right: 4px; }
-.command input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 0 4px; background: transparent; font-size: 15px; height: 40px; }
-.command input::placeholder { color: var(--muted); }
+.command input, .command textarea { flex: 1; min-width: 0; border: 0; outline: 0; padding: 0 4px; background: transparent; font-size: 15px; height: 40px; }
+.command textarea { resize: none; font: inherit; font-size: 15px; line-height: 1.5; padding: 9px 4px; max-height: 140px; overflow-y: auto; color: var(--text); align-self: center; }
+.command input::placeholder, .command textarea::placeholder { color: var(--muted); }
 .command:focus-within { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
 .command .icon-btn { width: 38px; height: 38px; }
 .send {
@@ -664,7 +665,7 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
   .command {
     position: static; width: auto; margin: 0 10px 8px; height: 54px; padding: 6px 6px 6px 14px; box-shadow: var(--shadow);
   }
-  .command input { font-size: 17px; }
+  .command input, .command textarea { font-size: 17px; }
   .command .icon-btn { width: 40px; height: 40px; }
   .send { width: 42px; height: 42px; }
   .att-chip { max-width: 110px; }

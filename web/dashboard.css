@@ -114,8 +114,8 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .dashboard-v2 .task-shelf .trow .mchip { grid-column:2;grid-row:2;justify-self:start;font-size:10.5px; }
 .dashboard-v2 .task-shelf .trow .val { grid-column:3;grid-row:2;font-size:11.5px; }
 .dashboard-v2 .task-shelf .empty { width:100%;display:flex;align-items:center;border:1px dashed var(--line-strong);border-radius:11px;padding:16px;font-size:13px; }
-.dashboard-v2 .command { left:var(--dash-left);right:var(--dash-right);bottom:16px;width:auto;max-width:none;height:64px;border-radius:13px;padding:10px 12px;box-shadow:none; }
-.dashboard-v2 .command input { font-size:13px; }
+.dashboard-v2 .command { left:var(--dash-left);right:var(--dash-right);bottom:16px;width:auto;max-width:none;height:auto;min-height:64px;align-items:flex-end;border-radius:13px;padding:10px 12px;box-shadow:none;z-index:6; } /* 여러 줄이면 위로 늘어난다 */
+.dashboard-v2 .command input, .dashboard-v2 .command textarea { font-size:14px; }
 .dashboard-v2 .command .send { box-shadow:none; }
 .dashboard-v2 .view { left:var(--dash-left);right:var(--dash-right);top:88px;bottom:92px; }
 .dashboard-v2 .drawer-head,.dashboard-v2 .drawer-only { display:none; }
@@ -132,7 +132,7 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
   .dashboard-v2 .left { width:240px;z-index:21;transform:translateX(-100%);visibility:hidden;padding:20px 12px;align-items:stretch; }.dashboard-v2.drawer-open .left { transform:none;visibility:visible; }.dashboard-v2 .drawer-head { display:flex; }.dashboard-v2 .left .rail-logo { display:none; }.dashboard-v2 .sidenav { margin-top:20px;gap:8px; }.dashboard-v2 .sidenav button { flex-direction:row;height:46px;padding:10px 12px;justify-content:flex-start;gap:12px;font-size:14px; }.dashboard-v2 .drawer-tools { display:flex; }.dashboard-v2 .rail-profile { flex-direction:row; }
   .run-strip { top:76px;height:64px;padding:10px;gap:9px; }.run-symbol,.run-steps,.run-completion progress { display:none; }.run-info strong { font-size:12.5px; }.run-info small { font-size:10.5px; }#newTaskBtn { width:32px;padding:0;font-size:0; }#newTaskBtn .ic { width:16px;height:16px; }.run-completion strong { font-size:13px; }
   .office-frame { top:150px;min-height:100px; }.room-switch { left:8px;top:8px; }.room-switch button { padding:5px 8px;font-size:10.5px; }.team-toggle { position:absolute;top:10px;right:8px;display:flex;gap:5px;align-items:center;border:1px solid var(--line);background:var(--panel);color:var(--text-2);border-radius:7px;padding:5px 7px;font-size:10.5px; }.team-toggle .ic { width:13px;height:13px; }.office-tools button { width:30px;height:30px; }.office-tools { gap:8px; }.office-live { font-size:10.5px;bottom:12px;left:10px; }
-  .task-shelf { bottom:96px;height:156px; }.dashboard-v2 .task-shelf .trow { flex:0 0 240px;max-width:85%;height:110px;padding:14px; }.dashboard-v2 .task-shelf .h-sub { display:none; }.dashboard-v2 .task-shelf h3 { font-size:13px; }.dashboard-v2 .task-shelf .empty { font-size:12.5px; }.dashboard-v2 .command { bottom:calc(12px + var(--safe-b));height:64px; }.dashboard-v2 .command .spark { display:none; }.dashboard-v2 .command input { font-size:13px; }.dashboard-v2 .att-chip { max-width:100px; }
+  .task-shelf { bottom:96px;height:156px; }.dashboard-v2 .task-shelf .trow { flex:0 0 240px;max-width:85%;height:110px;padding:14px; }.dashboard-v2 .task-shelf .h-sub { display:none; }.dashboard-v2 .task-shelf h3 { font-size:13px; }.dashboard-v2 .task-shelf .empty { font-size:12.5px; }.dashboard-v2 .command { bottom:calc(12px + var(--safe-b));height:64px; }.dashboard-v2 .command .spark { display:none; }.dashboard-v2 .command input, .dashboard-v2 .command textarea { font-size:14px; }.dashboard-v2 .att-chip { max-width:100px; }
   .dashboard-v2 .right { display:none; }.dashboard-v2 .dock.open .right { display:flex;position:fixed;inset:150px 12px 12px;width:auto;z-index:7;background:var(--panel);box-shadow:0 0 0 100vmax #0005; }.dashboard-v2 .dock.open .right [data-pane="log"] { display:flex; }.activity-close { display:grid; }.activity-agents { max-height:48%; }.activity-avatar { width:42px;height:42px; }.activity-model { max-width:150px; }
   .dashboard-v2 .view { inset:70px 12px 88px;border:1px solid var(--line);border-radius:12px;padding:0;z-index:8; }.dashboard-v2 .kanban { grid-template-columns:1fr; }.dashboard-v2.no3d .stage-empty { top:150px; }.dashboard-v2 .stage-empty-card { padding:14px; }.dashboard-v2 .stage-empty-card span { font-size:11.5px; }
 }
@@ -141,7 +141,7 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .dashboard-v2 .command { position:fixed;margin:0;pointer-events:auto; }
 .dashboard-v2 .task-shelf [data-pane="board"] { display:flex !important; }
 .dashboard-v2 .task-shelf .card h3,.dashboard-v2 .right .card h3 { display:flex; }
-@media(max-width:760px) { .dashboard-v2 .command { bottom:calc(12px + var(--safe-b) + var(--kb,0px)); }.dashboard-v2 .command input { font-size:17px; }.dashboard-v2 .dock.open .right { pointer-events:auto; } }
+@media(max-width:760px) { .dashboard-v2 .command { bottom:calc(12px + var(--safe-b) + var(--kb,0px)); }.dashboard-v2 .command input, .dashboard-v2 .command textarea { font-size:17px; }.dashboard-v2 .dock.open .right { pointer-events:auto; } }
 
 /* 모든 공간: 좁은 화면은 가로 스크롤, 팀 활동 버튼 자리는 비워 둔다. */
 .room-switch { max-width:calc(100% - 24px);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;pointer-events:auto;touch-action:pan-x; }

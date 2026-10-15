@@ -2589,7 +2589,7 @@ async function submitGoal() {
   if (NET.mode === "demo") {
     if (demo.busy) { toast("이미 진행 중인 업무가 있어요", "warn"); return; }
     if (truncated) toast("첨부 내용이 길어 4,000자에 맞춰 잘라 보냈어요.", "warn");
-    $("goal").value = ""; clearAttachment();
+    $("goal").value = ""; fitGoal(); clearAttachment();
     if (mqMobile.matches) $("goal").blur();
     demoRun(full);
     return;
@@ -2603,7 +2603,7 @@ async function submitGoal() {
   try {
     const r = await api("/api/run", { method: "POST", body: JSON.stringify({ goal: full }) });
     if (r.ok) {
-      ok = true; $("goal").value = ""; clearAttachment(); if (mqMobile.matches) $("goal").blur();
+      ok = true; $("goal").value = ""; fitGoal(); clearAttachment(); if (mqMobile.matches) $("goal").blur();
       if (truncated) toast("첨부 내용이 길어 4,000자에 맞춰 잘라 보냈어요.", "warn");
       const j = await r.json().catch(() => null);
       if (j?.run_id != null) UI.mine.add(String(j.run_id)); // 보고서 창을 자동으로 열 대상
@@ -2630,6 +2630,13 @@ function onConnClick() {
 }
 
 $("command").addEventListener("submit", e => { e.preventDefault(); submitGoal(); });
+/* 명령창(여러 줄): Enter = 보내기, Shift+Enter = 줄바꿈. 한글 조합 중 Enter 는 보내지 않는다. 내용에 맞춰 최대 5줄까지 늘어난다 */
+function fitGoal() { const g = $("goal"); g.style.height = "auto"; g.style.height = Math.min(g.scrollHeight, 140) + "px"; }
+$("goal").addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+  e.preventDefault(); $("command").requestSubmit();
+});
+$("goal").addEventListener("input", fitGoal);
 $("speed").addEventListener("click", e => { const s = +e.target.closest("button")?.dataset.s; if (s) setSpeed(s); });
 $("speedCycle").addEventListener("click", () => setSpeed({ 1: 2, 2: 4, 4: 1 }[SPEED]));
 $("reportBtn").addEventListener("click", () => D.lastRun && openReport(runView(D.lastRun)));

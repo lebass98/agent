@@ -138,7 +138,7 @@
 <section class="dock" id="dock" data-tab="board" aria-label="업무 현황">
   <form class="command" id="command" autocomplete="off">
     <svg class="ic spark" aria-hidden="true"><use href="#i-sparkles"/></svg>
-    <input id="goal" name="goal" maxlength="4000" enterkeyhint="send" aria-label="팀에게 지시할 업무" placeholder="팀에 업무를 지시해보세요...">
+    <textarea id="goal" name="goal" rows="1" maxlength="4000" enterkeyhint="send" aria-label="팀에게 지시할 업무 (Enter 보내기, Shift+Enter 줄바꿈)" placeholder="팀에 업무를 지시해보세요... (Shift+Enter 줄바꿈)"></textarea>
     <span class="att-chip" id="attachChip" hidden>
       <svg class="ic"><use href="#i-file"/></svg><span class="att-name" id="attachName"></span>
       <button type="button" id="attachRemove" aria-label="첨부 제거"><svg class="ic"><use href="#i-x"/></svg></button>
