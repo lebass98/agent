@@ -29,3 +29,52 @@
   .ts-grid { grid-template-columns:1fr; }
   .members-actions { margin-left:0; }
 }
+
+/* 팀 설정 전용 레이아웃 — 공통 모달과 테마 토큰을 그대로 사용한다. */
+.modal .sheet:has(.ts-form) { width:min(940px,100%); }
+.sheet:has(.ts-form) .sheet-head { padding:24px 28px 20px; }
+.sheet:has(.ts-form) .sheet-head h2 { font-size:22px;letter-spacing:-.6px; }
+.ts-form { display:flex;flex-direction:column;min-height:0;overflow:hidden; }
+.ts-form .sheet-body { padding:24px 28px;background:var(--panel-2); }
+.ts-intro { display:flex;align-items:center;gap:14px;margin-bottom:24px; }
+.ts-intro-icon { display:grid;place-items:center;flex:none;width:48px;height:48px;border:1px solid color-mix(in srgb,var(--accent) 20%,var(--line));border-radius:16px;background:var(--accent-weak);color:var(--accent-text); }
+.ts-intro-icon .ic { width:23px;height:23px; }
+.ts-intro strong { font-size:16px;letter-spacing:-.4px; }
+.ts-intro p { margin:5px 0 0;font-size:13px;line-height:1.6;color:var(--muted); }
+.ts-count { flex:none;margin-left:auto;padding:6px 10px;border-radius:20px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--text-2); }
+.ts-sec { margin-bottom:24px; }
+.ts-management { padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--panel); }
+.ts-management .ts-h { margin-bottom:18px; }
+.ts-management .field:last-child { margin-bottom:0; }
+.ts-form .field-label { font-size:12px;letter-spacing:.1px;color:var(--text-2); }
+.ts-form .field small { display:block;font-size:12px;line-height:1.65;margin-top:6px;overflow-wrap:anywhere; }
+.ts-form .text-input { border-radius:10px;min-height:42px;font-size:13px;background:var(--panel-2); }
+.ts-h-row { margin-bottom:14px; }
+.ts-members { grid-template-columns:repeat(2,minmax(0,1fr));gap:16px; }
+.ts-card { min-width:0;padding:20px 18px 6px;border:1px solid var(--line);border-top:3px solid var(--c);border-radius:16px;background:var(--panel);box-shadow:0 3px 12px rgba(20,30,55,.03); }
+.ts-card.leader { border-color:color-mix(in srgb,var(--c) 38%,var(--line));border-top-color:var(--c);box-shadow:0 4px 18px color-mix(in srgb,var(--c) 8%,transparent); }
+.ts-card-head { gap:10px;margin-bottom:12px; }
+.ts-avatar { width:40px;height:40px;display:grid;place-items:center;flex:none;border-radius:13px;color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--panel));font-size:19px;font-weight:750; }
+.ts-identity { display:flex;flex-direction:column;gap:3px;min-width:0; }
+.ts-title { overflow-wrap:anywhere;letter-spacing:-.2px; }
+.ts-provider-label { font-size:11px;color:var(--muted); }
+.ts-card-head .badge { font-size:10px;padding:3px 6px;white-space:nowrap;background:var(--accent-weak);color:var(--accent-text); }
+.ts-del { padding:6px;min-height:32px;font-size:11px;gap:3px;border-color:transparent;color:var(--muted); }
+.ts-status { display:flex;align-items:center;gap:6px;margin:0 0 18px;font-size:11px;color:var(--muted); }
+.ts-status .ts-dot { width:6px;height:6px;background:var(--muted); }
+.ts-status.ready .ts-dot { background:#28a578; }
+.ts-grid { grid-template-columns:minmax(0,1fr); }
+.ts-name { width:100%;min-width:0; }
+.ts-save-note { margin:0;font-size:12px;line-height:1.7;color:var(--muted); }
+.ts-form .sheet-foot { padding:16px 28px;background:var(--panel);justify-content:flex-end; }
+.ts-form .sheet-foot .btn { margin-left:0;min-height:42px; }
+@media(max-width:760px) {
+  .ts-members { grid-template-columns:1fr; }
+  .sheet:has(.ts-form) .sheet-head { padding:20px 18px 16px; }
+  .ts-form .sheet-body { padding:20px 16px; }
+  .ts-form .sheet-foot { padding:14px 16px; }
+  .ts-count { display:none; }
+  .ts-intro { align-items:flex-start;gap:10px; }
+  .ts-intro strong { font-size:14px; }
+  .ts-management { padding:16px; }
+}

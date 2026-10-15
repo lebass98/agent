@@ -36,17 +36,22 @@ window.TeamSettings = (() => {
   /** 화면 전체를 다시 그린다. focus: 팀원 이름 또는 "new"(마지막 추가 팀원) */
   function render(focus) {
     const d = S.draft, err = el("p", { class: "error-text small ts-err", role: "alert", hidden: true });
-    const save = el("button", { class: "btn", type: "submit", text: "저장" });
+    const save = el("button", { class: "btn", type: "submit", text: "변경사항 저장" });
     const leader = el("select", { class: "text-input", id: "tsLeader", "aria-label": "팀장", onchange: e => { d.leader = e.target.value; render(); } },
       ...d.members.map(m => el("option", { value: m.name, selected: m.name === d.leader, text: label(m) })));
-    const guide = el("textarea", { class: "text-input", id: "tsGuide", rows: "5", maxlength: String(S.limits.guide), oninput: e => { d.guide = e.target.value; } });
+    const guide = el("textarea", { class: "text-input", id: "tsGuide", rows: "3", maxlength: String(S.limits.guide), oninput: e => { d.guide = e.target.value; } });
     guide.value = d.guide || "";
     const list = el("div", { class: "ts-members" }, ...d.members.map((m, i) => memberCard(m, i)));
     const form = el("form", { class: "sheet-form ts-form", autocomplete: "off", onsubmit: e => { e.preventDefault(); submit(save, err); } },
       el("div", { class: "sheet-body" },
+        el("div", { class: "ts-intro" },
+          el("span", { class: "ts-intro-icon", "aria-hidden": "true" }, icon("users")),
+          el("div", {}, el("strong", { text: "함께 일할 AI 팀을 만들어 보세요" }),
+            el("p", { text: "팀원의 모델과 역할을 정하고, 우리 팀에 맞는 협업 방식을 설정하세요." })),
+          el("span", { class: "ts-count", text: `${d.members.length}명의 에이전트` })),
         S.mock ? el("p", { class: "ts-note", role: "note" }, icon("alert"), "지금은 모의 실행 중이라 실제 AI 를 부르지 않아요. 저장한 설정은 실제 실행 때 쓰여요.") : null,
-        el("section", { class: "ts-sec" },
-          el("h3", { class: "ts-h" }, icon("gear"), "팀장과 업무 배정 원칙"),
+        el("section", { class: "ts-sec ts-management" },
+          el("h3", { class: "ts-h" }, icon("gear"), "팀 운영"),
           el("div", { class: "field" }, el("label", { class: "field-label", for: "tsLeader", text: "팀장" }), leader,
             el("small", { class: "muted", text: "팀장이 목표를 업무로 나누고 팀원에게 배정한 뒤, 결과를 검수해 최종 보고서를 씁니다." })),
           el("div", { class: "field" }, el("label", { class: "field-label", for: "tsGuide", text: "업무 배정 원칙 (선택)" }), guide,
@@ -55,10 +60,10 @@ window.TeamSettings = (() => {
           el("div", { class: "ts-h-row" }, el("h3", { class: "ts-h" }, icon("users"), `팀원 ${d.members.length}명`),
             el("button", { class: "tbtn accent", type: "button", disabled: d.members.length >= S.limits.members, onclick: () => addMember() }, icon("plus"), "에이전트 추가")),
           list),
-        el("p", { class: "muted small", text: "저장하면 team.toml 이 바뀌고 팀이 바로 다시 꾸려져요(바로 전 파일은 team.toml.bak 으로 남아요). 진행 중인 업무가 있으면 끝난 뒤 저장할 수 있어요." }),
+        el("p", { class: "ts-save-note", text: "저장하면 새 설정이 바로 적용돼요. 진행 중인 업무가 있다면 완료 후 저장해 주세요." }),
         err),
       el("footer", { class: "sheet-foot" }, el("button", { class: "btn secondary", type: "button", text: "취소", onclick: closeModal }), save));
-    openModal([sheetHead("에이전트 설정", "AI 선택 · 모델 · 하는 일 · 팀장"), form]);
+    openModal([sheetHead("에이전트 설정", "각자의 강점을 모아, 하나의 팀으로"), form]);
     const target = focus === "new" ? list.lastElementChild : focus ? list.querySelector(`[data-name="${CSS.escape(focus)}"]`) : null;
     if (target) {
       target.scrollIntoView({ block: "center" });
@@ -99,10 +104,15 @@ window.TeamSettings = (() => {
       } }, icon("x"), "삭제");
     return el("article", { class: `ts-card${isLeader ? " leader" : ""}`, "data-name": m.name, style: { "--c": color } },
       el("header", { class: "ts-card-head" },
-        el("span", { class: "ts-dot", "aria-hidden": "true" }), name,
+        el("span", { class: "ts-avatar", "aria-hidden": "true", text: (known?.label || m.name).slice(0, 1).toUpperCase() }),
+        el("div", { class: "ts-identity" }, name,
+          el("span", { class: "ts-provider-label", text: p?.brand || m.provider })),
         isLeader ? el("span", { class: "badge", text: "팀장" }) : null,
         m._new ? el("span", { class: "badge meet", text: "새 팀원" }) : null,
         del),
+      el("div", { class: `ts-status${p?.ready ? " ready" : ""}` },
+        el("span", { class: "ts-dot", "aria-hidden": "true" }),
+        p?.ready ? "연결 준비 완료" : "연결 설정 필요"),
       el("div", { class: "ts-grid" },
         el("div", { class: "field" }, el("label", { class: "field-label", for: `${id}p`, text: "AI 선택" }), providerSel,
           p && !p.ready ? el("small", { class: "ts-warn", text: `${p.hint || "준비 안 됨"} — 저장은 되지만 실제 실행 때 실패해요.` }) : null),
