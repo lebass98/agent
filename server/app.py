@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, WebSocket
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -406,6 +406,26 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             return projects.list_dirs(path, bool(hidden))
         except projects.ProjectError as e:
             raise HTTPException(400, str(e))
+
+    @api.post("/fs/pick")
+    async def fs_pick(request: Request):
+        """이 컴퓨터의 폴더 선택 창(Finder·탐색기)을 띄운다. 다른 기기(휴대폰)에서 부르면 native:false 로
+        알려 주고, 웹 화면은 기존 폴더 고르기 창을 쓴다."""
+        client = request.client.host if request.client else None
+        server = (request.scope.get("server") or (None,))[0]
+        if not projects.is_local_client(client, server) or not projects.pick_command():
+            return {"native": False}
+        try:
+            path = await asyncio.to_thread(projects.native_pick)
+        except projects.ProjectError as e:
+            raise HTTPException(409, str(e))
+        if not path:
+            return {"native": True, "cancelled": True}
+        try:
+            path = str(projects.check_path(path))
+        except projects.ProjectError as e:
+            return {"native": True, "path": path, "error": str(e)}
+        return {"native": True, "path": path}
 
     @api.get("/projects")
     def list_projects():

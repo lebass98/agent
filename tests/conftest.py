@@ -24,9 +24,11 @@ def make_client(tmp_path, runs_dir, monkeypatch):
     web.mkdir()
     (web / "index.html").write_text("<h1>web</h1>", encoding="utf-8")
 
-    def make(access_key: str | None = None, dev: bool = False) -> TestClient:
+    def make(access_key: str | None = None, dev: bool = False, peer: tuple[str, int] | None = None) -> TestClient:
+        """peer: 접속한 쪽 주소(기본 'testclient'). 같은 컴퓨터 접속을 흉내 내려면 ("127.0.0.1", 50000)."""
         team = Team(ROOT / "team.toml", mock=True)
-        return TestClient(create_app(team, access_key, runs_dir, web, dev=dev))
+        app = create_app(team, access_key, runs_dir, web, dev=dev)
+        return TestClient(app, client=peer) if peer else TestClient(app)
 
     return make
 

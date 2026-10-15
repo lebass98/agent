@@ -1,7 +1,8 @@
 "use strict";
 /* 프로젝트(폴더 접근) — Claude 앱의 '프로젝트'처럼 로컬 폴더를 골라 전체 접근을 허락하고, 팀 업무를 그 폴더 안에서 실행한다.
    - 명령창의 폴더 버튼(#projectBtn) → 메뉴: 등록한 프로젝트 고르기 / 프로젝트 없이 / 폴더 열기… / 프로젝트 관리
-   - 폴더 열기: 폴더 고르기 창(GET /api/fs/list, 하위 폴더 이름만) → 동의 창(체크해야 추가) → POST /api/projects {confirm: true}
+   - 폴더 열기: 이 컴퓨터에서 접속했으면 운영체제 폴더 선택 창(Finder·탐색기, POST /api/fs/pick),
+     다른 기기(휴대폰)면 앱 안 폴더 고르기 창(GET /api/fs/list, 하위 폴더 이름만) → 동의 창(체크해야 추가) → POST /api/projects {confirm: true}
    - 고른 프로젝트 id 는 localStorage(agentOffice.project)에 기억하고, 업무 지시 때 app.js 가 project_id 로 보낸다.
    - '프로젝트' 보기(VIEWS.projects)와 설정에서 목록·이름 바꾸기·접근 해제.
    app.js 의 전역(el·icon·api·getJSON·store·toast·openModal·closeModal·sheetHead·popMenu·NET·VIEW·renderView·showView) 위에 붙는다. */
@@ -60,12 +61,29 @@ window.Projects = (() => {
     await load();
     const items = S.list.map(p => ({ label: p.name, icon: "folder-open", checked: p.id === S.current, onpick: () => { setCurrent(p.id); toast(`프로젝트 ‘${p.name}’ 안에서 업무를 실행해요.`, "info", 2500); } }));
     items.push({ label: "프로젝트 없이 실행", icon: "x", checked: !current(), onpick: () => setCurrent("") });
-    items.push({ label: "폴더 열기…", icon: "plus", onpick: () => openPicker() });
+    items.push({ label: "폴더 열기…", icon: "plus", onpick: () => openFolder() });
     items.push({ label: "프로젝트 관리", icon: "gear", onpick: () => showView("projects") });
     popMenu(b, items);
   }
 
-  /* ── 폴더 고르기 ── */
+  /* ── 폴더 열기: Finder·탐색기 먼저, 못 쓰면 앱 안 폴더 고르기 창 ── */
+  let picking = false;
+  async function openFolder() {
+    if (!live() || picking) return;
+    picking = true;
+    const t = setTimeout(() => toast("Finder·탐색기 창에서 폴더를 고르세요. 창이 안 보이면 Dock·작업 표시줄을 확인하세요.", "info", 6000), 700);
+    try {
+      const j = await send("/api/fs/pick", "POST");
+      if (!j?.native) return openPicker();
+      if (j.cancelled) return;
+      if (j.error) { toast(j.error, "error", 5000); return; }
+      openConsent(j.path, () => { closeModal(); openFolder(); });
+    } catch (e) {
+      toast(e.message || "폴더 선택 창을 열지 못했어요.", "error", 4000);
+    } finally { clearTimeout(t); picking = false; }
+  }
+
+  /* ── 앱 안 폴더 고르기(휴대폰 등 다른 기기) ── */
   const PK = { path: "", hidden: false, data: null };
   async function openPicker(path) {
     if (!live()) return;
@@ -121,7 +139,7 @@ window.Projects = (() => {
   }
 
   /* ── 동의 ── */
-  function openConsent(path) {
+  function openConsent(path, back = () => openPicker(path)) {
     const name = path.split("/").filter(Boolean).pop() || path;
     const nameInput = el("input", { class: "text-input", id: "pjName", type: "text", value: name, maxlength: "80", autocomplete: "off" });
     const err = el("p", { class: "error-text small", role: "alert", hidden: true });
@@ -151,7 +169,7 @@ window.Projects = (() => {
         err),
       el("footer", { class: "sheet-foot" },
         el("button", { class: "btn secondary", type: "button", text: "취소", onclick: closeModal }), add));
-    openModal([sheetHead("폴더 전체 접근 허락", name, () => openPicker(path)), form]);
+    openModal([sheetHead("폴더 전체 접근 허락", name, back), form]);
     agree.focus({ preventScroll: true });
   }
 
@@ -194,7 +212,7 @@ window.Projects = (() => {
     const head = [
       el("p", { class: "muted", text: "프로젝트는 AI 팀이 파일을 직접 읽고 고칠 수 있게 허락한 로컬 폴더예요. 명령창의 폴더 버튼으로 고르면 다음 업무가 그 폴더 안에서 실행돼요." }),
       el("div", { class: "toolbar" },
-        el("button", { class: "tbtn accent", type: "button", disabled: !live(), onclick: () => openPicker() }, icon("plus"), "폴더 열기…"),
+        el("button", { class: "tbtn accent", type: "button", disabled: !live(), onclick: () => openFolder() }, icon("plus"), "폴더 열기…"),
         el("button", { class: "tbtn", type: "button", disabled: !live(), onclick: () => load(true) }, icon("history"), "새로 고침")),
     ];
     if (!live()) return [...head, el("p", { class: "empty", text: "서버에 연결되면 프로젝트를 쓸 수 있어요. (데모 모드에서는 폴더에 접근하지 않아요)" })];
@@ -222,5 +240,5 @@ window.Projects = (() => {
   let was = "";
   setInterval(() => { if (NET.mode !== was) { was = NET.mode; if (live()) load(true); else paint(); } }, 1000);
 
-  return { currentId: () => (live() && current() ? S.current : ""), current, forget: id => { if (S.current === id) setCurrent(""); load(true); }, view, load, openPicker };
+  return { currentId: () => (live() && current() ? S.current : ""), current, forget: id => { if (S.current === id) setCurrent(""); load(true); }, view, load, openPicker, openFolder };
 })();

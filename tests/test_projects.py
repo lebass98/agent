@@ -178,3 +178,59 @@ def test_run_refuses_project_whose_folder_vanished(make_client, home):
         d.rmdir()
         r = client.post("/api/run", json={"goal": "x", "project_id": pid})
     assert r.status_code == 400 and "없습니다" in r.json()["detail"]
+
+
+# ── 운영체제 폴더 선택 창(Finder·탐색기) ───────────────────
+LOCAL = ("127.0.0.1", 50000)
+
+
+@pytest.mark.parametrize("client,server,ok", [
+    ("127.0.0.1", "127.0.0.1", True), ("::1", "::1", True), ("localhost", None, True),
+    ("192.168.0.5", "192.168.0.5", True),   # 같은 컴퓨터가 자기 사설 IP 로 접속
+    ("192.168.0.9", "192.168.0.5", False),  # 같은 Wi-Fi 의 휴대폰
+    ("testclient", "testserver", False), (None, "127.0.0.1", False),
+])
+def test_is_local_client(client, server, ok):
+    assert projects.is_local_client(client, server) is ok
+
+
+def test_pick_command_per_os(monkeypatch):
+    mac = projects.pick_command("darwin")
+    assert mac[-1].startswith("POSIX path of (choose folder")
+    monkeypatch.setattr(projects.shutil, "which", lambda n: None)
+    assert projects.pick_command("linux") is None and projects.pick_command("win32") is None
+    monkeypatch.setattr(projects.shutil, "which", lambda n: "/usr/bin/" + n if n == "zenity" else None)
+    assert projects.pick_command("linux")[:3] == ["zenity", "--file-selection", "--directory"]
+
+
+def test_fs_pick_from_other_device_falls_back(make_client, monkeypatch):
+    monkeypatch.setattr(projects, "native_pick", lambda: pytest.fail("다른 기기 요청에 이 컴퓨터 창을 띄우면 안 된다"))
+    with make_client() as client:
+        assert client.post("/api/fs/pick").json() == {"native": False}
+
+
+def test_fs_pick_returns_checked_path(make_client, home, monkeypatch):
+    monkeypatch.setattr(projects, "pick_command", lambda platform=None: ["true"])
+    monkeypatch.setattr(projects, "native_pick", lambda: str(home / "site") + "/")
+    with make_client(peer=LOCAL) as client:
+        assert client.post("/api/fs/pick").json() == {"native": True, "path": str(home / "site")}
+    monkeypatch.setattr(projects, "native_pick", lambda: None)
+    with make_client(peer=LOCAL) as client:
+        assert client.post("/api/fs/pick").json() == {"native": True, "cancelled": True}
+    monkeypatch.setattr(projects, "native_pick", lambda: str(home / ".ssh" / "keys"))
+    with make_client(peer=LOCAL) as client:
+        j = client.post("/api/fs/pick").json()
+        assert j["native"] and "자격 증명" in j["error"]
+
+
+def test_fs_pick_needs_access_key(make_client, monkeypatch):
+    monkeypatch.setattr(projects, "native_pick", lambda: pytest.fail("키 없이 창을 띄우면 안 된다"))
+    with make_client(access_key="k1", peer=LOCAL) as client:
+        assert client.post("/api/fs/pick").status_code in (401, 403)
+
+
+def test_native_pick_runs_command(monkeypatch, tmp_path):
+    monkeypatch.setattr(projects, "pick_command", lambda platform=None: ["sh", "-c", f"printf '%s/\\n' '{tmp_path}'"])
+    assert projects.native_pick() == str(tmp_path)
+    monkeypatch.setattr(projects, "pick_command", lambda platform=None: ["sh", "-c", "exit 1"])
+    assert projects.native_pick() is None  # 취소

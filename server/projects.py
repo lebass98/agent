@@ -5,9 +5,13 @@
 - 폴더 고르기용 목록(list_dirs)은 하위 폴더 이름만 돌려준다. 파일 이름·내용은 절대 내보내지 않는다.
 - 등록 전 check_path 로 위험한 경로(시스템·홈 자체·자격 증명 폴더·이 앱의 가상환경)를 거부한다.
 """
+import ipaddress
 import json
 import os
 import secrets
+import shutil
+import subprocess
+import sys
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -132,6 +136,72 @@ def list_dirs(raw: str | None, hidden: bool = False) -> dict:
     return {"path": str(p), "parent": parent, "dirs": dirs, "truncated": len(dirs) >= LIST_LIMIT,
             "roots": roots, "selectable": selectable, "reason": reason}
 
+
+
+# ── 운영체제 폴더 선택 창(Finder·탐색기) ─────────────────
+PICK_TIMEOUT = 600  # 사용자가 창을 열어 둔 채 둘 수 있는 최대 시간(초)
+PICK_PROMPT = "AI 팀이 작업할 프로젝트 폴더를 고르세요"
+_pick_lock = threading.Lock()
+
+
+def is_local_client(client_host: str | None, server_host: str | None) -> bool:
+    """브라우저가 서버와 같은 컴퓨터에서 접속했는지. 같은 컴퓨터일 때만 이 컴퓨터에 폴더 선택 창을 띄운다.
+    루프백이거나, 접속한 쪽 주소가 서버가 요청을 받은 주소와 같으면(같은 기기의 사설 IP 로 접속) 같은 컴퓨터다."""
+    if not client_host:
+        return False
+    try:
+        if ipaddress.ip_address(client_host.split("%")[0]).is_loopback:
+            return True
+    except ValueError:
+        return client_host == "localhost"
+    return bool(server_host) and client_host == server_host
+
+
+def pick_command(platform: str | None = None) -> list[str] | None:
+    """이 운영체제의 폴더 선택 창 명령. 못 띄우면 None."""
+    platform = platform or sys.platform
+    if platform == "darwin":
+        osa = shutil.which("osascript") or "/usr/bin/osascript"
+        # activate: 선택 창을 브라우저 앞으로 띄운다. 취소하면 -128 오류로 끝난다.
+        return [osa, "-e", "activate", "-e", f'POSIX path of (choose folder with prompt "{PICK_PROMPT}")']
+    if platform.startswith("win"):
+        ps = shutil.which("powershell") or shutil.which("pwsh")
+        if not ps:
+            return None
+        script = ("[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
+                  "Add-Type -AssemblyName System.Windows.Forms;"
+                  "$f=New-Object System.Windows.Forms.FolderBrowserDialog;"
+                  f"$f.Description='{PICK_PROMPT}';$f.ShowNewFolderButton=$true;"
+                  "$o=New-Object System.Windows.Forms.Form -Property @{TopMost=$true};"
+                  "if($f.ShowDialog($o) -eq 'OK'){$f.SelectedPath}")
+        return [ps, "-NoProfile", "-STA", "-Command", script]
+    for cmd in (["zenity", "--file-selection", "--directory", f"--title={PICK_PROMPT}"],
+                ["kdialog", "--getexistingdirectory", os.path.expanduser("~"), "--title", PICK_PROMPT]):
+        if shutil.which(cmd[0]):
+            return cmd
+    return None
+
+
+def native_pick() -> str | None:
+    """운영체제 폴더 선택 창을 띄워 고른 폴더 경로를 돌려준다. 취소하면 None.
+    띄울 수 없거나 이미 열려 있으면 ProjectError. (사용자가 고를 때까지 막히므로 스레드에서 부른다)"""
+    cmd = pick_command()
+    if not cmd:
+        raise ProjectError("이 컴퓨터에서는 폴더 선택 창을 띄울 수 없습니다.")
+    if not _pick_lock.acquire(blocking=False):
+        raise ProjectError("폴더 선택 창이 이미 열려 있습니다. 작업 표시줄·Dock 에서 창을 찾아 주세요.")
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=PICK_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return None
+    except OSError as e:
+        raise ProjectError(f"폴더 선택 창을 띄우지 못했습니다: {e}")
+    finally:
+        _pick_lock.release()
+    path = r.stdout.strip()
+    if r.returncode != 0 or not path:  # 취소(macOS -128, zenity·kdialog 1, 탐색기 빈 출력)
+        return None
+    return path.rstrip("/\\") or path
 
 def _has_children(path: str, hidden: bool) -> bool:
     try:

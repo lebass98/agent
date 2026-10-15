@@ -76,6 +76,7 @@
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | `GET` | `/api/fs/list?path=&hidden=0` | 폴더 고르기: `{path, parent, dirs: [{name, path, has_children}], truncated, roots: [{name, path}], selectable, reason}`. 하위 **폴더 이름만**(파일 이름·내용은 내보내지 않음), 최대 500개. `path` 가 비면 홈. 점(.)으로 시작하는 폴더는 `hidden=1` 일 때만. `roots` 는 홈·데스크탑·문서·다운로드(있는 것만)·상위 폴더. `selectable: false` 면 `reason` 에 등록할 수 없는 이유. 상대 경로·없는 폴더·권한 없음 `400` |
+| `POST` | `/api/fs/pick` | 이 컴퓨터의 **운영체제 폴더 선택 창**(macOS Finder `osascript choose folder`, Windows 탐색기 `FolderBrowserDialog`, Linux `zenity`·`kdialog`)을 띄우고 고를 때까지 기다린다(최대 10분). 브라우저가 서버와 같은 컴퓨터일 때만(루프백이거나 접속 주소가 서버 주소와 같음) 띄우고, 아니면(휴대폰 등) `{native: false}` → 웹 화면은 `/api/fs/list` 폴더 고르기 창을 쓴다. 고르면 `{native: true, path}`, 취소 `{native: true, cancelled: true}`, 등록할 수 없는 폴더 `{native: true, path, error}`. 창이 이미 열려 있으면 `409`. 접속 키 필요 |
 | `GET` | `/api/projects` | `{projects: [...]}` |
 | `POST` | `/api/projects` | `{path, name?, confirm: true}` → `{project}`. `confirm` 은 사용자가 동의 창에서 '전체 접근 허락'에 체크했다는 뜻이며 없으면 `400`. 같은 폴더를 다시 추가하면 새로 만들지 않고 이름·허락 시각만 갱신 |
 | `PATCH` | `/api/projects/{id}` | `{name}` 이름 바꾸기(1~80자, 빈 이름 `400`) → `{project}`. 없는 id `404` |
