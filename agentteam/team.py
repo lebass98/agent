@@ -34,6 +34,16 @@ PLAN_PROMPT = """##PLAN##
 {{"summary": "계획 요약", "tasks": [{{"id": 1, "assignee": "팀원이름", "title": "업무명", "instruction": "구체적 지시", "depends_on": []}}]}}
 """
 
+PROJECT_NOTE = """
+
+[프로젝트 폴더]
+{path}
+이 업무는 위 폴더(사용자가 전체 접근을 허락한 프로젝트) 안에서 진행합니다. 작업 폴더가 곧 이 폴더입니다.
+- 폴더 안의 파일은 필요하면 읽고, 만들고, 고칠 수 있습니다. 지우기는 업무에 꼭 필요할 때만 하세요.
+- 폴더 밖의 파일·설정은 절대 읽거나 바꾸지 마세요.
+- 만들거나 바꾼 파일은 결과 끝에 폴더 기준 상대 경로 목록으로 적으세요.
+"""
+
 REVIEW_PROMPT = """당신은 팀장입니다. 팀원들의 결과물을 검수하고 최종 보고서를 작성하세요.
 
 [목표]
@@ -83,11 +93,18 @@ class Team:
 
     # ── 팀 업무 ───────────────────────────────────────
     async def run(self, goal: str, out_root: Path = Path("runs"),
-                  emit: Emit | None = None, run_id: str | None = None) -> Path:
+                  emit: Emit | None = None, run_id: str | None = None,
+                  project: dict | None = None) -> Path:
+        """project: {id, name, path} — 있으면 팀원들이 그 폴더를 작업 폴더로 삼아 파일을 읽고 고친다."""
         run_id = run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
         out = out_root / run_id
         out.mkdir(parents=True, exist_ok=True)
         (out / "goal.txt").write_text(goal, encoding="utf-8")
+        project = {k: project[k] for k in ("id", "name", "path")} if project else None
+        if project:
+            (out / "project.json").write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")
+        workdir = project["path"] if project else None
+        note = PROJECT_NOTE.format(path=workdir) if workdir else ""
 
         async def send(event: dict) -> None:
             if emit is None:
@@ -98,13 +115,13 @@ class Team:
 
         ok = False
         try:
-            await send({"type": "run_start", "run_id": run_id, "goal": goal})
+            await send({"type": "run_start", "run_id": run_id, "goal": goal, "project": project})
 
             print(f"📋 [{self.leader.name}] 업무 계획 수립 중…")
             await send({"type": "plan_start", "leader": self.leader.name})
             plan = _parse_json(await self.leader.ask(
-                PLAN_PROMPT.format(goal=goal, roster=self.roster(), guide=self.guide_text())
-            ))
+                PLAN_PROMPT.format(goal=goal, roster=self.roster(), guide=self.guide_text()) + note,
+                workdir=workdir))
             tasks = self._normalize(plan.get("tasks", []))
             if not tasks:
                 raise ValueError("팀장 계획에 업무가 없습니다.")
@@ -114,7 +131,7 @@ class Team:
                 print(f"   #{t['id']} @{t['assignee']:<7} {t['title']}")
             await send({"type": "plan", **plan})
 
-            results = await self._execute(tasks, out, send)
+            results = await self._execute(tasks, out, send, workdir, note)
 
             print(f"🔍 [{self.leader.name}] 검수 및 최종 보고 작성 중…")
             await send({"type": "review_start", "leader": self.leader.name})
@@ -122,7 +139,7 @@ class Team:
                 f"### #{t['id']} {t['title']} (@{t['assignee']})\n{results[t['id']]}"
                 for t in tasks
             )
-            report = await self.leader.ask(REVIEW_PROMPT.format(goal=goal, results=joined))
+            report = await self.leader.ask(REVIEW_PROMPT.format(goal=goal, results=joined) + note, workdir=workdir)
             (out / "report.md").write_text(f"# 목표\n{goal}\n\n{report}\n", encoding="utf-8")
             await send({"type": "report", "report": report, "dir": str(out)})
             ok = True
@@ -182,8 +199,8 @@ class Team:
             by_id[tid]["depends_on"] = [d for d in by_id[tid]["depends_on"] if d in done]
         return tasks
 
-    async def _execute(self, tasks: list[dict], out: Path,
-                       send: Callable[[dict], Awaitable[None]]) -> dict[int, str]:
+    async def _execute(self, tasks: list[dict], out: Path, send: Callable[[dict], Awaitable[None]],
+                       workdir: str | None = None, note: str = "") -> dict[int, str]:
         """선행 업무가 끝나는 즉시 착수한다. 팀원 1명은 한 번에 업무 1개만 처리한다."""
         results: dict[int, str] = {}
         finished = {t["id"]: asyncio.Event() for t in tasks}
@@ -202,7 +219,7 @@ class Team:
                 ok = True
                 try:
                     results[t["id"]] = await member.ask(
-                        f"[업무] {t['title']}\n{t['instruction']}{context}"
+                        f"[업무] {t['title']}\n{t['instruction']}{context}{note}", workdir=workdir
                     )
                     print(f"✅ #{t['id']} @{member.name} 완료")
                 except Exception as e:  # 한 팀원 실패가 팀 전체를 멈추지 않도록

@@ -112,3 +112,72 @@ def test_extra_bin_lookup(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "EXTRA_BIN", [str(d)])
     assert cli.which("gemini") == str(d / "gemini") and cli.installed("gemini-cli")
     assert os.access(cli.which("gemini"), os.X_OK)
+
+
+# ── 프로젝트 모드: 고른 폴더에서 파일 도구를 켜고 실행 ──────────
+@pytest.fixture
+def proj(tmp_path):
+    d = tmp_path / "my project"
+    d.mkdir()
+    return str(d.resolve())
+
+
+def test_claude_cli_project_mode(bin_dir, tmp_path, proj):
+    log = tmp_path / "args.txt"
+    fake(bin_dir, "claude", f'''printf '%s\\n' "$@" > "{log}"; pwd -P >> "{log}"; cat > /dev/null
+echo '{{"type":"result","is_error":false,"result":"고쳤습니다"}}' ''')
+    assert asyncio.run(member("claude-cli", "opus").ask("고쳐 줘", workdir=proj)) == "고쳤습니다"
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[-1] == proj                                              # 작업 폴더 = 프로젝트 폴더
+    args = "\n".join(lines)
+    assert f"--add-dir\n{proj}" in args and "--permission-mode\nacceptEdits" in args
+    assert "--tools\nRead,Edit,Write,Glob,Grep" in args and "--max-turns\n30" in args
+    assert f"--allowedTools\nRead(/{proj}/**)" in args and f"--allowedTools\nEdit(/{proj}/**)" in args
+    assert "--disallowedTools\nmcp__*" in args and "--disallowedTools\nBash" in args
+    assert "--tools\n\n" not in args and "dontAsk" not in args
+
+
+def test_claude_cli_default_mode_unchanged(bin_dir, tmp_path):
+    log = tmp_path / "args.txt"
+    fake(bin_dir, "claude", f'''printf '%s\\n' "$@" > "{log}"; pwd >> "{log}"; cat > /dev/null
+echo '{{"result":"ok"}}' ''')
+    asyncio.run(member("claude-cli").ask("hi"))
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert "agent-claude-" in lines[-1]                                   # 빈 임시 폴더
+    args = "\n".join(lines)
+    assert "--tools\n\n" in args and "--max-turns\n1" in args and "--permission-mode\ndontAsk" in args
+    assert "--add-dir" not in args and "--allowedTools" not in args
+
+
+def test_codex_cli_project_mode(bin_dir, tmp_path, proj):
+    log = tmp_path / "args.txt"
+    fake(bin_dir, "codex", f'''printf '%s\\n' "$@" > "{log}"; pwd -P >> "{log}"
+out=""; while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done
+cat > /dev/null; printf '완료' > "$out" ''')
+    assert asyncio.run(member("codex-cli").ask("hi", workdir=proj)) == "완료"
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[-1] == proj
+    args = "\n".join(lines)
+    assert f"-C\n{proj}" in args and "--sandbox\nworkspace-write" in args
+    assert not lines[lines.index("-o") + 1].startswith(proj)            # 답변 파일은 프로젝트 폴더 밖 임시 폴더
+    assert os.listdir(proj) == []
+
+
+def test_antigravity_cli_project_mode(bin_dir, tmp_path, proj):
+    log = tmp_path / "args.txt"
+    fake(bin_dir, "agy", f'''printf '%s\\n' "$@" > "{log}"; pwd -P >> "{log}"
+echo '{{"status":"SUCCESS","response":"ok"}}' ''')
+    assert asyncio.run(member("antigravity-cli").ask("hi", workdir=proj)) == "ok"
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[-1] == proj
+    args = "\n".join(lines)
+    assert "--mode\naccept-edits" in args and f"--add-dir\n{proj}" in args
+    assert "--dangerously-skip-permissions" not in args
+
+
+def test_gemini_cli_project_mode(bin_dir, tmp_path, proj):
+    log = tmp_path / "args.txt"
+    fake(bin_dir, "gemini", f'''printf '%s\\n' "$@" > "{log}"; pwd -P >> "{log}"; echo ok''')
+    asyncio.run(member("gemini-cli").ask("hi", workdir=proj))
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert lines[-1] == proj and "--approval-mode\nauto_edit" in "\n".join(lines)

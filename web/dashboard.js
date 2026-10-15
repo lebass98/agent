@@ -31,6 +31,11 @@ window.Dashboard = (() => {
     const percent = tasks.length ? Math.round(completed / tasks.length * 100) : 0;
     $("activeGoal").textContent = run?.goal || "팀과 함께, 다음 아이디어를 현실로";
     $("activeGoal").title = run?.goal || "";
+    const proj = run?.project, chip = $("runProject");
+    if (chip) {
+      chip.hidden = !proj;
+      if (proj) { $("runProjectName").textContent = proj.name; chip.title = `프로젝트 폴더: ${proj.path}`; chip.setAttribute("aria-label", `이 업무의 프로젝트: ${proj.name} (${proj.path})`); }
+    }
     $("activePhase").textContent = run ? `${D.phaseText} · ${completed}/${tasks.length}개 업무 종료` : "업무를 입력하면 팀장이 계획하고 배정합니다";
     $("completionValue").textContent = tasks.length ? `${percent}%` : "대기";
     $("completionBar").value = percent;

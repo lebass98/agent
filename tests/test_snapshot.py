@@ -14,7 +14,7 @@ def run(events, snap=None):
 
 def test_full_sequence():
     snap = run([{"type": "run_start", "run_id": "20261014-160000", "goal": "목표"}])
-    assert snap == {"run_id": "20261014-160000", "goal": "목표", "phase": "plan", "summary": "",
+    assert snap == {"run_id": "20261014-160000", "goal": "목표", "project": None, "phase": "plan", "summary": "",
                     "tasks": [], "report": None, "ok": None, "error": None}
 
     snap = run([{"type": "plan_start", "leader": "claude"},

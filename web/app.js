@@ -1381,6 +1381,7 @@ function tickClock() {
 function updateInput() {
   const busy = D.running || UI.submitting;
   $("goal").disabled = $("runBtn").disabled = $("attachBtn").disabled = busy || !!window.CharacterChat?.pending;
+  if ($("projectBtn")) $("projectBtn").disabled = busy;
   $("runBtn").classList.toggle("busy", UI.submitting);
   $("runBtn").setAttribute("aria-label", D.running ? "진행 중" : UI.submitting ? "요청 중" : "업무 지시");
   $("goal").placeholder = D.running ? `팀이 업무를 진행하고 있어요… (${D.phaseText})` : UI.submitting ? "요청 중…" : "팀에 업무를 지시해보세요...";
@@ -1475,7 +1476,7 @@ function setRoomTags(v) {
 
 /* ── 보기 오버레이: 업무 보드 · 타임라인 · 분석 · 팀원 관리 · 자료실 · 설정 (사무실/대시보드는 3D 그대로) ── */
 const VIEW = { name: "", t: 0 };
-const VIEW_TITLES = { board: "업무 보드", timeline: "타임라인", stats: "분석", members: "팀원 관리", library: "자료실", settings: "설정" };
+const VIEW_TITLES = { board: "업무 보드", timeline: "타임라인", stats: "분석", members: "팀원 관리", projects: "프로젝트", library: "자료실", settings: "설정" };
 function showView(name) {
   if (!VIEW_TITLES[name]) return closeView();
   closeMenu(); closePalette(); setDrawer(false);
@@ -1686,13 +1687,19 @@ function settingsView() {
     row("기본 연출 속도", "말풍선·이동 연출의 빠르기. 상단 바에서도 바꿀 수 있어요.", speedControl()),
     row("움직임 줄이기", "카메라 이동과 전환 애니메이션을 최소화해요. 시스템의 '동작 줄이기' 설정은 항상 따릅니다.", switchControl(PREF.reduce, setReduce, "움직임 줄이기")),
     HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·팀장실·회의실 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
+    row("프로젝트", "AI 팀이 파일을 읽고 고칠 수 있게 허락한 폴더를 관리해요.",
+      el("button", { class: "tbtn", type: "button", onclick: () => showView("projects") }, icon("folder-open"), "프로젝트 관리")),
     row("접속 키", NET.mode === "auth" ? "이 서버는 접속 키가 있어야 쓸 수 있어요." : KEY ? "저장된 접속 키가 있어요." : "LAN 공개(--lan) 서버에서만 필요해요.",
       el("button", { class: "tbtn", type: "button", onclick: () => openKeyDialog() }, icon("key"), KEY ? "접속 키 변경" : "접속 키 입력")),
     el("h3", { class: "sec" }, icon("server"), "서버 정보"),
     el("dl", { class: "kv" }, ...kv.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })])),
   ];
 }
-const VIEWS = { board: kanbanView, timeline: timelineView, stats: statsView, members: membersView, library: libraryView, settings: settingsView };
+/** 프로젝트(폴더 접근) 목록. 실제 화면은 projects.js 가 그린다 */
+function projectsView() {
+  return window.Projects ? window.Projects.view() : [el("p", { class: "empty", text: "프로젝트 기능을 불러오지 못했어요." })];
+}
+const VIEWS = { board: kanbanView, timeline: timelineView, stats: statsView, members: membersView, projects: projectsView, library: libraryView, settings: settingsView };
 
 /* ── 실행 기록: 이 화면이 아는 실행(RUNS) + 서버 목록(/api/runs) + 오늘 실행 상세(/api/runs/{id}, 최대 10건, 캐시) ── */
 const RUNS = new Map();                                        // run_id → run (newRun 이 등록)
@@ -1808,7 +1815,7 @@ function paletteItems(q) {
   q = q.trim().toLowerCase();
   const hit = s => !q || String(s).toLowerCase().includes(q), items = [];
   const run = D.shown;
-  if (!q) items.push(...Object.entries(VIEW_TITLES).map(([v, label]) => ({ group: "바로 가기", icon: { board: "kanban", timeline: "timeline", stats: "chart", members: "users", library: "folder", settings: "gear" }[v], text: label, go: () => showView(v) })),
+  if (!q) items.push(...Object.entries(VIEW_TITLES).map(([v, label]) => ({ group: "바로 가기", icon: { board: "kanban", timeline: "timeline", stats: "chart", members: "users", projects: "folder-open", library: "folder", settings: "gear" }[v], text: label, go: () => showView(v) })),
     { group: "바로 가기", icon: "plus", text: "새 에이전트 설정 만들기", go: openNewAgent });
   if (run) for (const t of sortedTasks(run)) {
     const d = memberDef(t.assignee);
@@ -1997,7 +2004,11 @@ function md(src) {
   box.replaceChildren(el("pre", { class: "plain", text }));
   return box;
 }
-const runView = run => ({ run_id: run.run_id, goal: run.goal, summary: run.summary, report: run.report, dir: run.dir, error: run.error, tasks: [...run.tasks.values()] });
+/** 이벤트·기록의 project({id, name, path})를 믿을 수 있는 형태로. 없으면 null */
+function normProject(p) {
+  return p && typeof p === "object" && p.path ? { id: String(p.id || ""), name: String(p.name || "") || String(p.path).split("/").filter(Boolean).pop() || "", path: String(p.path) } : null;
+}
+const runView = run => ({ project: run.project || null, run_id: run.run_id, goal: run.goal, summary: run.summary, report: run.report, dir: run.dir, error: run.error, tasks: [...run.tasks.values()] });
 function openReport(v, back) {
   const items = v.tasks.map(t => {
     const d = memberDef(t.assignee), failed = t.state === "failed";
@@ -2009,6 +2020,8 @@ function openReport(v, back) {
   openModal([
     sheetHead("최종 보고서", v.goal || v.run_id, back),
     el("div", { class: "sheet-body" },
+      v.project ? el("p", { class: "proj-line", title: v.project.path }, icon("folder-open"), el("b", { text: `프로젝트 · ${v.project.name}` }),
+        el("code", { class: "proj-path", text: v.project.path })) : null,
       v.summary ? el("p", { class: "plan-sum" }, el("b", { text: "계획 · " }), v.summary) : null,
       v.error ? el("div", { class: "err-box", text: `오류: ${clip(v.error, 2000)}` }) : null,
       v.report ? md(v.report) : el("p", { class: "muted", text: "아직 최종 보고서가 없습니다." }),
@@ -2101,7 +2114,7 @@ function normRun(d, id) {
     Object.assign(t, { result: body, state: /^\(실패: /.test(body.trim()) ? "failed" : "done" });
     byId.set(key, t);
   }
-  return { run_id: d.run_id || id, goal: String(d.goal || ""), summary: String(plan.summary || d.summary || ""), report: d.report ? String(d.report) : "",
+  return { project: normProject(d.project), run_id: d.run_id || id, goal: String(d.goal || ""), summary: String(plan.summary || d.summary || ""), report: d.report ? String(d.report) : "",
     error: d.error ? String(d.error) : "", tasks: [...byId.values()] };
 }
 
@@ -2155,6 +2168,7 @@ function model(ev) {
   if (T === "run_start") {
     if (D.run && !D.run.ended && D.run.run_id === String(ev.run_id)) return false;
     D.run = newRun(ev.run_id, ev.goal, false);
+    D.run.project = normProject(ev.project);
     UI.submitting = false; clearTimeout(UI.subT);
   } else if (T === "run_end") {
     if (!D.run || D.run.ended) return false;
@@ -2433,7 +2447,7 @@ function applySnapshot(s, first) {
   }
   const ph = PHASE_KO[s.phase] ? s.phase : "work", now = performance.now();
   const run = newRun(s.run_id, s.goal, ph !== "plan");
-  Object.assign(run, { summary: String(s.summary || ""), report: s.report ? String(s.report) : null, error: s.error ? String(s.error) : "",
+  Object.assign(run, { project: normProject(s.project), summary: String(s.summary || ""), report: s.report ? String(s.report) : null, error: s.error ? String(s.error) : "",
     ended: ph === "done", ok: !!s.ok, wall0: runIdTime(String(s.run_id)) ?? Date.now() });
   for (const raw of Array.isArray(s.tasks) ? s.tasks : []) {
     if (!raw || typeof raw !== "object") continue;
@@ -2656,13 +2670,15 @@ async function submitGoal() {
   UI.submitting = true; updateInput();
   let ok = false;
   try {
-    const r = await api("/api/run", { method: "POST", body: JSON.stringify({ goal: full }) });
+    const project_id = window.Projects?.currentId() || undefined; // 고른 프로젝트 폴더 안에서 실행
+    const r = await api("/api/run", { method: "POST", body: JSON.stringify({ goal: full, project_id }) });
     if (r.ok) {
       ok = true; $("goal").value = ""; fitGoal(); clearAttachment(); if (mqMobile.matches) $("goal").blur();
       if (truncated) toast("첨부 내용이 길어 4,000자에 맞춰 잘라 보냈어요.", "warn");
       const j = await r.json().catch(() => null);
       if (j?.run_id != null) UI.mine.add(String(j.run_id)); // 보고서 창을 자동으로 열 대상
     } else if (r.status === 409) toast("이미 진행 중인 업무가 있어요", "warn");
+    else if (r.status === 404 && project_id) { window.Projects?.forget(project_id); toast("고른 프로젝트가 더 이상 없어요. 프로젝트를 다시 골라 주세요.", "warn"); }
     else if (r.status === 401 || r.status === 403) openKeyDialog("키가 맞지 않아요. 터미널에 표시된 키를 다시 확인해 주세요.");
     else {
       const detail = await r.json().then(j => (typeof j?.detail === "string" ? j.detail : ""), () => "");

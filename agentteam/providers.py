@@ -30,11 +30,15 @@ class Member:
             "지시받은 업무만 정확히 수행하고, 결과물은 한국어로 간결하게 작성하세요."
         )
 
-    async def ask(self, prompt: str, system: str | None = None) -> str:
+    async def ask(self, prompt: str, system: str | None = None, workdir: str | None = None) -> str:
+        """workdir: 프로젝트 폴더(절대 경로). CLI provider 는 그 폴더에서 파일 도구를 켜고 실행한다.
+        API provider 는 파일 도구가 없어 무시한다(프롬프트의 폴더 안내만 받는다)."""
         call = _PROVIDERS.get(self.provider)
         if call is None:
             raise ValueError(f"알 수 없는 provider: {self.provider}")
         _require_key(self)
+        if workdir:
+            return await call(self, prompt, system or self.system, workdir=workdir)
         return await call(self, prompt, system or self.system)
 
 
@@ -63,7 +67,7 @@ def _require_key(m: Member) -> None:
         raise RuntimeError(f"{m.name} 팀원의 API 키가 없습니다. .env 의 {names[0]} 를 채워 주세요.")
 
 
-async def _anthropic(m: Member, prompt: str, system: str) -> str:
+async def _anthropic(m: Member, prompt: str, system: str, workdir: str | None = None) -> str:
     from anthropic import AsyncAnthropic
 
     # 워크스페이스에 속하지 않은 조직 키는 ANTHROPIC_WORKSPACE_ID 헤더가 필요하다
@@ -78,7 +82,7 @@ async def _anthropic(m: Member, prompt: str, system: str) -> str:
     return "".join(b.text for b in resp.content if b.type == "text")
 
 
-async def _openai(m: Member, prompt: str, system: str) -> str:
+async def _openai(m: Member, prompt: str, system: str, workdir: str | None = None) -> str:
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI()  # OPENAI_API_KEY
@@ -91,7 +95,7 @@ async def _openai(m: Member, prompt: str, system: str) -> str:
     return resp.output_text
 
 
-async def _google(m: Member, prompt: str, system: str) -> str:
+async def _google(m: Member, prompt: str, system: str, workdir: str | None = None) -> str:
     from google import genai
     from google.genai import types
 
@@ -107,8 +111,10 @@ async def _google(m: Member, prompt: str, system: str) -> str:
     return resp.text or ""
 
 
-async def _mock(m: Member, prompt: str, system: str) -> str:
-    """API 키 없이 흐름을 점검하기 위한 가짜 응답. MOCK_DELAY(초) 만큼 생각하는 척한다."""
+async def _mock(m: Member, prompt: str, system: str, workdir: str | None = None) -> str:
+    """API 키 없이 흐름을 점검하기 위한 가짜 응답. MOCK_DELAY(초) 만큼 생각하는 척한다.
+    workdir(프로젝트 폴더)가 있으면 결과에 폴더 이름을 적는다(파일은 건드리지 않는다)."""
+    where = f"\n- 프로젝트 폴더 ‘{os.path.basename(workdir.rstrip('/'))}’ 안에서 작업했습니다(모의: 파일은 바꾸지 않음)." if workdir else ""
     delay = float(os.getenv("MOCK_DELAY", "0"))
     if delay:
         await asyncio.sleep(delay * random.uniform(0.6, 1.6))
@@ -132,8 +138,10 @@ async def _mock(m: Member, prompt: str, system: str) -> str:
     if title:
         return (f"## {title.group(1)} 결과 (모의)\n\n"
                 f"- {m.name}({m.role.split('.')[0]})가 작성한 모의 결과입니다.\n"
-                "- 실제 API 키를 넣고 `--mock` 없이 실행하면 진짜 결과물이 나옵니다.")
-    return ("## 1. 최종 결과물 (모의)\n팀원 결과를 통합한 모의 보고서입니다.\n\n"
+                "- 실제 API 키를 넣고 `--mock` 없이 실행하면 진짜 결과물이 나옵니다."
+                f"{where}")
+    return ("## 1. 최종 결과물 (모의)\n팀원 결과를 통합한 모의 보고서입니다.\n"
+            f"{where}\n\n"
             "## 2. 팀원별 검수 의견\n- 모든 업무가 기한 내 완료되었습니다.\n\n"
             "## 3. 남은 과제\n- 실제 API 연결 후 결과 품질 확인")
 

@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import outside
+from . import outside, projects
 
 log = logging.getLogger("server")
 
@@ -35,7 +35,7 @@ def apply_event(snap: dict | None, event: dict) -> dict | None:
     """이벤트 하나를 반영한 새 스냅샷을 돌려준다. 입력 스냅샷은 바꾸지 않는다."""
     kind = event.get("type")
     if kind == "run_start":
-        return {"run_id": event.get("run_id"), "goal": event.get("goal", ""), "phase": "plan",
+        return {"run_id": event.get("run_id"), "goal": event.get("goal", ""), "project": event.get("project"), "phase": "plan",
                 "summary": "", "tasks": [], "report": None, "ok": None, "error": None}
     if snap is None or kind not in _CHANGES:
         return snap
@@ -211,6 +211,13 @@ def _created(d: Path) -> str:
         return datetime.fromtimestamp(d.stat().st_mtime).isoformat(timespec="seconds")
 
 
+def _project_name(d: Path) -> str | None:
+    try:
+        return (json.loads(_read(d / "project.json") or "null") or {}).get("name")
+    except (ValueError, AttributeError):
+        return None
+
+
 def _task_key(f: Path) -> int:
     m = re.match(r"task-(\d+)", f.name)
     return int(m.group(1)) if m else 0
@@ -232,6 +239,17 @@ def _new_run_id(root: Path) -> str:
 
 class RunIn(BaseModel):
     goal: str = ""
+    project_id: str | None = Field(None, max_length=64)  # 있으면 그 프로젝트 폴더 안에서 실행
+
+
+class ProjectIn(BaseModel):
+    path: str = Field(max_length=4096)
+    name: str | None = Field(None, max_length=200)
+    confirm: bool = False  # 사용자가 '전체 접근 허락'에 동의했는지
+
+
+class ProjectPatch(BaseModel):
+    name: str = Field(max_length=200)
 
 
 class ChatMessage(BaseModel):
@@ -258,10 +276,12 @@ class PlaceIn(BaseModel):
 
 # ── 앱 ────────────────────────────────────────────────
 def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False,
-               cache_dir: Path | None = None) -> FastAPI:
+               cache_dir: Path | None = None, projects_file: Path | None = None) -> FastAPI:
     """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일).
-    cache_dir: 바깥 풍경 지도 원본·사무실 위치를 두는 곳(기본: runs 옆 cache/outside, Git 제외)."""
+    cache_dir: 바깥 풍경 지도 원본·사무실 위치를 두는 곳(기본: runs 옆 cache/outside, Git 제외).
+    projects_file: 등록한 프로젝트(폴더 접근) 목록(기본: runs 옆 projects.json, Git 제외)."""
     runs_dir, web_dir = Path(runs_dir), Path(web_dir)
+    store = projects.Store(Path(projects_file) if projects_file else runs_dir.parent / "projects.json")
     out_dir = Path(cache_dir) if cache_dir else runs_dir.parent / "cache" / "outside"
     map_lock = asyncio.Lock()
     hub = Hub()
@@ -313,10 +333,18 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         if len(goal) > GOAL_LIMIT:
             raise HTTPException(400, f"업무 목표는 {GOAL_LIMIT:,}자 이내로 입력하세요.")
         # 확인과 시작 사이에 await 가 없으므로 동시 요청이 둘 다 시작될 수 없다
+        project = None
+        if body.project_id:
+            try:
+                project = store.usable(body.project_id)
+            except LookupError as e:
+                raise HTTPException(404, str(e))
+            except projects.ProjectError as e:
+                raise HTTPException(400, str(e))
         if app.state.chatting or (app.state.task and not app.state.task.done()):
             raise HTTPException(409, "이미 진행 중인 업무가 있습니다.")
         run_id = _new_run_id(runs_dir)
-        task = asyncio.create_task(team.run(goal, runs_dir, emit=hub.publish, run_id=run_id))
+        task = asyncio.create_task(team.run(goal, runs_dir, emit=hub.publish, run_id=run_id, project=project))
         task.add_done_callback(finished)
         app.state.task = task  # 강한 참조 유지 (GC 방지)
         return {"run_id": run_id}
@@ -351,6 +379,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         dirs = sorted((d for d in runs_dir.iterdir() if d.is_dir() and RUN_ID.fullmatch(d.name)),
                       key=_run_key, reverse=True) if runs_dir.is_dir() else []
         return [{"run_id": d.name, "goal": _read(d / "goal.txt") or "", "created": _created(d),
+                 "project": _project_name(d),
                  "has_report": (d / "report.md").is_file(), "has_error": (d / "error.txt").is_file()}
                 for d in dirs[:RUNS_LIMIT]]
 
@@ -361,10 +390,51 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             plan = json.loads(_read(d / "plan.json") or "null")
         except ValueError:
             plan = None
-        return {"run_id": run_id, "goal": _read(d / "goal.txt") or "", "plan": plan,
+        try:
+            project = json.loads(_read(d / "project.json") or "null")
+        except ValueError:
+            project = None
+        return {"run_id": run_id, "goal": _read(d / "goal.txt") or "", "project": project, "plan": plan,
                 "tasks": [{"file": f.name, "content": _read(f)}
                           for f in sorted(d.glob("task-*.md"), key=_task_key)],
                 "report": _read(d / "report.md"), "error": _read(d / "error.txt")}
+
+    # ── 프로젝트(폴더 접근) ──
+    @api.get("/fs/list")
+    def fs_list(path: str = "", hidden: int = 0):
+        try:
+            return projects.list_dirs(path, bool(hidden))
+        except projects.ProjectError as e:
+            raise HTTPException(400, str(e))
+
+    @api.get("/projects")
+    def list_projects():
+        return {"projects": store.load()}
+
+    @api.post("/projects")
+    def add_project(body: ProjectIn):
+        if not body.confirm:
+            raise HTTPException(400, "폴더 전체 접근에 동의해야 프로젝트를 추가할 수 있습니다.")
+        try:
+            return {"project": store.add(body.path, body.name)}
+        except projects.ProjectError as e:
+            raise HTTPException(400, str(e))
+
+    @api.patch("/projects/{pid}")
+    def rename_project(pid: str, body: ProjectPatch):
+        try:
+            item = store.rename(pid, body.name)
+        except projects.ProjectError as e:
+            raise HTTPException(400, str(e))
+        if not item:
+            raise HTTPException(404, "프로젝트를 찾을 수 없습니다.")
+        return {"project": item}
+
+    @api.delete("/projects/{pid}")
+    def remove_project(pid: str):
+        if not store.remove(pid):
+            raise HTTPException(404, "프로젝트를 찾을 수 없습니다.")
+        return {"ok": True}
 
     # ── 바깥 풍경: 주소 검색 · 주변 지도(OpenStreetMap) · 사무실 위치 ──
     @api.get("/outside/geocode")

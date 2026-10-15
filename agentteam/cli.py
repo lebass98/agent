@@ -1,9 +1,10 @@
 """구독 로그인된 CLI(claude · codex · gemini)를 비대화형 서브프로세스로 호출하는 provider.
 
 API 키·크레딧 없이 각 CLI 의 로그인 세션(Claude Max/Pro, ChatGPT, Google 계정)을 그대로 쓴다.
-- 빈 임시 폴더에서 실행해 프로젝트 훅·MCP·파일 접근의 영향을 받지 않게 한다.
+- 기본: 빈 임시 폴더에서 도구 없이 실행해 프로젝트 훅·MCP·파일 접근의 영향을 받지 않게 한다(순수 텍스트 생성).
+- 프로젝트 모드(workdir 지정): 그 폴더를 작업 폴더로 삼고 파일 도구(읽기·만들기·고치기)를 켠다. 폴더 밖은 막는다.
 - 환경변수의 API 키는 넘기지 않는다(키가 있으면 CLI 가 키를 우선 써서 종량제로 과금된다).
-- 결과는 최종 답변 텍스트만 돌려준다. 도구 사용은 끈다(순수 텍스트 생성).
+- 결과는 최종 답변 텍스트만 돌려준다.
 """
 import asyncio
 import json
@@ -11,9 +12,12 @@ import os
 import shutil
 import tempfile
 from asyncio.subprocess import PIPE
+from contextlib import contextmanager
 
 TIMEOUT = float(os.getenv("CLI_TIMEOUT", "900"))  # 초. 긴 작업은 수 분 걸릴 수 있다
 TAIL = 800
+PROJECT_TURNS = 30  # 프로젝트 모드에서 claude 가 파일을 읽고 고치며 쓸 수 있는 최대 턴
+CLAUDE_FILE_TOOLS = "Read,Edit,Write,Glob,Grep"  # 프로젝트 모드에서 claude 에게 주는 도구(셸 Bash 는 주지 않는다)
 
 BINS = {"claude-cli": "claude", "codex-cli": "codex", "gemini-cli": "gemini", "antigravity-cli": "agy"}
 INSTALL = {
@@ -68,14 +72,37 @@ async def _run(cmd: list[str], stdin: str, cwd: str, env: dict) -> str:
     return text
 
 
-async def claude_cli(m, prompt: str, system: str) -> str:
-    """claude -p: Claude Code 의 claude.ai 로그인(Max/Pro)으로 호출. 사용량은 구독 한도에서 차감된다."""
-    cmd = [_need("claude"), "-p", "--output-format", "json", "--system-prompt", system,
-           "--tools", "", "--disallowedTools", "mcp__*", "--max-turns", "1", "--permission-mode", "dontAsk",
-           "--no-session-persistence", "--disable-slash-commands"]
+@contextmanager
+def _workdir(workdir: str | None, prefix: str):
+    """프로젝트 폴더가 있으면 그 폴더, 없으면 끝나면 지워지는 빈 임시 폴더."""
+    if workdir:
+        yield workdir
+        return
+    with tempfile.TemporaryDirectory(prefix=prefix) as d:
+        yield d
+
+
+def claude_args(m, system: str, workdir: str | None = None) -> list[str]:
+    """claude -p 인자. 프로젝트 모드에서는 파일 도구를 켜되 허용 규칙을 그 폴더 안으로 좁힌다."""
+    cmd = ["-p", "--output-format", "json", "--system-prompt", system]
+    if workdir:
+        rule = "/" + workdir.rstrip("/") + "/**"  # 절대 경로 규칙은 '//' 로 시작한다 (예: Read(//Users/me/site/**))
+        cmd += ["--tools", CLAUDE_FILE_TOOLS, "--add-dir", workdir,
+                "--allowedTools", f"Read({rule})", "--allowedTools", f"Edit({rule})",  # Edit 규칙은 Write 에도 적용된다
+                "--disallowedTools", "mcp__*", "--disallowedTools", "Bash", "--disallowedTools", "WebFetch",
+                "--max-turns", str(PROJECT_TURNS), "--permission-mode", "acceptEdits"]
+    else:
+        cmd += ["--tools", "", "--disallowedTools", "mcp__*", "--max-turns", "1", "--permission-mode", "dontAsk"]
+    cmd += ["--no-session-persistence", "--disable-slash-commands"]
     if m.model and m.model != "default":
         cmd += ["--model", m.model]
-    with tempfile.TemporaryDirectory(prefix="agent-claude-") as cwd:
+    return cmd
+
+
+async def claude_cli(m, prompt: str, system: str, workdir: str | None = None) -> str:
+    """claude -p: Claude Code 의 claude.ai 로그인(Max/Pro)으로 호출. 사용량은 구독 한도에서 차감된다."""
+    cmd = [_need("claude"), *claude_args(m, system, workdir)]
+    with _workdir(workdir, "agent-claude-") as cwd:
         out = await _run(cmd, prompt, cwd, _env("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"))
     try:
         data = json.loads(out)
@@ -86,12 +113,15 @@ async def claude_cli(m, prompt: str, system: str) -> str:
     return str(data.get("result", "")).strip()
 
 
-async def codex_cli(m, prompt: str, system: str) -> str:
-    """codex exec: Codex CLI 의 ChatGPT 로그인으로 호출. 시스템 프롬프트는 본문 앞에 붙인다."""
+async def codex_cli(m, prompt: str, system: str, workdir: str | None = None) -> str:
+    """codex exec: Codex CLI 의 ChatGPT 로그인으로 호출. 시스템 프롬프트는 본문 앞에 붙인다.
+    프로젝트 모드: 그 폴더에서 --sandbox workspace-write (폴더 안 쓰기만 허용, 네트워크 차단)."""
     codex = _need("codex")
-    with tempfile.TemporaryDirectory(prefix="agent-codex-") as cwd:
-        last = os.path.join(cwd, "last-message.md")
+    with tempfile.TemporaryDirectory(prefix="agent-codex-") as tmp, _workdir(workdir, "agent-codex-") as cwd:
+        last = os.path.join(tmp, "last-message.md")  # 답변 파일은 프로젝트 폴더를 어지르지 않게 임시 폴더에
         cmd = [codex, "exec", "--skip-git-repo-check", "-C", cwd, "-o", last]
+        if workdir:
+            cmd += ["--sandbox", "workspace-write"]
         if m.model and m.model != "default":
             cmd += ["-m", m.model]
         cmd.append("-")  # 지시문은 stdin 으로
@@ -103,24 +133,30 @@ async def codex_cli(m, prompt: str, system: str) -> str:
             return out.strip()
 
 
-async def gemini_cli(m, prompt: str, system: str) -> str:
-    """gemini -p: Gemini CLI 의 Google 로그인(무료 사용량)으로 호출."""
+async def gemini_cli(m, prompt: str, system: str, workdir: str | None = None) -> str:
+    """gemini -p: Gemini CLI 의 Google 로그인(무료 사용량)으로 호출. 프로젝트 모드는 편집 도구만 자동 승인."""
     cmd = [_need("gemini"), "-p", f"{system}\n\n---\n\n{prompt}"]
+    if workdir:
+        cmd += ["--approval-mode", "auto_edit"]
     if m.model and m.model != "default":
         cmd += ["-m", m.model]
-    with tempfile.TemporaryDirectory(prefix="agent-gemini-") as cwd:
+    with _workdir(workdir, "agent-gemini-") as cwd:
         out = await _run(cmd, "", cwd, _env("GEMINI_API_KEY", "GOOGLE_API_KEY"))
     return out.strip()
 
 
-async def antigravity_cli(m, prompt: str, system: str) -> str:
-    """agy -p: Antigravity CLI 의 Google 로그인(AI Pro/Ultra 구독)으로 호출. 헤드리스에서는 도구가 자동 거부되어 사실상 텍스트 전용.
-    결과는 --output-format json 의 response 필드. (Gemini CLI 의 개인 로그인이 2026-06 에 끝나 이것이 후속이다)"""
+async def antigravity_cli(m, prompt: str, system: str, workdir: str | None = None) -> str:
+    """agy -p: Antigravity CLI 의 Google 로그인(AI Pro/Ultra 구독)으로 호출. 결과는 --output-format json 의 response 필드.
+    기본(임시 폴더)은 헤드리스에서 도구가 자동 거부되어 사실상 텍스트 전용.
+    프로젝트 모드: 그 폴더를 작업 폴더(+ --add-dir)로 두고 --mode accept-edits 로 폴더 안 편집을 자동 승인한다.
+    (--dangerously-skip-permissions 는 명령 실행까지 모두 승인하므로 쓰지 않는다)"""
     cmd = [_need("agy"), "-p", f"{system}\n\n---\n\n{prompt}", "--output-format", "json",
            "--print-timeout", f"{max(1, int(TIMEOUT // 60))}m"]
+    if workdir:
+        cmd += ["--mode", "accept-edits", "--add-dir", workdir]
     if m.model and m.model != "default":
         cmd += ["--model", m.model]
-    with tempfile.TemporaryDirectory(prefix="agent-agy-") as cwd:
+    with _workdir(workdir, "agent-agy-") as cwd:
         out = await _run(cmd, "", cwd, _env("GEMINI_API_KEY", "GOOGLE_API_KEY"))
     try:
         data = json.loads(out)

@@ -6,6 +6,7 @@
 - `agentteam/team.py` : 계획 → 의존순 병렬 실행 → 검수 보고
 - `main.py` : CLI (`run`, `ask`, `team`, `--mock`)
 - `server/app.py` : 웹 서버 (FastAPI). REST `/api/*` + WebSocket `/ws` 실시간 중계 + `web/` 정적 파일
+- `server/projects.py` : 프로젝트(폴더 접근) — 폴더 고르기 목록·위험 경로 거부·`projects.json` 저장. UI 는 `web/projects.js`·`projects.css`
 - `serve.py` : 웹 서버 실행기 (`--mock`, `--lan`, `--host`, `--port`, `--config`)
 - `web/` : 웹 UI (index.html, app.js, style.css). 서버가 없으면 데모 모드, 3D 를 못 쓰면 목록 모드
 - `web/vendor/` : three.js r128 · OrbitControls(0.128.0) · marked 12.0.2 · DOMPurify 3.1.6 고정 사본 (인터넷 없는 Wi-Fi 에서도 동작. CDN 으로 바꾸지 말 것)
@@ -41,6 +42,15 @@
 - 변경 후 `python main.py --mock run "테스트"` 로 흐름을 검증한다.
 - 서버 변경 후 `.venv/bin/python -m pytest -q` 를 통과시킨다 (개발 의존성: `pip install -r requirements-dev.txt`).
 
+
+## 프로젝트(폴더 접근)
+- Claude 앱의 '프로젝트'처럼 로컬 폴더를 골라 AI 팀에게 전체 접근을 허락하면, 업무가 그 폴더 안에서 실행된다(명령창 폴더 버튼 · 왼쪽 메뉴 '프로젝트' · 설정).
+- 흐름: 폴더 고르기 창(`GET /api/fs/list`, 하위 폴더 이름만) → 동의 창(체크 필수) → `POST /api/projects {confirm: true}` → `POST /api/run {project_id}`.
+- 팀원 실행: `Member.ask(..., workdir=경로)` → claude-cli 는 그 폴더에서 Read·Edit·Write·Glob·Grep 만(허용 규칙도 폴더 안, Bash 없음, `acceptEdits`, 최대 30턴),
+  codex-cli 는 `--sandbox workspace-write`, antigravity-cli 는 `--mode accept-edits --add-dir`(명령까지 승인하는 `--dangerously-skip-permissions` 는 쓰지 않음).
+  프로젝트가 없으면 예전처럼 빈 임시 폴더·도구 없음.
+- 위험한 경로(디스크 최상위·홈 전체·시스템 폴더·`~/Library`·`.ssh` 같은 자격 증명 폴더·앱 `.venv`)는 서버가 거부한다. 규칙은 `server/projects.py`, 프로토콜은 docs/events.md '프로젝트'.
+- `projects.json`(실제 로컬 경로)은 Git 제외. 실제 경로를 커밋·문서·테스트에 넣지 말 것(테스트는 임시 폴더만).
 
 ## 실행 (더블클릭)
 - macOS `start-mac.command` · Linux `./start-linux.sh` · Windows `start-windows.bat`
