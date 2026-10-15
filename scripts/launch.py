@@ -66,6 +66,54 @@ def configured_keys() -> list[str]:
     return [k for k in env_file() if k in KEY_NAMES]
 
 
+def yes(answer: str) -> bool:
+    """y / yes / ㅛ(한글 자판의 y) 를 예로 본다."""
+    return answer.strip().lower()[:1] in ("y", "ㅛ")
+
+
+API_KEY_OF = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "google": "GEMINI_API_KEY"}
+
+
+def check_team() -> bool:
+    """실제 실행 전 점검: API provider 는 .env 키, CLI provider 는 설치 여부. 아무 팀원도 동작할 수 없을 때만 중단한다."""
+    import tomllib
+
+    sys.path.insert(0, str(ROOT))
+    from agentteam import cli
+
+    if not (ROOT / ".env").exists():
+        (ROOT / ".env").write_text((ROOT / ".env.example").read_text(encoding="utf-8"), encoding="utf-8")
+    try:
+        members = tomllib.loads((ROOT / "team.toml").read_text(encoding="utf-8"))["members"]
+    except (OSError, KeyError, ValueError) as e:
+        print(f"\n  team.toml 을 읽을 수 없습니다: {e}")
+        return False
+    keys, problems, ok = env_file(), [], 0
+    for name, m in members.items():
+        prov = m.get("provider", "")
+        if prov in cli.BINS:
+            if cli.installed(prov):
+                ok += 1
+            else:
+                problems.append(f"{name}: '{cli.BINS[prov]}' CLI 없음 — {cli.INSTALL[cli.BINS[prov]]}")
+        elif prov in API_KEY_OF:
+            if keys.get(API_KEY_OF[prov]) or (prov == "google" and keys.get("GOOGLE_API_KEY")):
+                ok += 1
+            else:
+                problems.append(f"{name}: .env 의 {API_KEY_OF[prov]} 가 비어 있음")
+        else:
+            ok += 1  # mock 등
+    for p in problems:
+        print(f"\n  참고: {p} → 이 팀원의 업무는 실패로 표시됩니다.")
+    if not ok:
+        print("\n  동작할 수 있는 팀원이 없습니다. 위 안내대로 키를 넣거나 CLI 를 설치·로그인한 뒤 다시 실행하세요.")
+        print("  (AI 호출 없이 화면만 보려면 모의 실행을 선택하세요)")
+        if any(".env" in p for p in problems):
+            open_file(ROOT / ".env")
+        return False
+    return True
+
+
 def open_when_ready(url: str, port: int) -> None:
     for _ in range(60):
         time.sleep(0.5)
@@ -89,26 +137,17 @@ def main() -> int:
         print("serve.py 가 없습니다. 프로젝트 폴더가 온전한지 확인하세요.")
         return 1
 
-    interactive = not (args.mock or args.real)
-    if interactive:
+    # 명령줄에 없는 것만 묻는다 (--lan 을 줬으면 휴대폰 접속은 묻지 않는다)
+    if not (args.mock or args.real):
         print("\n  실행 방식을 고르세요")
-        print("  1) 모의 실행 — API 키 없이 화면과 흐름만 확인")
-        print("  2) 실제 실행 — .env 의 API 키로 GPT·Claude·Gemini 호출")
+        print("  1) 모의 실행 — AI 호출 없이 화면과 흐름만 확인")
+        print("  2) 실제 실행 — 팀원별 연결(구독 로그인 CLI 또는 .env 의 API 키, team.toml 설정)로 호출")
         args.mock = ask("  선택 [1]: ", "1") != "2"
-        args.lan = ask("\n  휴대폰에서도 접속할까요? 같은 Wi-Fi 필요 [y/N]: ").lower().startswith("y")
+    if not args.lan and not (args.mock and args.real):
+        args.lan = yes(ask("\n  휴대폰에서도 접속할까요? 같은 Wi-Fi 필요 [y/N]: "))
 
-    if not args.mock:
-        if not (ROOT / ".env").exists():
-            (ROOT / ".env").write_text((ROOT / ".env.example").read_text(encoding="utf-8"), encoding="utf-8")
-        keys = configured_keys()
-        if not keys:
-            print("\n  .env 에 API 키가 없습니다. 메모장에서 키를 입력·저장한 뒤 다시 실행하세요.")
-            print("  (키 없이 보려면 모의 실행을 선택하세요)")
-            open_file(ROOT / ".env")
-            return 1
-        missing = [k for k in KEY_NAMES if k not in keys]
-        if missing:
-            print(f"\n  참고: {', '.join(missing)} 가 비어 있어 해당 팀원 업무는 실패로 표시됩니다.")
+    if not args.mock and not check_team():
+        return 1
 
     port = free_port(args.port)
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
