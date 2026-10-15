@@ -15,11 +15,12 @@ from asyncio.subprocess import PIPE
 TIMEOUT = float(os.getenv("CLI_TIMEOUT", "900"))  # 초. 긴 작업은 수 분 걸릴 수 있다
 TAIL = 800
 
-BINS = {"claude-cli": "claude", "codex-cli": "codex", "gemini-cli": "gemini"}
+BINS = {"claude-cli": "claude", "codex-cli": "codex", "gemini-cli": "gemini", "antigravity-cli": "agy"}
 INSTALL = {
     "claude": "npm i -g @anthropic-ai/claude-code 설치 후 `claude` 를 실행해 로그인하세요.",
     "codex": "npm i -g @openai/codex 설치 후 `codex login` 으로 ChatGPT 계정에 로그인하세요.",
-    "gemini": "npm i -g @google/gemini-cli 설치 후 `gemini` 를 실행해 Google 계정으로 로그인하세요.",
+    "gemini": "npm i -g @google/gemini-cli 설치 후 `gemini` 를 실행해 Google 계정으로 로그인하세요. (개인 Google 로그인은 2026-06 종료 → antigravity-cli 사용)",
+    "agy": "`curl -fsSL https://antigravity.google/cli/install.sh | bash` 로 설치한 뒤 `agy` 를 실행해 Google 계정(AI Pro/Ultra 구독)으로 로그인하세요.",
 }
 
 
@@ -112,4 +113,22 @@ async def gemini_cli(m, prompt: str, system: str) -> str:
     return out.strip()
 
 
-PROVIDERS = {"claude-cli": claude_cli, "codex-cli": codex_cli, "gemini-cli": gemini_cli}
+async def antigravity_cli(m, prompt: str, system: str) -> str:
+    """agy -p: Antigravity CLI 의 Google 로그인(AI Pro/Ultra 구독)으로 호출. 헤드리스에서는 도구가 자동 거부되어 사실상 텍스트 전용.
+    결과는 --output-format json 의 response 필드. (Gemini CLI 의 개인 로그인이 2026-06 에 끝나 이것이 후속이다)"""
+    cmd = [_need("agy"), "-p", f"{system}\n\n---\n\n{prompt}", "--output-format", "json",
+           "--print-timeout", f"{max(1, int(TIMEOUT // 60))}m"]
+    if m.model and m.model != "default":
+        cmd += ["--model", m.model]
+    with tempfile.TemporaryDirectory(prefix="agent-agy-") as cwd:
+        out = await _run(cmd, "", cwd, _env("GEMINI_API_KEY", "GOOGLE_API_KEY"))
+    try:
+        data = json.loads(out)
+    except ValueError:
+        return out.strip()
+    if data.get("status", "SUCCESS") != "SUCCESS" or data.get("error"):
+        raise RuntimeError(f"agy: {data.get('error') or data.get('status')}")
+    return str(data.get("response", "")).strip()
+
+
+PROVIDERS = {"claude-cli": claude_cli, "codex-cli": codex_cli, "gemini-cli": gemini_cli, "antigravity-cli": antigravity_cli}

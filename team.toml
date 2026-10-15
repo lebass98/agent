@@ -4,7 +4,8 @@
 #   CLI (구독 로그인, API 키·크레딧 불필요):
 #     claude-cli  → `claude -p`   Claude Code 의 claude.ai 로그인(Max/Pro). model: opus | sonnet | haiku
 #     codex-cli   → `codex exec`  Codex CLI 의 ChatGPT 로그인.            model: default (CLI 기본) 또는 codex 가 허용하는 이름
-#     gemini-cli  → `gemini -p`   Gemini CLI (Google 개인 로그인은 2026-10 현재 지원 종료 → Antigravity. API 키 로그인은 가능)
+#     antigravity-cli → `agy -p` Antigravity CLI 의 Google 로그인(AI Pro/Ultra 구독). model: gemini-3.8-flash-medium 등 (`agy models`)
+#     gemini-cli  → `gemini -p`   Gemini CLI (Google 개인 로그인은 2026-06 지원 종료 → antigravity-cli. API 키 로그인은 가능)
 #   API (키 필요, .env):  anthropic | openai | google
 #   mock: 테스트용 (--mock 으로 전체 전환)
 #
@@ -25,6 +26,6 @@ model = "default"
 role = "개발자. 코드 구현, 리팩터링, 자동화 스크립트 작성"
 
 [members.gemini]
-provider = "google"              # Gemini CLI 의 Google 로그인은 개인 계정 지원이 끝나(Antigravity 로 이전) 무료 API 키를 쓴다
-model = "gemini-3.6-flash"       # 무료 사용량은 Flash 계열만 가능(2026-10 측정: 3.6-flash 2.8초 응답, flash-latest 는 40초 이상). Pro 는 결제 등록 필요
+provider = "antigravity-cli"     # `agy -p` — Google AI Pro/Ultra 구독 로그인 (Gemini CLI 개인 로그인은 2026-06 종료)
+model = "gemini-3.8-flash-medium"  # `agy models` 로 확인: gemini-3.8-flash-high|medium|low 등. 무료 API 로 돌리려면 provider="google", model="gemini-3.6-flash"
 role = "분석가. 긴 문서·대용량 자료 분석, 리서치, 요약"

@@ -49,15 +49,17 @@
 - 메뉴 없이: `start-mac.command --mock --lan --port 8000 --no-browser`
 
 ## 팀원 연결 방식 (team.toml 의 provider)
-- 기본은 **CLI 구독 로그인**: `claude-cli`(claude -p, Max/Pro) · `codex-cli`(codex exec, ChatGPT) · `gemini-cli`(gemini -p, Google 무료).
+- 기본은 **CLI 구독 로그인**: `claude-cli`(claude -p, Max/Pro) · `codex-cli`(codex exec, ChatGPT) · `antigravity-cli`(agy -p, Google AI Pro/Ultra).
   API 키·크레딧 없이 각 CLI 의 로그인 세션을 쓴다. 구현은 `agentteam/cli.py` (빈 임시 폴더에서 도구 없이 1턴 호출, 환경의 API 키는 넘기지 않음).
-- CLI 모델명: claude-cli 는 `opus`/`sonnet`/`haiku` 별칭(전체 모델 ID 는 거부됨), codex-cli 와 gemini-cli 는 `default`(CLI 기본값) 권장.
-- Gemini CLI 는 관리자 권한 없이 `npm i -g --prefix ~/.npm-global @google/gemini-cli` 로 설치한다. `cli.py` 가 `~/.npm-global/bin` 도 찾는다.
+- CLI 모델명: claude-cli 는 `opus`/`sonnet`/`haiku` 별칭(전체 모델 ID 는 거부됨), codex-cli 는 `default`(CLI 기본값), antigravity-cli 는 `agy models` 의 슬러그(예: `gemini-3.8-flash-medium`).
+- Gemini 는 **Gemini CLI 가 아니라 Antigravity CLI(`agy`)** 를 쓴다: Gemini CLI 의 개인·AI Pro/Ultra 로그인은 2026-06-18 에 종료됐다(유료 API 키만 가능).
+  설치 `curl -fsSL https://antigravity.google/cli/install.sh | bash` → `~/.local/bin/agy`, 첫 로그인은 `agy` 대화형(Google OAuth). 헤드리스(`-p`)는 도구가 자동 거부되어 텍스트 전용이며 호출마다 약 2만 토큰의 기본 컨텍스트가 붙는다.
+- `cli.py` 는 PATH 외에 `~/.local/bin`, `~/.npm-global/bin` 도 찾는다.
 - 사용량은 각 구독 한도(Claude 5시간·주간 한도 등)에서 차감된다. 다른 사람에게 이 방식으로 접근을 제공하면 안 된다(개인 사용만).
 - API 로 바꾸려면 provider 를 `anthropic`/`openai`/`google` 로 두고 `.env` 에 키를 넣는다.
 
 ## API 키 참고
-- Gemini 무료 사용량은 Flash 모델만 된다(`gemini-flash-latest`). Pro 는 Google AI Studio 결제 등록 필요.
+- Gemini 를 API 로 돌릴 때(provider `google`) 무료 사용량은 Flash 계열만 된다(2026-10 기준 `gemini-3.6-flash` 가 빠름, `gemini-flash-latest` 는 40초 이상). Pro 는 Google AI Studio 결제 등록 필요.
 - Anthropic 조직 단위 키는 `.env` 의 `ANTHROPIC_WORKSPACE_ID`(wrkspc_...) 가 필요하다.
 - `ACCESS_KEY` 를 `.env` 에 두면 `--lan` 접속 키가 고정된다(없으면 실행마다 새로 생성).
 

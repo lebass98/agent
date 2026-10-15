@@ -81,6 +81,22 @@ def test_gemini_cli_passes_prompt_and_model(bin_dir, tmp_path):
     assert args.startswith("-p\n") and "질문" in args and "-m\ngemini-2.5-pro" in args
 
 
+def test_antigravity_cli_parses_json(bin_dir, tmp_path):
+    log = tmp_path / "args.txt"
+    fake(bin_dir, "agy", f'''printf '%s\\n' "$@" > "{log}"; echo "key=$GEMINI_API_KEY" >> "{log}"
+echo '{{"conversation_id":"c1","status":"SUCCESS","response":"  연결 성공  ","duration_seconds":1.2}}' ''')
+    assert asyncio.run(member("antigravity-cli", "gemini-3.8-flash-medium").ask("질문")) == "연결 성공"
+    args = log.read_text(encoding="utf-8")
+    assert args.startswith("-p\n") and "질문" in args and "--output-format\njson" in args
+    assert "--model\ngemini-3.8-flash-medium" in args and "--print-timeout\n" in args and "key=\n" in args
+
+
+def test_antigravity_cli_error_status(bin_dir):
+    fake(bin_dir, "agy", '''echo '{"status":"ERROR","error":"authentication required"}' ''')
+    with pytest.raises(RuntimeError, match="authentication required"):
+        asyncio.run(member("antigravity-cli").ask("hi"))
+
+
 def test_timeout(bin_dir, monkeypatch):
     monkeypatch.setattr(cli, "TIMEOUT", 0.3)
     fake(bin_dir, "claude", "sleep 5")

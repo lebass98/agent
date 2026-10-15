@@ -362,3 +362,5 @@ pytest -v
 - 바깥 풍경 주소 입력 예시·문서·테스트의 예시 주소와 좌표를 공공 장소(서울시청) 예시로 교체
 - 서버 없는 배포본(Vercel 데모)용: scripts/outside-bake.py 로 배포 폴더에 지도(outside/baked.json)를 넣으면 데모 모드에서도 바깥 풍경 표시(저장소 web/ 에는 만들지 않음)
 - 실행 도우미(`scripts/launch.py`): 명령줄에 준 옵션은 다시 묻지 않음(`--lan` 이 메뉴 답변에 덮어써지던 버그), 한글 자판 ㅛ/ㅜ 답변 인식, 실제 실행 전 점검을 team.toml 의 팀원별 연결 방식(CLI 설치·API 키)에 맞게 변경
+- Gemini CLI 의 개인·AI Pro/Ultra 로그인이 2026-06-18 종료되어, 후속인 Antigravity CLI(`agy -p`, 구독 로그인)용 provider `antigravity-cli` 추가 (JSON 응답 파싱, 제한 시간, 가짜 CLI 테스트 2건)
+- `team.toml` Gemini 를 `antigravity-cli` + `gemini-3.8-flash-medium` 으로 전환 (세 팀원 모두 구독 로그인, API 크레딧 불필요). CLAUDE.md 연결 방식 설명 갱신
