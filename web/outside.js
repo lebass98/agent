@@ -28,6 +28,7 @@
     q: "", results: null, searching: false,
     lit: [], glow: [], glowMeshes: [], tint: [], traffic: null, trains: null, saved: null, credit: null, btn: null,
     tall: null, k: -1, shown: null, ui: new T.Color(), baked: undefined,  // 솟는 묶음 · 드러난 정도(0 숨김 ~ 1) · 지금 보이나 · 화면 테마 배경색
+    virtual: false,                                // 지금 보이는 동네가 가상 동네인가(실제 지도 아님)
   };
 
   /* ───────── 작은 도구 ───────── */
@@ -473,6 +474,68 @@
     for (const o of [crown, trunk]) { o.frustumCulled = false; o.name = "나무"; g.add(o); }
   }
 
+  /* ───────── 가상 동네: 주소 없이 그 자리에서 지어 올린다 ─────────
+     실제 지도(OpenStreetMap)가 없어도 사무실 둘레가 비지 않게, 격자 길 위에 블록마다 건물·공원을 앉힌다.
+     build() 가 받는 자료 모양(buildings·roads·areas…)은 서버 지도와 똑같아서 그리는 쪽은 고치지 않는다.
+     seed 가 같으면 같은 동네가 나온다(새로 고쳐도 그대로). */
+  const SEED_KEY = LOCAL + ".seed";
+  function townSeed() {
+    let s = parseInt(store.get(SEED_KEY) || "", 10);
+    if (!Number.isFinite(s) || s <= 0) { s = 1 + Math.floor(Math.random() * 2147483646); store.set(SEED_KEY, String(s)); }
+    return s;
+  }
+  function reseed() {
+    store.set(SEED_KEY, String(1 + Math.floor(Math.random() * 2147483646)));
+    S.key = ""; refresh(); rerender();
+  }
+  /** 가운데 (x,z) · 가로 w · 세로 d 인 네모 고리(넓이 양수) */
+  function rect(x, z, w, d) {
+    return [x - w / 2, z - d / 2, x + w / 2, z - d / 2, x + w / 2, z + d / 2, x - w / 2, z + d / 2];
+  }
+  function virtualTown(seed, ow, od, r) {
+    const rnd = mulberry(seed);
+    const GRID = 44, MARGIN = 7, ext = r * 1.02, half = Math.ceil(r / GRID);
+    const roads = [], buildings = [], areas = [];
+
+    // 길: GRID 간격 격자. 사무실이 길 위에 걸리지 않게 반 칸 밀어 둔다. 3칸마다 넓은 길
+    for (let i = -half; i <= half; i++) {
+      const at2 = i * GRID + GRID / 2;
+      if (Math.abs(at2) > ext) continue;
+      const big = i % 3 === 0;
+      const k = big ? "tertiary" : "minor", w = big ? 11 : 8.5;
+      roads.push({ k, w, c: 1, p: [at2, -ext, at2, ext] });   // 세로 길
+      roads.push({ k, w, c: 1, p: [-ext, at2, ext, at2] });   // 가로 길
+    }
+
+    // 블록: 건물 1~2채, 더러는 공원·광장·주차장
+    const inner = GRID - MARGIN * 2;
+    for (let i = -half; i <= half; i++) for (let j = -half; j <= half; j++) {
+      const cx = i * GRID, cz = j * GRID;
+      if (Math.hypot(cx, cz) > r * .98) continue;
+      if (!i && !j) continue;                                  // 가운데 블록은 사무실 자리
+      const near = Math.max(Math.abs(cx), Math.abs(cz)) < GRID * 1.2;
+      const roll = rnd();
+      if (roll < .12) {                                        // 공원(나무는 build() 가 심는다)
+        areas.push({ k: rnd() < .75 ? "park" : "plaza", p: rect(cx, cz, inner, inner) });
+        continue;
+      }
+      if (roll < .17) { areas.push({ k: "parking", p: rect(cx, cz, inner, inner) }); continue; }
+      const twin = rnd() < .45;                                // 한 블록에 두 채
+      const parts = twin ? [[-inner / 4, inner / 2 - 1], [inner / 4, inner / 2 - 1]] : [[0, inner]];
+      for (const [ox, w0] of parts) {
+        const w = Math.max(9, w0 * (.78 + rnd() * .22)), d = Math.max(9, inner * (.72 + rnd() * .28));
+        const t = rnd();
+        // 높이: 사무실 근처는 낮게, 멀수록 가끔 높은 건물
+        const tall = !near && t > .88, mid = !tall && t > .62;
+        const h = tall ? 42 + rnd() * 48 : mid ? 19 + rnd() * 20 : 7 + rnd() * 11;
+        buildings.push({ h: Math.round(h * 10) / 10, k: tall || mid ? "c" : rnd() < .6 ? "r" : "g",
+          s: Math.floor(rnd() * 997), p: rect(cx + ox, cz + (rnd() - .5) * 3, w, d) });
+      }
+    }
+    return { v: 1, lat: seed % 9e4 / 1e4, lng: seed % 7e4 / 1e4, r, rot: 0, office: { w: ow, d: od },
+      site: null, buildings, roads, areas, rails: [], trees: [], crossings: [] };
+  }
+
   /* ───────── 자동차: 차 길을 따라 달리고, 교차점에서 이어진 길로 갈아탄다(우측 통행) ───────── */
   function carGeometry() {
     const geo = new Geo(), white = col(0xffffff), glass = col(0x2b323c), dark = col(0x34373d);
@@ -680,12 +743,18 @@
     use.setAttribute("href", "#i-map"); svg.append(use);
     return svg;
   }
-  /** 지도 출처(ODbL 필수)와 '동네 보기' 버튼 */
+  /** 지도 출처(실제 지도는 ODbL 필수, 가상 동네는 가상이라고 밝힌다)와 '동네 보기' 버튼 */
+  function creditText(box) {
+    box.textContent = "";
+    if (S.virtual) box.append("가상 동네");
+    else box.append("지도 ", el("a", { href: "https://www.openstreetmap.org/copyright", target: "_blank", rel: "noopener", text: "© OpenStreetMap 기여자" }));
+  }
   function credit(on) {
     const host = document.getElementById("officeFrame") || document.getElementById("stage");
+    if (on && S.credit) creditText(S.credit);
     if (on && !S.credit && host) {
-      S.credit = el("div", { class: "outside-credit", hidden: true }, "지도 ",
-        el("a", { href: "https://www.openstreetmap.org/copyright", target: "_blank", rel: "noopener", text: "© OpenStreetMap 기여자" }));
+      S.credit = el("div", { class: "outside-credit", hidden: true });
+      creditText(S.credit);
       host.append(S.credit);
       const tools = host.querySelector(".office-tools");
       if (tools) {
@@ -760,17 +829,27 @@
     } catch { /* 연결이 끊긴 사이 */ }
   }
   /** 지금 위치에 맞는 지도를 세운다(같으면 그대로). 서버가 바쁘면 30초·2분·5분 뒤 다시 */
+  /** 가상 동네를 세운다(주소·서버 없이 바로) */
+  function buildVirtual(r) {
+    const seed = townSeed(), key = ["virtual", seed, r, OW, OD].join(",");
+    if (S.group && key === S.key) return;
+    S.virtual = true;                               // build() 안의 출처 표시가 이 값을 본다
+    build(virtualTown(seed, OW, OD, r), { floor: 1 });
+    S.key = key; S.floor = 1; S.status = "ok"; S.error = "";
+    applyTheme(true); rerender();
+  }
   async function refresh() {
     const p = S.place;
-    if (!p || !p.show) { if (S.group) { clear(); applyTheme(true); } return; }
+    if (p && !p.show) { if (S.group) { clear(); applyTheme(true); } return; }  // 숨기기를 고른 경우만 비운다
+    if (!p) { if (!S.loading) buildVirtual(R_DEF); return; }                   // 주소를 안 정했으면 가상 동네
     const key = [p.lat, p.lng, p.r, p.turn, OW, OD].join(",");
-    if (S.group && key === S.key) {
+    if (S.group && key === S.key && !S.virtual) {
       if (S.floor !== p.floor) { S.floor = p.floor; build(S.data, p); S.key = key; applyTheme(true); }
       return;
     }
     if (S.loading) { S.pending = true; return; }
     const fixed = NET.mode !== "live" && S.baked?.map;  // 서버 없는 배포본(데모): 배포 때 넣어 둔 지도(outside/baked.json)
-    if (NET.mode !== "live" && !fixed) return;          // 서버가 있어야 지도를 받는다(연결되면 tick 이 다시 부른다)
+    if (NET.mode !== "live" && !fixed) { buildVirtual(p.r || R_DEF); return; } // 실제 지도를 받을 수 없으면 가상 동네로
     S.loading = true; S.status = "loading"; rerender();
     const slow = setTimeout(() => toast("동네 지도를 받는 중이에요. 처음 한 번은 1~2분 걸릴 수 있어요.", "info", 6000), 2500);
     try {
@@ -779,6 +858,7 @@
       const body = fixed ? S.baked.map : await res.json().catch(() => ({}));
       if (res && !res.ok) throw new Error(body.detail || `지도를 받지 못했어요 (${res.status})`);
       if (S.place === p) {
+        S.virtual = false;
         S.floor = p.floor; build(body, p); S.key = key;
         S.status = "ok"; S.tries = 0; S.error = "";
         applyTheme(true);
@@ -786,7 +866,8 @@
     } catch (e) {
       S.status = "error"; S.error = e.message || String(e);
       S.nextTry = Date.now() + [30, 120, 300][Math.min(2, S.tries++)] * 1000;
-      toast(`${S.error} 잠시 뒤 다시 시도할게요.`, "warn", 6500);
+      toast(`${S.error} 가상 동네로 대신 보여줄게요.`, "warn", 6500);
+      if (!S.group) buildVirtual(p.r || R_DEF);
     } finally {
       clearTimeout(slow);
       S.loading = false; rerender();
@@ -819,11 +900,11 @@
   const patch = o => setPlace({ ...S.place, ...o });
   function note() {
     const p = S.place;
-    if (!p) return "주소를 넣으면 실제 지도(OpenStreetMap)로 주변 건물·도로·공원을 사무실 둘레에 세워요. 일출·일몰 시각도 이 위치로 계산해요.";
+    if (!p) return "지금은 가상 동네가 보여요(주소 없이 그 자리에서 지어 올려요). 실제 주변 모습을 쓰고 싶으면 주소를 넣으세요 — 일출·일몰 시각도 그 위치로 계산해요.";
     const state = !p.show ? "바깥 풍경은 숨겨 두었어요."
       : S.status === "loading" ? "주변 지도를 불러오는 중…"
+      : S.virtual ? "실제 지도를 받을 수 없어 가상 동네가 보여요."
       : S.status === "error" ? `지도를 받지 못했어요: ${S.error}`
-      : NET.mode !== "live" && !S.group ? "서버에 연결되면 주변 지도를 불러와요."
       : "주변 건물·도로가 보여요. 휠·핀치로 축소하거나 사무실 화면의 '동네' 버튼으로 동네 전체를 볼 수 있어요.";
     return `${p.label || `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`}${p.floor > 1 ? ` · ${p.floor}층` : ""} — ${state}`;
   }
@@ -837,7 +918,8 @@
       el("div", { class: "outside-ctl" },
         el("div", { class: "outside-search" },
           el("label", { class: "search-input", for: "outsideQ" }, icon("search"), input),
-          el("button", { class: "tbtn", type: "button", disabled: S.searching, onclick: search }, S.searching ? "찾는 중…" : p ? "주소 바꾸기" : "찾기")),
+          el("button", { class: "tbtn", type: "button", disabled: S.searching, onclick: search }, S.searching ? "찾는 중…" : p ? "주소 바꾸기" : "찾기"),
+          S.virtual ? el("button", { class: "tbtn", type: "button", title: "가상 동네를 새로 지어요", onclick: reseed }, "다른 동네") : null),
         S.results?.length ? el("div", { class: "outside-hits", role: "group", "aria-label": "주소 후보" },
           ...S.results.map(h => el("button", { class: "outside-hit", type: "button", onclick: () => choose(h) },
             el("span", { text: h.label }), h.exact ? null : el("small", { text: "넓은 범위(도로·지역)" })))) : null,
@@ -894,7 +976,7 @@
     if (s !== S.seen) { S.seen = s; S.place = readLocal(); push(); S.tries = 0; S.nextTry = 0; refresh(); rerender(); } // '현재 위치로 맞추기'·'시간대 기준으로'
     if (!S.synced && NET.mode === "live") syncPlace();
     if (NET.mode === "demo" && S.baked === undefined) loadBaked();
-    if (S.place?.show && !S.group && !S.loading && (NET.mode === "live" || S.baked?.map) && Date.now() >= S.nextTry) refresh();
+    if (!S.group && !S.loading && (!S.place || S.place.show) && Date.now() >= S.nextTry) refresh();
   }, 1000);
   renderer.getClearColor(S.ui);
   S.seen = store.get(LOCAL) || "";
