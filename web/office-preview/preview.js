@@ -31,8 +31,23 @@
   box(12.6,2.45,.04,0,1.55,-7.48,windowMat,wallGroup);
   for(let x=-6.4;x<=6.5;x+=1.6){box(.045,2.9,.13,x,1.45,-7.43,'#a9b4bb',wallGroup);box(1.55,.65,.07,x+.79,2.55,-7.35,'#deded6',wallGroup);}
   for(let y=2.26;y<2.88;y+=.09)box(13,.014,.085,0,y,-7.3,'#c4c7c4',wallGroup);
+  // 창 너머 베란다: 실내와 연결되는 긴 바닥, 유리 난간과 손잡이.
+  box(13,.18,1.9,0,-.12,-8.45,'#c4cbc9');
+  box(13.16,.1,2.02,0,-.26,-8.45,'#dce3e6');
+  for(let x=-6.4;x<=6.5;x+=1.6){
+    box(.045,1.15,.045,x,.56,-9.4,metal,wallGroup);
+    box(1.5,.95,.025,x+.77,.52,-9.4,windowMat,wallGroup);
+  }
+  box(13.05,.05,.065,0,1.15,-9.4,metal,wallGroup);
+  for(const x of [-6.5,6.5]){
+    box(.045,1.15,.045,x,.56,-7.5,metal,wallGroup);
+    box(.045,.05,1.9,x,1.15,-8.45,metal,wallGroup);
+    box(.025,.95,1.9,x,.52,-8.45,windowMat,wallGroup);
+  }
+  for(let x=-6;x<=6;x++)box(.012,.005,1.9,x,-.023,-8.45,'#aebcbe');
+  box(.035,.3,.035,-1.35,1.18,-7.35,metal,wallGroup);
   // 실제 주소 대신 추상적인 건물로 창밖 풍경을 표현한다.
-  for(let i=0;i<11;i++){const h=1.1+(i*7%9)*.2;box(.8,h,.35,-5.8+i*1.2,h/2-.3,-8.2,'#c7d4df');}
+  for(let i=0;i<11;i++){const h=1.1+(i*7%9)*.2;box(.8,h,.35,-5.8+i*1.2,h/2-.3,-11.6,'#c7d4df');}
   // 오른쪽 개별실과 긴 복도: 파란 수직 프레임, 투명 유리와 중간 높이의 반투명 필름.
   const glass=new T.MeshStandardMaterial({color:'#bdd8df',transparent:true,opacity:.23,roughness:.18,depthWrite:false,side:T.DoubleSide});
   const frost=new T.MeshStandardMaterial({color:'#e1e9e8',transparent:true,opacity:.73,roughness:.85,depthWrite:false,side:T.DoubleSide});
@@ -59,27 +74,32 @@
   // 사진 오른쪽 유리 공간: 회의실 2개.
   for(const z of [-4.65,.85]){box(1.7,.07,1.05,4.7,.74,z,wood);box(.08,.71,.08,4.7,.36,z,white);chair(4.7,z+.83);chair(4.7,z-.83,Math.PI);monitor(4.7,z-.2);}
 
-  // 앞쪽 입구와 탕비·보관실: 유리문, 정수기, 프린터, 냉장고와 체크 테이블.
-  box(3.45,2.8,.12,4.75,1.4,4.3,white,wallGroup);box(.12,2.8,3.2,3,1.4,5.85,white,wallGroup);
-  box(.12,2.8,3.2,6.5,1.4,5.85,white,wallGroup);
-  box(1.1,1.9,.75,5.9,.95,6.8,'#eaeeeb');box(1.08,.025,.77,5.9,1.25,6.8,'#bdc5c5');box(.035,.35,.035,5.43,1.49,6.39,'#b2bcc1');
+  // 입구 기준 왼쪽 모서리의 탕비실. 출입구는 중앙 통로 쪽으로 연다.
+  box(1.9,2.8,.12,-5.55,1.4,4.3,white,wallGroup);
+  box(.4,2.8,.12,-3.2,1.4,4.3,white,wallGroup);
+  box(1.2,.45,.12,-4,2.575,4.3,white,wallGroup);
+  box(.12,2.8,3.2,-3,1.4,5.85,white,wallGroup);
+  box(.075,2.3,1.1,-3.4,1.15,4.85,white,wallGroup);
+  box(1.1,1.9,.75,-5.9,.95,6.8,'#eaeeeb');
+  box(1.08,.025,.77,-5.9,1.25,6.8,'#bdc5c5');
+  box(.035,.35,.035,-5.43,1.49,6.39,'#b2bcc1');
   const cloth=new T.CanvasTexture((()=>{const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#8c5963';ctx.fillRect(0,0,128,128);for(let i=0;i<128;i+=16){ctx.fillStyle='#273a5a';ctx.fillRect(i,0,6,128);ctx.fillRect(0,i,128,6);ctx.fillStyle='#c5a0a0';ctx.fillRect(i+8,0,1,128);ctx.fillRect(0,i+8,128,1);}return c;})());cloth.encoding=T.sRGBEncoding;
-  box(1,.08,.65,1.55,.75,6.4,new T.MeshStandardMaterial({map:cloth,roughness:1}));for(const x of [1.13,1.97])box(.04,.72,.04,x,.36,6.4,'#38434a');
-  cyl(.15,.13,.15,1.35,.87,6.4,'#f0eee4');cyl(.11,.11,.09,1.35,.94,6.4,'#5d483c');
-  box(.56,.8,.58,.4,.4,4.7,'#eeeeea');cyl(.24,.24,.42,.4,1.05,4.7,'#9bbfd8');box(.17,.12,.02,.4,.69,5.005,'#4f6b85');
-  box(.75,.7,.65,-.7,.35,4.75,'#d0d7d8');box(.77,.36,.67,-.7,.88,4.75,'#303b48');box(.5,.025,.45,-.7,1.08,4.75,'#1f2b38');
-  for(const y of [1.68,2.15])box(1,.04,.23,-.7,y,4.3,'#fbfaf5',wallGroup);
+  box(1,.08,.65,-2.1,.75,6.4,new T.MeshStandardMaterial({map:cloth,roughness:1}));for(const x of [-2.52,-1.68])box(.04,.72,.04,x,.36,6.4,'#38434a');
+  cyl(.15,.13,.15,-2.3,.87,6.4,'#f0eee4');cyl(.11,.11,.09,-2.3,.94,6.4,'#5d483c');
+  box(.56,.8,.58,-4.8,.4,4.7,'#eeeeea');cyl(.24,.24,.42,-4.8,1.05,4.7,'#9bbfd8');box(.17,.12,.02,-4.8,.69,5.005,'#4f6b85');
+  box(.75,.7,.65,-2.15,.35,4.75,'#d0d7d8');box(.77,.36,.67,-2.15,.88,4.75,'#303b48');box(.5,.025,.45,-2.15,1.08,4.75,'#1f2b38');
+  for(const y of [1.68,2.15])box(1,.04,.23,-5,y,4.3,'#fbfaf5',wallGroup);
   box(1.3,2.5,.06,-1,1.25,7.45,glass,wallGroup);box(1.3,1.1,.065,-1,1.2,7.44,frost,wallGroup);for(const x of [-1.66,-.34])box(.06,2.6,.08,x,1.3,7.45,metal,wallGroup);for(const x of [-1.15,-.85])box(.025,.65,.03,x,1.25,7.36,metal,wallGroup);
   // 복도 끝의 옷걸이와 창가 식물.
   function plant(x,z){cyl(.19,.13,.3,x,.15,z,'#efe9dd');for(let i=0;i<9;i++){const a=i*2.4;const leaf=new T.Mesh(new T.SphereGeometry(.18,10,8),mat('#60836a'));leaf.scale.set(.5,1.6,.7);leaf.position.set(x+Math.sin(a)*.16,.5+(i%3)*.16,z+Math.cos(a)*.16);scene.add(leaf);}}
-  plant(-5.8,-6.7);plant(1.6,-6.8);box(.04,1.8,.04,1.75,.9,-5.9,metal);box(.9,.04,.04,1.75,1.8,-5.9,metal);for(const dx of [-.25,.25])box(.34,.7,.07,1.75+dx,1.35,-5.9,'#343d48');
+  plant(-5.8,-6.7);plant(1.6,-6.8);plant(-5.8,-8.5);plant(5.8,-8.5);box(.04,1.8,.04,1.75,.9,-5.9,metal);box(.9,.04,.04,1.75,1.8,-5.9,metal);for(const dx of [-.25,.25])box(.34,.7,.07,1.75+dx,1.35,-5.9,'#343d48');
   // 기존 한국인 에셋의 앉은 자세를 재사용한다. 사진 속 인물의 신원은 재현하지 않는다.
   const agents=[];const ids=['claude','gpt','gemini','hana','jun','sora','min','doyoon','jiyu','hyunwoo','seojin','taeho','sungwoo'];
   window.Decor={chairNear(x,z){return seats.find(s=>Math.hypot(s.x-x,s.z-z)<.15)?{mesh:seats.find(s=>Math.hypot(s.x-x,s.z-z)<.15).chair}:null;}};
   for(let i=0;i<seats.length;i++){const s=seats[i];const rig=window.SpriteChars?.build({},ids[i]);if(!rig)continue;s.occupied=true;rig.group.position.set(s.x,0,s.z);rig.group.rotation.y=s.rotation;peopleGroup.add(rig.group);agents.push({rig,mode:'type',act:'typing',targetRot:s.rotation,path:[],group:rig.group});}
-  const labelSpecs=[['업무 공간',-3,.25,0],['유리 복도',2.25,.2,-2.2],['회의실 1',4.7,.9,-4.65],['회의실 2',4.7,.9,.85],['입구',-1,.1,7.1],['탕비 · 보관',4.7,1,5.8],['창가',-.5,2,-7.3]];
+  const labelSpecs=[['업무 공간',-3,.25,0],['유리 복도',2.25,.2,-2.2],['회의실 1',4.7,.9,-4.65],['회의실 2',4.7,.9,.85],['입구',-1,.1,7.1],['탕비실',-4.8,1,5.8],['창가',-.5,2,-7.3],['베란다',0,.4,-8.55]];
   const labelRoot=document.getElementById('roomLabels');const labels=labelSpecs.map(([text,x,y,z])=>{const node=document.createElement('span');node.className='room-label';node.textContent=text;labelRoot.append(node);return{node,pos:new T.Vector3(x,y,z)};});
-  const views={whole:{pos:[17,17,21],target:[0,0,0],title:'함께 일하는 공간의 형태',desc:'창가의 빛, 파란 유리 프레임, 그리고 나란히 놓인 책상들.'},work:{pos:[-8,9,9],target:[-2.5,.6,-1.8],title:'낮은 칸막이 너머, 함께 일하기',desc:'밝은 우드 책상과 패브릭 파티션으로 이어지는 공용 업무 공간.'},corridor:{pos:[-.3,3.8,6.5],target:[2.8,1,-4],title:'파란 프레임을 따라 이어지는 길',desc:'사진 속 긴 유리 벽과 중간 높이의 반투명 시트지를 반영했습니다.'},entry:{pos:[-7,8,12],target:[2,.8,5.6],title:'출근의 시작과 작은 휴식',desc:'유리 출입문, 체크 테이블, 프린터와 탕비·보관 공간.'},plan:{pos:[0,26,.02],target:[0,0,0],title:'위에서 살펴보는 공간 배치',desc:'왼쪽 업무 공간 · 오른쪽 유리 복도와 회의실 2개 · 앞쪽 입구와 탕비 공간.'}};
+  const views={whole:{pos:[17,17,21],target:[0,0,0],title:'함께 일하는 공간의 형태',desc:'창가의 빛, 파란 유리 프레임, 그리고 나란히 놓인 책상들.'},work:{pos:[-8,9,9],target:[-2.5,.6,-1.8],title:'낮은 칸막이 너머, 함께 일하기',desc:'밝은 우드 책상과 패브릭 파티션으로 이어지는 공용 업무 공간.'},corridor:{pos:[-.3,3.8,6.5],target:[2.8,1,-4],title:'파란 프레임을 따라 이어지는 길',desc:'사진 속 긴 유리 벽과 중간 높이의 반투명 시트지를 반영했습니다.'},entry:{pos:[-10,9,12],target:[-3.7,.8,5.6],title:'출근의 시작과 작은 휴식',desc:'유리 출입문, 체크 테이블, 프린터와 왼쪽 모서리의 탕비실.'},balcony:{pos:[11,9,-14],target:[0,.6,-7.8],title:'창가 너머 이어지는 베란다',desc:'긴 창 너머에 베란다 바닥과 유리 난간을 배치했습니다. 폭과 출입문 위치는 추정입니다.'},plan:{pos:[0,26,.02],target:[0,0,0],title:'위에서 살펴보는 공간 배치',desc:'왼쪽 업무 공간 · 오른쪽 유리 복도와 회의실 2개 · 왼쪽 모서리 탕비실 · 창가 너머 베란다.'}};
   let transition=null,night=false,labelsOn=true,activeView="whole";
   function view(id){activeView=id;const v=views[id],target=new T.Vector3(...v.target),fit=Math.max(1,.95/camera.aspect),position=new T.Vector3(...v.pos).sub(target).multiplyScalar(fit).add(target);transition={from:camera.position.clone(),to:position,start:performance.now(),old:controls.target.clone(),target:new T.Vector3(...v.target)};document.getElementById('viewTitle').textContent=v.title;document.getElementById('viewDesc').textContent=v.desc;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));}
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));document.getElementById('reset').onclick=()=>view('whole');
