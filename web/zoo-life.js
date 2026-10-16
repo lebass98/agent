@@ -3,6 +3,7 @@
    - 원장 코끼리(본부장): 전망대 그루터기 자리 · 회의실 · 카페 · 팀원 옆을 오가며 응원·위로·명언. 팀장이 발표하면 회의실 뒤편에서 듣는다.
    - 공작새(디자인팀장): 산책로와 마을을 쉬지 않고 돌아다닌다(가끔 혼잣말).
    - 오리(경리팀장): 가장 말이 많다. 곳곳을 돌며 투덜거리고 지적한다(간식·영수증·법인카드·전기세·업무 비용). 팀원에게 가서 지적하고, 원장님께 결재를 독촉한다.
+   - 서로 대화: 근처에서 누가 말하면 주제·말투에 맞춰 대답하고(최대 3마디), 쉬는 둘이 가까이 있으면 잡담한다.
    - 배경 동물(업무와 무관, 이름표 없음): 호수 오리·하늘을 도는 새·사바나 미어캣·극지 펭귄·피크닉 나비.
    팀원이 아니므로 D.names·D.agents 에 넣지 않는다(이름표 겹침 정리 때만 잠깐 끼워 넣는다 — npcs.js 와 같은 방식).
    3D 가 없거나 사무실이면 아무것도 하지 않는다. '움직임 줄이기'면 걷지 않고 제자리에 머문다. index.html 에서 app.js 다음에 읽는다. */
@@ -110,6 +111,9 @@ window.ZooLife = (() => {
       a.mode = "stand"; a.face({ x: p.x + rnd(-3, 3), z: p.z + rnd(-3, 3) });
       if (++stops % 3 === 0 && Math.random() < .5) a.say(pick(L.design), 3600);
       await rest(n, g, rnd(1500, 4500));
+      // 가끔 쉬고 있는 팀원에게 다가가 먼저 말을 건다
+      const friend = Math.random() < .35 ? pick(D.names.map(A).filter(m => m && !m.ghost && !m.hidden && !working(m) && !engaged(m) && cooled(a, m))) : null;
+      if (friend && (await walk(n, a, g, besideSpot(friend, a.group.position), 30000)) && !working(friend)) { a.face(friend.group.position); a.mode = "talk"; await startChat(a, friend); a.mode = "stand"; }
     }
   }
   function visitable(m) {
@@ -139,6 +143,7 @@ window.ZooLife = (() => {
     const name = m.name, still = () => A(name) === m && visitable(m);
     if (!(await walk(n, a, g, besideSpot(m, a.group.position), 30000)) || !still()) return name;
     a.face(m.group.position); a.mode = "talk";
+    hold(a, 16000); hold(m, 16000); // 짜인 대화 동안 다른 대답이 끼어들지 않게
     const busy = BUSY.includes(statusOf(m)) || m.mode === "type";
     a.say(pick(busy ? L.cheer : L.chat), 4600);
     if (!(await rest(n, g, 5000, () => !still() || presenting()))) return name;
@@ -274,13 +279,14 @@ window.ZooLife = (() => {
         const m = pick(pool); last = m.name;
         if (!(await walk(n, a, g, besideSpot(m, a.group.position), 30000))) { await sleepRaw(600); continue; }
         a.face(m.group.position); a.mode = "talk";
+        hold(a, 14000); hold(m, 14000);
         say(fresh(() => wrap(pick(D_.member)(m.def.label))), 4800);
         await rest(n, g, 4200);
         if (Math.random() < .7 && A(m.name) === m) { m.say(pick(D_.reply), 2600); await rest(n, g, 2600); say(pick(D_.after), 3000); await rest(n, g, 2800); }
         a.mode = "stand";
       } else if (roll < .46 && head && !head.ghost) {        // 원장님께 결재 독촉
         if (!(await walk(n, a, g, besideSpot(head, a.group.position), 30000))) { await sleepRaw(600); continue; }
-        a.face(head.group.position); a.mode = "talk"; say(pick(D_.toHead), 5000); await rest(n, g, 4600);
+        a.face(head.group.position); a.mode = "talk"; hold(a, 14000); hold(head, 14000); say(pick(D_.toHead), 5000); await rest(n, g, 4600);
         head.say(pick(D_.headReply), 3800); await rest(n, g, 3600); say(pick(D_.after), 3000); await rest(n, g, 2600);
         a.mode = "stand";
       } else {                                              // 여기저기 둘러보며 투덜
@@ -295,6 +301,149 @@ window.ZooLife = (() => {
     }
     clearInterval(chatter);
   }
+
+  /* ───────── 서로 대화: 근처에서 누가 말하면 듣고 대답하고(최대 3마디까지 주고받기), 쉬는 동안엔 둘이 잡담 ─────────
+     - 동물원의 모든 말풍선(Agent.prototype.say)을 듣는다: 팀원·원장·공작새·경리팀장 모두.
+     - 말 내용으로 주제(간식·돈·응원·명언·디자인·업무·날씨·인사)를 알아보고, 대답하는 쪽의 말투(팀원·원장·디자인·경리)로 받는다.
+     - 업무 진행 대사(#번호·완료·배정·발표)와 팀장 발표 중에는 끼어들지 않는다. 업무 중인 팀원은 가끔 짧게만 대답한다. */
+  const CV = { depth: 0, until: new WeakMap(), pairCool: new Map() };
+  const everyone = () => [...D.names.map(A), ...list.map(o => o.agent)].filter(a => a && !a.ghost && !a.hidden);
+  const persona = a => a.npc === "duck" ? "duck" : a.npc === "elephant" ? "head" : a.npc === "peacock" ? "design" : "team";
+  const gap = (a, b) => Math.hypot(a.group.position.x - b.group.position.x, a.group.position.z - b.group.position.z);
+  const working = a => !a.npc && (BUSY.includes(statusOf(a)) || ["회의", "보고"].includes(statusOf(a)));
+  const engaged = a => (CV.until.get(a) || 0) > performance.now();
+  const hold = (a, ms) => CV.until.set(a, performance.now() + ms / Math.max(1, SPEED));
+  const label = a => a.def?.label || "";
+  function topic(t) {
+    if (/과자|간식|커피|젤리|초코|아이스크림|바나나|대나무|생선|사탕|빵|라면|떡볶이|마카롱|견과|요구르트|주스|차 한|다과|🍪|☕|🧃/.test(t)) return "snack";
+    if (/영수증|법인카드|예산|정산|결재|전기세|비용|원\b|원…|원\.|💸|토큰|구독료|청구서|견적/.test(t)) return "money";
+    if (/“|”|—/.test(t)) return "quote";
+    if (/화이팅|힘내|힘이|잘하고|최고|👍|💪|🔥|대단|멋지|좋아요|칭찬/.test(t)) return "cheer";
+    if (/레이아웃|색감|시안|폰트|여백|디자인|그리드|톤|깃털/.test(t)) return "design";
+    if (/업무|작업|마감|보고서|계획|검수|회의/.test(t)) return "work";
+    if (/날씨|하늘|햇빛|바람|노을|호수|물빛|☀️/.test(t)) return "weather";
+    if (/안녕|좋은 아침|출근|반가|👋/.test(t)) return "greet";
+    return "any";
+  }
+  // 주제별 대답(대답하는 쪽 말투별). 함수면 (말한 이 이름) 을 받는다
+  const RE = {
+    snack: { team: [s => `${s}님, 그거 저도 하나만요! 🍪`, "간식 얘기 나오니까 배고파지네요.", "탕비실 초코파이 아직 남았나요?", "커피 한 잔 같이 하실래요? ☕", "그 과자 맛있죠! 저도 좋아해요.", "오늘 간식 당번 누구예요?"],
+      duck: ["간식이요? 지금 간식이라고 했어요?", "그 간식, 영수증은 있죠?", "하나만 드세요. 하나만.", "간식비 예산 얘기 또 해야 해요?", "아니 그걸 또 사 오셨어요?"],
+      head: ["간식은 내가 쏠게요! 경리팀장한텐 비밀이에요 🤫", "맛있게 먹고 힘내요. 그게 남는 거예요.", "허허, 나도 하나 줘 봐요."],
+      design: ["포장 디자인이 예쁘네요, 그 과자.", "간식 색감 조합이 좋은데요? 🎨", "그 젤리 색 시안에 써먹어야겠다."] },
+    money: { team: ["앗, 영수증… 오늘 꼭 낼게요 😅", "네네, 아껴 쓸게요!", "그거 업무용이었어요, 진짜로요!", "경리팀장님 무섭다… 🙈", "정산 서류 지금 바로 할게요."],
+      duck: ["그러니까요. 다들 숫자 좀 보세요.", "제 말이 그 말이에요!", "드디어 말이 통하네요. 메모해 둡니다. 📋"],
+      head: ["허허, 경리팀장 덕분에 우리가 굴러가요.", "알뜰하게 쓰는 건 좋은 습관이죠.", "그래도 너무 아끼다 사기 떨어지면 안 돼요~"],
+      design: ["좋은 디자인엔 돈이 좀 들어요… 아시죠?", "예산 얘기는 무섭네요. 전 이만…"] },
+    cheer: { team: ["감사합니다! 힘이 나요 💪", "덕분에 오늘도 잘 버텨요!", s => `${s}님도 화이팅이에요!`, "좋은 말씀 고마워요 😊"],
+      duck: ["응원은 공짜라서 좋네요.", "힘내는 건 좋은데 야근 식대는 7시 이후만이에요.", "흠, 칭찬은 예산이 안 들죠."],
+      head: ["그럼요! 우리 팀 최고예요 👍", "다 같이 하니까 되는 거예요.", "허허, 나까지 힘이 나네."],
+      design: ["오늘 분위기 좋네요 ✨", "그 말 들으니 아이디어가 막 떠올라요."] },
+    quote: { team: ["오… 그 말 메모해 둘게요.", "명언 들으니 마음이 정리돼요.", "원장님 명언 모음집 내셔도 되겠어요!"],
+      duck: ["명언도 좋지만 정산이 먼저예요.", "그 명언, 혹시 책값 법인카드로 사셨어요?"],
+      head: ["좋은 말은 나눌수록 좋지요.", "허허, 내가 하려던 말이에요."],
+      design: ["그 문장, 타이포로 만들면 예쁘겠다."] },
+    design: { team: ["오, 새 시안 기대돼요!", "저도 그 색 좋아요.", "디자인팀장님 감각은 역시…"],
+      duck: ["디자인 좋죠. 근데 인쇄비 견적 먼저 주세요.", "그 시안, 몇 번째 수정이에요?"],
+      head: ["우리 디자인팀장 안목은 믿을 만하지요.", "예쁘게만 하지 말고 쓰기 편하게도요~"],
+      design: ["그쵸? 저도 그 생각했어요!", "여백 하나만 더 주면 완벽해요."] },
+    work: { team: ["저도 하던 거 마저 해야겠어요.", "마감 전에 꼭 끝낼게요!", "같이 보면 금방 끝나요.", "보고서는 제가 정리해 둘게요."],
+      duck: ["업무는 좋은데 비용은 줄여 주세요.", "그 업무, 견적서 있어요?"],
+      head: ["무리하지 말고 쉬엄쉬엄 해요.", "막히면 언제든 얘기해요."],
+      design: ["업무 화면 레이아웃 제가 좀 다듬어 볼까요?"] },
+    weather: { team: ["오늘 날씨 진짜 좋네요 ☀️", "호수 쪽 바람 시원하더라고요.", "이런 날은 피크닉 가고 싶어요."],
+      duck: ["날씨 좋다고 냉방 세게 틀면 안 돼요.", "햇빛 좋네요. 전기세 아끼게 불 꺼요."],
+      head: ["이런 날은 산책이 최고지요.", "날씨처럼 다들 맑은 하루 보내요."],
+      design: ["노을 색감 보셨어요? 그대로 팔레트로 쓰고 싶어요."] },
+    greet: { team: [s => `${s}님 안녕하세요! 😊`, "좋은 아침이에요!", "오늘도 잘 부탁드려요~"],
+      duck: ["안녕하세요. 영수증 가져오셨죠?", "아, 마침 잘 만났네요."],
+      head: ["어서 와요, 반가워요!", "다들 좋은 아침이에요 ☀️"],
+      design: ["안녕하세요~ 오늘 옷 색 예쁘네요!"] },
+    any: { team: ["그러게요 ㅎㅎ", "맞아요, 저도 그 생각했어요.", "오 진짜요?", "하하, 그렇네요.", "음… 일리 있네요.", "그거 재밌는데요?"],
+      duck: ["흠, 그건 그렇고 영수증이요.", "네네, 알겠고요.", "그 얘기는 결재 받고 하세요.", "하… 다들 왜 이렇게 태평해요."],
+      head: ["허허, 그렇지요.", "좋은 얘기네요.", "다들 오늘도 수고 많아요."],
+      design: ["오, 그거 재밌다.", "흠… 영감이 오네요.", "그쵸~"] },
+    ack: { team: ["ㅋㅋ 맞아요", "그쵸?", "알겠어요~", "좋아요!", "헤헤"], duck: ["흠.", "알면 됐어요.", "메모했어요. 📋", "다음엔 없어요."], head: ["허허", "그래요, 그래요.", "좋지요."], design: ["그쵸~", "좋다 좋다", "✨"] },
+  };
+  const reUsed = [];
+  /** 주제·말투에 맞는 대답. 최근 12마디와 겹치지 않게 고른다 */
+  const pickRe = (t, who, sp) => {
+    const pool = (RE[t] && (RE[t][who] || RE[t].team)) || RE.any[who] || RE.any.team, all = [...pool, ...(RE.any[who] || [])];
+    let out = "";
+    for (let i = 0; i < 10; i++) { const x = pick(i < 6 ? pool : all); out = typeof x === "function" ? x(label(sp)) : x; if (!reUsed.includes(out)) break; }
+    reUsed.push(out); if (reUsed.length > 12) reUsed.shift();
+    return out;
+  };
+  const skipLine = t => /^#\d|→|완료!|실패…|모여 주세요|발표하겠습니다|시작해 볼까요|보고드립니다|최종 보고서|계획 세워볼게요|정리해 볼게요|보완 요청|님, /.test(t);
+  /** 대답할 사람을 골라 잠시 뒤 대답하게 한다 */
+  function hear(sp, text) {
+    if (document.hidden || reduce() || CV.depth >= 3 || presenting()) return;
+    if (CV.depth === 0 && (skipLine(text) || (!sp.npc && D.running && working(sp)))) return;
+    const depth = CV.depth;
+    const reach = sp.npc ? 7.5 : 5.5; // 동물원 식구는 목소리가 크다
+    let near = everyone().filter(o => o !== sp && gap(o, sp) < reach && !engaged(o) && (!working(o) || Math.random() < .25));
+    if (!near.length || Math.random() > (depth === 0 ? .85 : .55)) return;
+    near.sort((a, b) => gap(a, sp) - gap(b, sp));
+    const to = near[0], t = depth === 0 ? topic(text) : (Math.random() < .5 ? "ack" : topic(text));
+    hold(to, 4000); hold(sp, 3000);
+    setTimeout(() => {
+      if (!to.group || to.ghost || gap(to, sp) > reach + 1.5 || presenting()) return;
+      if (["stand", "talk", "coffee"].includes(to.mode)) to.face(sp.group.position);
+      CV.depth = depth + 1;
+      try { to.say(pickRe(working(to) ? "ack" : t, persona(to), sp), 3200); } finally { CV.depth = 0; }
+    }, (1100 + Math.random() * 900) / Math.max(1, SPEED));
+  }
+  // 평상시 잡담: 쉬고 있는 둘이 가까이 있으면 2~4마디 주고받는다(같은 둘은 1분에 한 번)
+  const TALKS = [
+    ["오늘 점심 뭐 드셨어요?", "카페에서 샌드위치요. 맛있던데요?", "오, 저도 내일 먹어 봐야겠다.", "같이 가요!"],
+    ["요즘 날씨 정말 좋지 않아요?", "그러게요. 호수 산책하기 딱이에요.", "이따 같이 한 바퀴 돌아요."],
+    ["탕비실에 새 과자 들어왔대요!", "진짜요? 무슨 과자요?", "초코파이랑 젤리요. 빨리 가야 해요 🏃", "경리팀장님 오시기 전에요!"],
+    ["주말에 뭐 하셨어요?", "숲에 캠핑 다녀왔어요. 모닥불이 최고였어요 🔥", "와, 부럽다…"],
+    ["아까 회의 어땠어요?", "팀장님 발표 깔끔했어요.", "그쵸? 계획이 딱 정리되더라고요."],
+    ["열기구 보셨어요? 숲 위로 떠다니던데요.", "봤어요! 언젠가 타 보고 싶어요 🎈", "동물원 단합 행사로 건의해 볼까요?"],
+    ["커피 한 잔 하실래요? ☕", "좋죠! 아이스로요.", "가는 김에 간식도 하나…", "영수증은 꼭 챙겨요 ㅋㅋ"],
+    ["요즘 일 많죠? 힘내요 💪", "고마워요. 덕분에 버텨요.", "끝나면 맛있는 거 먹으러 가요!"],
+    ["어제 연못에 오리 가족 봤어요?", "봤어요! 너무 귀엽더라고요.", "경리팀장님 친척일까요? ㅋㅋ"],
+    ["이번 작업 어디까지 했어요?", "거의 다 했어요. 검수만 남았어요.", "오, 빠르네요!"],
+  ];
+  const DUCK_TALKS = [
+    ["경리팀장님, 오늘도 바쁘시죠?", "바쁘죠. 다들 영수증을 안 내니까요.", "하하… 저는 냈어요!", "알아요. 장부에 있어요. 📋"],
+    ["경리팀장님 간식 하나 드실래요?", "…그거 누구 돈으로 산 거예요?", "제 사비요!", "그럼 하나만 받을게요. 하나만."],
+  ];
+  const HEAD_TALKS = [
+    ["원장님, 오늘 컨디션 어떠세요?", "아주 좋아요! 다들 열심히 하니 기운이 나요.", "원장님 덕분이에요 😊"],
+    ["원장님, 좋은 말씀 하나 해 주세요!", "“혼자 가면 빨리 가고, 함께 가면 멀리 간다.” 우리 팀 얘기지요.", "오… 오늘도 감동이에요."],
+  ];
+  /** 둘이 잡담(2~4마디). 끝날 때까지 기다리는 Promise. 원장·경리팀장과는 전용 대화 */
+  function startChat(a, b) {
+    const key = [a.name, b.name].sort().join("|");
+    CV.pairCool.set(key, performance.now());
+    const [first, second] = b.npc === "duck" || b.npc === "elephant" ? [a, b] : a.npc === "duck" || a.npc === "elephant" ? [b, a] : [a, b];
+    const lines = pick(second.npc === "duck" ? DUCK_TALKS : second.npc === "elephant" ? HEAD_TALKS : TALKS);
+    const step = 3400 / Math.max(1, SPEED), total = lines.length * step;
+    hold(a, total + 1500); hold(b, total + 1500);
+    lines.forEach((line, k) => setTimeout(() => {
+      const s = k % 2 ? second : first, o = k % 2 ? first : second;
+      if (!s.group || gap(a, b) > 9) return;
+      if (["stand", "talk", "coffee"].includes(s.mode)) s.face(o.group.position);
+      CV.depth = 3; try { s.say(line, 3200); } finally { CV.depth = 0; } // 잡담 대사에는 다른 이가 끼어들지 않는다
+    }, k * step));
+    return new Promise(r => setTimeout(r, total + 300));
+  }
+  const cooled = (a, b) => performance.now() - (CV.pairCool.get([a.name, b.name].sort().join("|")) || -1e9) > 45000;
+  setInterval(() => {
+    if (document.hidden || reduce() || presenting()) return;
+    const free = everyone().filter(a => !engaged(a) && !working(a) && a.mode !== "walk" && !a.presenting);
+    for (let i = 0; i < free.length; i++) for (let j = i + 1; j < free.length; j++) {
+      const a = free[i], b = free[j], far = a.npc || b.npc ? 7.5 : 6;
+      if (gap(a, b) > far || !cooled(a, b) || Math.random() > .6) continue;
+      startChat(a, b);
+      return;
+    }
+  }, 6000);
+  // 말풍선을 듣는다(동물원에서만 감싼다)
+  { const base = Agent.prototype.say;
+    Agent.prototype.say = function (text, ms) { const r = base.call(this, text, ms); try { if (text) hear(this, String(text)); } catch (e) { console.warn("동물원 대화:", e); } return r; }; }
 
   /* ───────── 배경 동물(이름표 없음, 업무와 무관) ───────── */
   const T = THREE, critters = new T.Group(); critters.name = "zoo-critters"; scene.add(critters);
