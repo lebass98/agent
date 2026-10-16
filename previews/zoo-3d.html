@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>동물원 · 실제 3D 미리보기</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#dfe8de;font-family:system-ui,sans-serif;color:#23392e}canvas{display:block;width:100%;height:100%}#scene{height:100dvh;min-height:450px}.top,.bottom{position:absolute;left:20px;right:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;pointer-events:none}.top{top:20px}.bottom{bottom:20px}.panel{background:#fffffff0;border:1px solid #dce4db;border-radius:16px;padding:14px 18px;box-shadow:0 8px 25px #23392e12;pointer-events:auto}h1{font-size:18px;margin:0 0 5px}p{font-size:13px;margin:0;line-height:1.6}button{background:#f0f4ed;color:#23392e;border:1px solid #cad8c6;padding:10px 14px;border-radius:10px;font:inherit;cursor:pointer}button:focus-visible{outline:3px solid #3b875c}.actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}.tag{background:#28704b;color:white;border-radius:20px;padding:5px 10px;font-size:12px}#detail{max-width:410px}#error{position:absolute;top:45%;left:10%;right:10%;background:white;padding:24px;display:none}@media(max-width:600px){.top,.bottom{left:10px;right:10px}.panel{padding:10px 12px}.actions{margin-left:0}.bottom p{font-size:12px}.top h1{font-size:16px}}</style>
+<div id="scene"></div><div class="top"><div class="panel"><h1>동물원 <span class="tag">실시간 3D 맛보기</span></h1><p>프로젝트와 같은 Three.js r128 · 도형으로 만든 입체 동물</p></div><div class="panel actions"><button id="home">전체 보기</button><button id="light">밤으로</button><button id="motion">움직임 멈춤</button></div></div><div class="bottom"><div class="panel" id="detail"><h1 id="name">작은 협업 동물원</h1><p id="desc">동물을 클릭하면 가까이 봅니다. 여우 · 판다 · 수달</p></div><div class="panel"><p>드래그: 회전 · 휠/핀치: 확대 · 우클릭 드래그: 이동<br>독립 미리보기입니다. 실제 에이전트·업무 연결은 없습니다.</p></div></div><div id="error" role="alert"></div>
+<script src="../web/vendor/three.min.js"></script><script src="../web/vendor/OrbitControls.js"></script>
+<script>
+'use strict';
+try {
+const T=THREE, scene=new T.Scene();scene.background=new T.Color(0xdfe8de);scene.fog=new T.Fog(0xdfe8de,34,68);
+const camera=new T.PerspectiveCamera(innerWidth<600?65:42,innerWidth/innerHeight,.1,100);camera.position.set(19,18,23);
+const renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.8;document.getElementById('scene').appendChild(renderer.domElement);
+const controls=new T.OrbitControls(camera,renderer.domElement);controls.target.set(0,1,0);controls.enableDamping=true;controls.minDistance=5;controls.maxDistance=40;controls.maxPolarAngle=Math.PI*.48;
+const hemi=new T.HemisphereLight(0xeaf5ff,0x72885d,.85);scene.add(hemi);const sun=new T.DirectionalLight(0xffe8bd,1.3);sun.position.set(-12,23,12);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-18,right:18,top:18,bottom:-18,near:1,far:60});sun.shadow.normalBias=.04;scene.add(sun);
+const mats={};function mat(c){return mats[c]||(mats[c]=new T.MeshStandardMaterial({color:c,roughness:.85}));}
+function mesh(g,c,parent,x=0,y=0,z=0){const m=new T.Mesh(g,mat(c));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;}
+function ball(p,c,x,y,z,sx,sy=sx,sz=sx){const m=mesh(new T.SphereGeometry(1,20,14),c,p,x,y,z);m.scale.set(sx,sy,sz);return m;}
+function box(p,c,x,y,z,w,h,d){return mesh(new T.BoxGeometry(w,h,d),c,p,x,y,z);}
+function cyl(p,c,x,y,z,r,h,r2=r){return mesh(new T.CylinderGeometry(r2,r,h,24),c,p,x,y,z);}
+function beam(p,c,a,b,r){const v=new T.Vector3(...a),w=new T.Vector3(...b),d=w.clone().sub(v);const m=cyl(p,c,...v.clone().add(w).multiplyScalar(.5).toArray(),r,d.length());m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return m;}
+const ground=cyl(scene,0x7b9d66,0,-.45,0,12,.8);ground.scale.z=.78;cyl(scene,0xb89a74,0,-.89,0,11.95,.15).scale.z=.78;
+// Circular plaza and paths are actual meshes.
+cyl(scene,0xd9bd8d,0,.015,0,3.35,.1);cyl(scene,0xb98e5f,0,.09,0,2.5,.12);cyl(scene,0xd6ae79,0,.17,0,2.35,.1);
+for(const [x,z,a,l] of [[-4.7,0,Math.PI/2,7],[4.6,-1,1.8,7],[0,5.1,0,6]]){const m=box(scene,0xd9bd8d,x,.035,z,1.65,.09,l);m.rotation.y=a;}
+const pond=cyl(scene,0x8fbaa7,5,.03,-2.8,3.2,.16);pond.scale.z=.75;const water=cyl(scene,0x56aeb8,5,.13,-2.8,2.85,.07);water.scale.z=.73;water.material=new T.MeshStandardMaterial({color:0x56aeb8,roughness:.28,metalness:.15});
+for(let i=0;i<15;i++){const a=i/15*Math.PI*2;ball(scene,0x939a8a,5+3*Math.cos(a),.22,-2.8+2.25*Math.sin(a),.48,.3,.38);}
+for(let i=0;i<5;i++){const a=i*1.4;cyl(scene,0x538958,5+Math.cos(a)*1.8,.19,-2.8+Math.sin(a)*1.3,.24,.04);}
+function tree(x,z,s=1){const g=new T.Group();scene.add(g);g.position.set(x,0,z);g.scale.setScalar(s);cyl(g,0x866444,0,1.1,0,.16,2.2);ball(g,0x4b8051,0,2.6,0,1.05,1.3,1);ball(g,0x6a9859,.6,2.7,.1,.72);ball(g,0x5a8c50,-.55,2.5,.3,.8);}
+for(const [x,z,s] of [[-8,-4,1.1],[-5,-6,1],[-1,-6,1.2],[3,-6,.9],[8,1,1.2],[7,4,1],[-8,3,.9],[-4,5,.85]])tree(x,z,s);
+for(let i=0;i<10;i++){const x=-6.7+(i%5)*.65,z=-3.3-Math.floor(i/5)*.8,h=2.5+(i%3)*.4;cyl(scene,0x5a8c48,x,h/2,z,.07,h);for(let j=1;j<4;j++)cyl(scene,0x91b967,x,j*.65,z,.085,.05);ball(scene,0x709b48,x+.15,h-.3,z,.3,.12,.12);}
+// Perimeter posts and two rail levels.
+for(let i=0;i<25;i++){const a=i/24*Math.PI*2,b=(i+1)/24*Math.PI*2;if(a>1.15&&a<1.95)continue;const x=10.8*Math.cos(a),z=8*Math.sin(a);cyl(scene,0x9c7851,x,.48,z,.095,.95);if(i<24)for(const y of [.35,.7])beam(scene,0xc7aa7d,[x,y,z],[10.8*Math.cos(b),y,8*Math.sin(b)],.04);}
+function label(text,x,y,z){const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#fff9e9';ctx.beginPath();ctx.roundRect(4,4,504,120,24);ctx.fill();ctx.fillStyle='#294632';ctx.font='500 43px system-ui';ctx.textAlign='center';ctx.fillText(text,256,80);const tx=new T.CanvasTexture(c);tx.encoding=T.sRGBEncoding;const s=new T.Sprite(new T.SpriteMaterial({map:tx,depthTest:true}));s.position.set(x,y,z);s.scale.set(2.65,.66,1);scene.add(s);return s;}
+// Work props, central planning board and stools.
+for(const x of [-1.15,1.15])cyl(scene,0x886342,x,1.2,-1.3,.08,2.4);
+box(scene,0x946f48,0,2,-1.3,2.8,1.65,.16);box(scene,0xeee6cb,0,2,-1.19,2.55,1.4,.04);
+for(let i=0;i<6;i++)box(scene,i%2?0x80a8a0:0xd2b56c,-.8+(i%3)*.8,2.35-Math.floor(i/3)*.62,-1.15,.48,.32,.025);
+cyl(scene,0x916d47,0,.45,1,1,.8);cyl(scene,0xd4b07c,0,.9,1,1.12,.12);for(const x of [-1.8,1.8])cyl(scene,0xba9364,x,.34,1.2,.36,.65);
+function table(x,z){for(const dx of [-.7,.7])box(scene,0x95744b,x+dx,.48,z,.12,.9,.6);box(scene,0xc5a16c,x,.95,z,1.8,.14,.85);const screen=box(scene,0x344e45,x,1.28,z-.2,.7,.48,.07);screen.rotation.x=-.18;box(scene,0x8db6aa,x,1.28,z-.15,.59,.36,.02);}
+table(-5,.2);label('GPT · 디자인',-5,3.2,1.1);label('Claude · 계획',.2,4,.1);label('Gemini · 자료 정리',5,3.2,.9);
+const animals=[];
+function animal(kind,x,z){const g=new T.Group();scene.add(g);g.position.set(x,.1,z);const body=new T.Group();g.add(body);const orange=0xd98039,cream=0xf2dec0,dark=0x30332e,brown=0x8d6247;const c=kind==='fox'?orange:kind==='panda'?0xf2eee0:brown;
+ball(body,c,0,.92,0,.53,.68,.43);ball(body,kind==='panda'?c:cream,0,.94,.34,.36,.43,.13);ball(body,c,0,1.8,.04,.61,.53,.49);
+for(const s of [-1,1]){ball(body,kind==='panda'?dark:c,s*.28,.28,.13,.22,.2,.31);const arm=ball(body,kind==='panda'?dark:c,s*.53,1.02,.1,.18,.37,.19);arm.rotation.z=s*.3;
+if(kind==='fox'){const e=mesh(new T.ConeGeometry(.23,.6,4),orange,body,s*.4,2.37,.01);e.rotation.z=-s*.2;const inn=mesh(new T.ConeGeometry(.12,.35,3),cream,body,s*.4,2.38,.16);inn.rotation.z=-s*.2;}else ball(body,kind==='panda'?dark:brown,s*.43,2.2,0,.22,.22,.14);
+if(kind==='panda')ball(body,dark,s*.24,1.83,.444,.18,.21,.07);ball(body,0x171f1b,s*.23,1.87,.505,.065);ball(body,0xffffff,s*.21,1.9,.552,.018);}
+ball(body,cream,0,1.59,.47,.31,.2,.18);ball(body,0x292c26,0,1.68,.64,.09,.065,.07);
+if(kind!=='panda'){const tail=ball(body,c,kind==='fox'?.45:0,.65,-.48,.26,.32,kind==='fox'?.72:.65);tail.rotation.y=kind==='fox'?-.65:0;if(kind==='fox')ball(body,cream,.76,.65,-.95,.22,.25,.27);}
+box(body,kind==='fox'?0x68865b:kind==='panda'?0x3c8781:0xc6a05b,0,1.32,.36,.31,.16,.15);
+g.userData={kind,body,baseY:.1};g.traverse(o=>{if(o.isMesh)o.userData.animal=g});animals.push(g);return g;}
+const fox=animal('fox',.1,.1),panda=animal('panda',-5,1.3),otter=animal('otter',5,.8);panda.rotation.y=.35;otter.rotation.y=-.4;
+box(otter,0xe7d8ad,0,.92,.62,.75,.09,.45).rotation.x=.2;
+// Small flowers and stones, all geometry.
+for(let i=0;i<35;i++){const a=i*2.399,r=4+(i%6)*.85,x=Math.cos(a)*r,z=Math.sin(a)*r*.75;if(Math.abs(z)<1||x>2&&z<0)continue;ball(scene,0x689455,x,.18,z,.32,.2,.3);if(i%3===0)ball(scene,0xe7ca85,x,.4,z,.09);}
+let paused=matchMedia('(prefers-reduced-motion: reduce)').matches,night=false,selected=null;const clock=new T.Clock();
+document.getElementById('motion').textContent=paused?'움직임 재생':'움직임 멈춤';
+document.getElementById('motion').onclick=()=>{paused=!paused;document.getElementById('motion').textContent=paused?'움직임 재생':'움직임 멈춤'};
+document.getElementById('light').onclick=()=>{night=!night;const c=night?0x192c3e:0xdfe8de;scene.background.setHex(c);scene.fog.color.setHex(c);hemi.intensity=night?.4:.85;sun.intensity=night?.45:1.3;sun.color.setHex(night?0xaec9ff:0xffe8bd);document.getElementById('light').textContent=night?'낮으로':'밤으로'};
+document.getElementById('home').onclick=()=>{camera.position.set(19,18,23);controls.target.set(0,1,0);selected=null};
+const ray=new T.Raycaster(),pointer=new T.Vector2();let down=null;
+renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(animals,true)[0];if(!hit)return;selected=hit.object.userData.animal;const p=selected.position;controls.target.set(p.x,1.3,p.z);camera.position.set(p.x+4,3.6,p.z+6);const titles={fox:['Claude · 여우','중앙 광장에서 계획을 세우는 팀장'],panda:['GPT · 판다','대나무 작업실의 디자이너'],otter:['Gemini · 수달','연못 옆에서 자료를 정리하는 지원 담당']};document.getElementById('name').textContent=titles[selected.userData.kind][0];document.getElementById('desc').textContent=titles[selected.userData.kind][1]+' · 회전해 뒷모습도 확인하세요.';});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.fov=innerWidth<600?65:42;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);if(!document.hidden&&!paused){for(let i=0;i<animals.length;i++){const a=animals[i];a.userData.t=(a.userData.t||0)+dt;a.userData.body.position.y=Math.sin(a.userData.t*2+i)*.025;a.userData.body.rotation.y=Math.sin(a.userData.t*.6+i)*.12;}water.position.y=.13+Math.sin(clock.elapsedTime)*.015;}controls.update();renderer.render(scene,camera);}frame();window.ZOO_PREVIEW={scene,camera,renderer,animals};
+}catch(e){document.getElementById('error').style.display='block';document.getElementById('error').textContent='3D 미리보기를 열지 못했습니다: '+e.message;console.error(e);}
+</script></html>
