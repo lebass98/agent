@@ -13,17 +13,24 @@ window.ZooFriends = (() => {
     function ball(p,c,x,y,z,sx,sy=sx,sz=sx) {const m=mesh(p,new T.SphereGeometry(1,24,16),c,x,y,z);m.scale.set(sx,sy,sz);return m;}
     function line(p,c,points,r=.018) {return mesh(p,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(v=>new T.Vector3(...v))),20,r,6,false),c,0,0,0);}
     function pivot(p,x,y,z) {const g=new T.Group();g.position.set(x,y,z);p.add(g);return g;}
-    const shell=ball(body,cream,0,.99,0,.80,.85,.55);
+    // 넓은 볼 → 짧은 허리 → 납작하고 둥근 밑단을 하나의 연속 표면으로 만든다.
+    const outline=new T.SplineCurve([
+      [0,.08],[.30,.085],[.46,.14],[.55,.27],[.59,.46],[.61,.64],
+      [.72,.82],[.81,1.04],[.80,1.25],[.72,1.46],[.55,1.65],[.29,1.77],[0,1.81]
+    ].map(([r,y])=>new T.Vector2(r,y)));
+    const g=new T.LatheGeometry(outline.getPoints(96),96);
+    g.scale(1,1,.69);
+    const shell=mesh(body,g,cream,0,0,0);shell.name='friend-silhouette';
     if(kind==='hachiware') {
-      const g=new T.SphereGeometry(1,64,48),pos=g.attributes.position,colors=[];
-      for(let i=0;i<pos.count;i++) {const x=pos.getX(i),y=pos.getY(i);const c=new T.Color(y>.64+.23*(1-Math.abs(x))?blue:cream).convertSRGBToLinear();colors.push(c.r,c.g,c.b);}
-      g.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometries.add(g);shell.geometry=g;
+      const pos=g.attributes.position,colors=[];
+      for(let i=0;i<pos.count;i++) {const x=pos.getX(i),y=pos.getY(i);const c=new T.Color(y>1.48+.24*(1-Math.min(1,Math.abs(x)/.65))?blue:cream).convertSRGBToLinear();colors.push(c.r,c.g,c.b);}
+      g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
       const m=new T.MeshStandardMaterial({vertexColors:true,roughness:.83});materials.set('fur',m);shell.material=m;
     }
-    const head=pivot(body,0,0,0);
+    const head=pivot(body,0,.08,.025);
     const ears=[];
     for(const s of [-1,1]) {
-      const e=pivot(body,s*(kind==='usagi'?.29:.48),1.62,-.015); ears.push(e);
+      const e=pivot(body,s*(kind==='usagi'?.29:.48),1.70,-.015); ears.push(e);
       if(kind==='usagi') {e.rotation.z=-s*.12; ball(e,cream,0,.41,0,.15,.56,.13);ball(e,0xf7b3b7,0,.42,.105,.083,.43,.04);}
       else if(kind==='chiikawa') ball(e,cream,0,.05,0,.16,.19,.14);
       else {const shape=new T.Shape();shape.moveTo(-.24,0);shape.quadraticCurveTo(-.14,.32,0,.43);shape.quadraticCurveTo(.12,.48,.23,0);shape.closePath();const geo=new T.ExtrudeGeometry(shape,{depth:.16,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:.055,bevelThickness:.065});mesh(e,geo,blue,0,0,-.09);e.rotation.z=-s*.16;}
@@ -43,8 +50,8 @@ window.ZooFriends = (() => {
     if(kind==='chiikawa') for(const s of [-1,1]) line(head,ink,[[s*.2,1.36,.49],[s*.27,1.38,.48],[s*.32,1.36,.46]],.012);
     const arms=[],legs=[];
     for(const s of [-1,1]) {
-      const a=pivot(body,s*.67,.8,0);ball(a,cream,s*.035,-.04,.06,.12,.16,.13);arms.push(a);
-      const l=pivot(group,s*.3,.22,0);ball(l,cream,0,-.075,.12,.14,.12,.19);legs.push(l);
+      const a=pivot(body,s*.64,.65,0);ball(a,cream,s*.035,-.015,.08,.12,.11,.12);arms.push(a);
+      const l=pivot(group,s*.46,.14,0);ball(l,cream,0,-.035,.06,.12,.10,.15);legs.push(l);
     }
     const tail=pivot(body,0,.55,-.48);
     if(kind==='hachiware') line(tail,blue,[[0,0,0],[.2,-.1,-.13],[.4,-.03,-.18],[.43,.15,-.2]],.095);
