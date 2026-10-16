@@ -201,11 +201,11 @@ function init3D() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("role", "img");
   renderer.domElement.tabIndex = 0;
-  renderer.domElement.setAttribute("aria-label", "3D 사무실. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.");
+  renderer.domElement.setAttribute("aria-label", `${window.SpaceTheme?.isZoo ? "3D 동물원" : "3D 사무실"}. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.`);
   $("stage").append(renderer.domElement);
 
   scene = new THREE.Scene();
-  if (window.ModelKit) scene.environment = ModelKit.environment(renderer).texture;
+  if (window.ModelKit && !window.SpaceTheme?.isZoo) scene.environment = ModelKit.environment(renderer).texture;
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   CAM_OFF = new THREE.Vector3(22, 20, 22);
   camera.position.copy(CAM_OFF);
@@ -774,7 +774,7 @@ function pickAct(list, prev) {
 }
 /** 팀원별 선택 외형과 해당 인물의 표정 띠. 등록되지 않은 외형은 null. */
 const appearanceOf = n => window.CharacterLooks?.get(n) || n;
-const facesOf = n => window.SpriteChars?.faces(appearanceOf(n)) || null;
+const facesOf = n => window.SpaceTheme?.isZoo ? window.ZooTheme.faces(n) : window.SpriteChars?.faces(appearanceOf(n)) || null;
 /** 표정 아바타 CSS 변수: 띠 이미지·칸 수·보여 줄 칸(style.css 의 .face) */
 const faceVars = (f, expr = "기본") => ({ "--face": `url("${f.src}")`, "--fn": f.n, "--fi": f.index(expr) });
 /** 0→1→0 으로 올라갔다 내려오는 동작 곡선(올리기 25% · 유지 · 내리기 20%) */
@@ -796,9 +796,9 @@ class Agent {
     // group(위치·방향) ─ legs(+knees) / body(엉덩이 축으로 기울기) ─ torso·arms(+elbows·hands)·head(목 축으로 고개)·cup·props
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
-    let rig = null;
+    let rig = window.SpaceTheme?.isZoo ? window.ZooTheme.buildAnimal(def, name) : null;
     const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
-    if (!use3DChar || appearanceOf(name) !== name) {
+    if (!rig && (!use3DChar || appearanceOf(name) !== name)) {
       try { rig = window.SpriteChars?.build(def, appearanceOf(name)) || null; }
       catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
     }
@@ -857,7 +857,7 @@ class Agent {
     $("labels").append(this.label);
   }
   changeAppearance(key) {
-    if (this.ghost) return;
+    if (this.ghost || window.SpaceTheme?.isZoo) return;
     const rig = window.SpriteChars?.build(this.def, key);
     if (!rig) return;
     const previous = this.rig;
@@ -1161,7 +1161,7 @@ function buildTeam(team) {
     if (used.has(initial)) initial = niceName(n).slice(0, 2);
     used.add(initial);
     return {
-      label: niceName(n), initial, color: k?.color || PALETTE[extra++ % PALETTE.length], hair: HAIR[i % HAIR.length],
+      label: niceName(n), initial: window.SpaceTheme?.isZoo ? (window.ZooTheme.icons[n] || "🐾") : initial, color: k?.color || PALETTE[extra++ % PALETTE.length], hair: HAIR[i % HAIR.length],
       role: m.role.split(".")[0].trim() || "팀원", model: m.model, provider: m.provider, leader: n === team.leader,
     };
   });
@@ -1222,7 +1222,7 @@ function buildMembers() {
     const title = `${d.label}에게 말 걸기`;
     MEMBERS_EL.append(el("article", { class: "member", style: { "--c": d.color } },
       el("span", { class: "row" },
-        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": `${d.label} 사람 이미지 변경`, title: "사람 이미지 변경", onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
+        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": window.SpaceTheme?.isZoo ? `${d.label} 동물 캐릭터 안내` : `${d.label} 사람 이미지 변경`, title: window.SpaceTheme?.isZoo ? "동물 캐릭터 안내" : "사람 이미지 변경", onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
         el("button", { class: "who member-chat", type: "button", title, onclick: () => { closeView(); window.CharacterChat?.open(n); } },
           el("span", { class: "name" }, d.label, d.leader ? el("span", { title: "팀장", text: " 👑" }) : null),
           el("span", { class: "role", text: d.role })),
@@ -1609,6 +1609,7 @@ function statsView() {
 }
 /** 사람 이미지 클릭 시에만 전체 외형 목록을 연다. */
 function openAppearancePicker(n) {
+  if (window.SpaceTheme?.isZoo) { toast("동물원에서는 Claude는 여우, GPT는 판다, Gemini는 수달로 함께 일해요.", "info"); return; }
   const options = window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id));
   openModal([
     sheetHead(`${memberDef(n).label} 사람 이미지`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
@@ -1646,7 +1647,7 @@ function membersView() {
         el("button", { class: "tbtn", type: "button", disabled: !live || !TS, title: live ? "AI 선택·모델·하는 일·팀장 바꾸기" : "서버에 연결되면 바꿀 수 있어요", onclick: () => TS?.open() }, icon("gear"), "설정"),
         el("button", { class: "tbtn accent", type: "button", disabled: !live || !TS, title: live ? "새 팀원 추가" : "서버에 연결되면 추가할 수 있어요", onclick: () => TS?.add() }, icon("plus"), "에이전트 추가"))),
     MEMBERS_EL,
-    el("p", { class: "muted small", text: "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
+    el("p", { class: "muted small", text: window.SpaceTheme?.isZoo ? "Claude는 여우, GPT는 판다, Gemini는 수달이에요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." : "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
     live ? null : el("p", { class: "muted small", text: "데모 모드에서는 설정을 바꿀 수 없어요. 서버(start-mac.command 등)를 켜고 다시 열어 주세요." }),
   ];
 }
@@ -1686,11 +1687,12 @@ function settingsView() {
   const kv = [["연결 상태", conn], ["모의 실행", NET.mode === "live" ? (D.mock ? "켜짐 — API 호출 없이 모의 결과" : "꺼짐 — 실제 AI 호출") : "—"],
     ["팀장", memberDef(D.leader).label], ["팀원", D.names.map(n => memberDef(n).label).join(", ") || "—"], ["서버 주소", location.host || "(파일로 열림)"]];
   return [
-    row("테마", "시스템 설정을 따르거나 라이트·다크로 고정해요.", themeControl()),
-    HAS3D ? row("사무실 조명", officeLightNote(), officeLightControl()) : null,
+    row("공간 테마", "사무실 또는 동물원을 선택해요. 업무 진행 중에는 바꿀 수 없어요.", window.SpaceTheme?.control()),
+    row("화면 테마", "시스템 설정을 따르거나 라이트·다크로 고정해요.", themeControl()),
+    HAS3D ? row(window.SpaceTheme?.isZoo ? "동물원 조명" : "사무실 조명", officeLightNote(), officeLightControl()) : null,
     row("기본 연출 속도", "말풍선·이동 연출의 빠르기. 상단 바에서도 바꿀 수 있어요.", speedControl()),
     row("움직임 줄이기", "카메라 이동과 전환 애니메이션을 최소화해요. 시스템의 '동작 줄이기' 설정은 항상 따릅니다.", switchControl(PREF.reduce, setReduce, "움직임 줄이기")),
-    HAS3D ? row("방 이름표", "3D 사무실 위에 현관·탕비실·회의실·베란다 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
+    HAS3D && !window.SpaceTheme?.isZoo ? row("방 이름표", "3D 사무실 위에 현관·탕비실·회의실·베란다 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
     row("프로젝트", "AI 팀이 파일을 읽고 고칠 수 있게 허락한 폴더를 관리해요.",
       el("button", { class: "tbtn", type: "button", onclick: () => showView("projects") }, icon("folder-open"), "프로젝트 관리")),
     row("접속 키", NET.mode === "auth" ? "이 서버는 접속 키가 있어야 쓸 수 있어요." : KEY ? "저장된 접속 키가 있어요." : "LAN 공개(--lan) 서버에서만 필요해요.",
@@ -2325,7 +2327,7 @@ async function pPlanStart(ev) {
 
 /** 정리가 끝나면 모두 회의실로: 팀장은 TV 앞에서 발표(PT), 팀원은 회의 테이블에 앉아 경청한다.
     TV 화면의 줄은 발표하면서 업무마다 한 장씩 넘기듯 채운다. */
-const PRESENT_SPOT = { x: 6.6, z: 1.4 }; // 회의실 TV 옆 발표 자리
+const PRESENT_SPOT = HAS_DECOR && Decor.PRESENT_SPOT ? Decor.PRESENT_SPOT : { x: 6.6, z: 1.4 }; // 회의실 TV 옆 발표 자리
 async function pPlan(ev) {
   const run = ev._run, l = L(), tasks = [...run.tasks.values()];
   setPhase("업무 배정 회의", true);
@@ -2333,7 +2335,7 @@ async function pPlan(ev) {
   renderBoard();
   log(`업무 ${tasks.length}건으로 분해했습니다.`, D.leader);
   if (run.summary) log(`계획: ${clip(run.summary, 200)}`, D.leader);
-  l.say("정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
+  l.say(window.SpaceTheme?.isZoo ? "정리 끝! 협업 광장으로 모여 주세요 📣" : "정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
   setMember(D.leader, { status: "회의", cls: "meet", task: "업무 계획 발표", bar: "", t0: 0 });
   await capped(Promise.all(D.names.map(async n => {
     const a = A(n);
@@ -2479,7 +2481,7 @@ function onHello(ev) {
   for (const n of D.names) { A(n).finishWalk(); A(n).presenting=false; }
   const first = !D.greeted;
   D.greeted = true;
-  if (first) log(NET.mode === "demo" ? "데모 사무실에 출근했습니다. 목표를 입력해 보세요." : "사무실에 출근했습니다. 목표를 입력해 주세요.");
+  if (first) log(window.SpaceTheme?.isZoo ? (NET.mode === "demo" ? "데모 동물원에 모였습니다. 목표를 입력해 보세요." : "동물원에 팀이 모였습니다. 목표를 입력해 주세요.") : (NET.mode === "demo" ? "데모 사무실에 출근했습니다. 목표를 입력해 보세요." : "사무실에 출근했습니다. 목표를 입력해 주세요."));
   else log(ev._was === "demo" || ev._was === "auth" ? "서버에 연결되었습니다. 이제 실제 팀이 일합니다." : "서버에 다시 연결되었습니다.");
   applySnapshot(ev.snapshot && typeof ev.snapshot === "object" ? ev.snapshot : null, first);
   if (first && !D.running) later(arrive()); // 첫 출근: 진행 중인 업무가 없으면 현관으로 들어와 자리로 간다(있으면 스냅샷 자리 그대로)

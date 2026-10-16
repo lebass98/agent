@@ -56,7 +56,7 @@ window.OfficeLife=(()=>{
     const types=['walk','tea','sofa','window',...(free.length>1?['pantryChat']:[])].filter(x=>x!==previous),type=pick(types);
     const a=pick(free),people=type==='pantryChat'?[a,pick(free.filter(b=>b!==a))]:[a];
     active=true;sceneName=type;previous=type;const g=++generation;
-    for(const person of people){participants.add(person);setMember(person.name,{...IDLE,status:'휴식',task:{walk:'사무실 산책',tea:'탕비실에서 차 한 잔',sofa:'라운지 소파에서 휴식',window:'창가에서 잠깐 쉬는 중',pantryChat:'탕비실에서 담소'}[type]});}
+    for(const person of people){participants.add(person);setMember(person.name,{...IDLE,status:'휴식',task:(window.SpaceTheme?.isZoo?{walk:'동물원 산책',tea:'쉼터에서 차 한 잔',sofa:'쉼터 벤치에서 휴식',window:'연못 풍경을 보는 중',pantryChat:'쉼터에서 담소'}:{walk:'사무실 산책',tea:'탕비실에서 차 한 잔',sofa:'라운지 소파에서 휴식',window:'창가에서 잠깐 쉬는 중',pantryChat:'탕비실에서 담소'})[type]});}
     episode(type,people,g).catch(e=>console.error('사무실 휴식 연출:',e)).finally(()=>{if(g===generation){active=false;sceneName='';participants.clear();next=performance.now()+18000+Math.random()*18000;}});
   }
   document.addEventListener('visibilitychange',()=>{if(document.hidden)interrupt();});

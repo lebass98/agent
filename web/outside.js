@@ -11,6 +11,7 @@
      VIEWS·VIEW·NET·api·store·toast·el·icon·applyTheme·setView·cam·resetView·scheduleView)으로 붙고, setOfficeLight 와
      VIEWS.settings 를 감싼다. 하나라도 없으면 아무것도 하지 않는다. index.html 에서 app.js 다음에 읽는다. 스타일은 outside.css. */
 (function () {
+  if (window.SpaceTheme?.isZoo) return;
   const T = window.THREE;
   let ok = false;
   try { ok = !!(T && HAS3D && scene && camera && controls && renderer && sun && CAM_OFF && OFFICE && VIEWS && typeof api === "function"); } catch { ok = false; }
