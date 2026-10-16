@@ -9,7 +9,7 @@ const Z=sandbox.window.ZooAnimals;
 const ids=Z.species.map(s=>s.id);
 assert.equal(ids.length,12);assert.equal(new Set(ids).size,12,'종류 ID 중복');
 assert.equal(ids.slice(0,3).join(),'fox,panda,otter');
-assert.equal(Z.extras.map(s=>s.id).join(),'elephant,peacock');
+assert.equal(Z.extras.map(s=>s.id).join(),'elephant,peacock,duck');
 for(const s of [...Z.species,...Z.extras]){assert(s.label&&s.emoji,`${s.id} 표시 정보`);assert.equal(typeof s.color,'number');}
 const meshCount=g=>{let n=0;g.traverse(o=>{if(o.isMesh){n++;assert(o.geometry.attributes.position.count>0);}});return n;};
 for(const {id} of [...Z.species,...Z.extras]){

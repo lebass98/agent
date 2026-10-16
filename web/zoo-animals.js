@@ -1,5 +1,5 @@
 'use strict';
-/* 동물원 동물 12종(팀원) + 2종(원장·디자인팀장). 구·원뿔·관 등 three.js 기본 도형으로 만든 두 발 마스코트 rig.
+/* 동물원 동물 12종(팀원) + 3종(원장 코끼리·디자인팀장 공작새·경리팀장 오리). 구·원뿔·관 등 three.js 기본 도형으로 만든 두 발 마스코트 rig.
    ZooTheme.buildAnimal 과 같은 계약: {group, body, head, legs[2], arms[2], cup, props, preset, height, seatOffset, faceStrip, setFace, dispose}.
    legs 는 group 에, arms·head 는 body 에 붙는다(엉덩이 축 기울기·걷기·타이핑·발표 동작이 그대로 적용). +z 가 얼굴 앞. */
 window.ZooAnimals = (() => {
@@ -20,6 +20,7 @@ window.ZooAnimals = (() => {
   const extras = [
     {id:'elephant',label:'코끼리',role:'동물원 원장',emoji:'🐘',color:0x7d8a99},
     {id:'peacock',label:'공작새',role:'디자인팀장',emoji:'🦚',color:0x1f7fa8},
+    {id:'duck',label:'오리',role:'경리팀장',emoji:'🦆',color:0xf0a03a},
   ];
   const info = new Map([...species, ...extras].map(s => [s.id, s]));
   const kindOf = kind => info.has(String(kind).toLowerCase()) ? String(kind).toLowerCase() : 'fox';
@@ -250,6 +251,26 @@ window.ZooAnimals = (() => {
         k.ball(f,0xd9a531,0,1.22,.03,.13,.15,.025); k.ball(f,0x1b3f8f,0,1.24,.05,.07,.08,.02);
       }
       k.box(body,0xd9a531,0,1.28,.34,.26,.12,.14);
+    }},
+    // 오리(경리팀장): 흰 몸·주황 넓적 부리·물갈퀴 발, 동그란 안경, 조끼와 넥타이, 왼쪽 날개에 결재판
+    duck: {o:{c:0xf7f4ea, belly:0xffffff, limb:0xf7f4ea, bodyY:.95, body:[.56,.7,.5], bellyZ:.32, bellyS:[.4,.5,.2], headY:1.86, headZ:.06, headS:[.47,.44,.45],
+      foot:[0,-.34,.18,.24,.05,.32], footC:0xf09a2e, armX:.55, armY:1.32, arm:[.06,-.3,-.04,.12,.42,.26], armRot:.14, eye:[.17,.13,.38,.05], cupY:-.6, height:2.7}, add(k,ctx,o) {
+      const {head,body,legs,arms} = ctx, T = k.T, bill = 0xf09a2e;
+      k.ball(head,bill,0,-.08,.42,.22,.07,.24); k.ball(head,0xe0861f,0,-.14,.38,.19,.05,.2);       // 넓적 부리(위·아래)
+      for (const side of [-1,1]) {
+        const ring = k.mesh(head,new T.TorusGeometry(.1,.018,8,20),0x3a3f46,side*.17,.13,.44); ring.rotation.y = side*.12; // 동그란 안경
+        k.beam(head,0x3a3f46,[side*.27,.14,.42],[side*.4,.16,.12],.012);
+      }
+      k.beam(head,0x3a3f46,[-.07,.14,.47],[.07,.14,.47],.012);
+      k.cone(head,o.c,0,.48,-.06,.07,.2,6).rotation.x = -.5;                                         // 정수리 깃
+      for (const leg of legs) k.beam(leg,0xf09a2e,[0,0,0],[0,-.32,.05],.045);
+      k.box(body,0x34405a,0,1.1,.36,.62,.55,.2);                                                   // 남색 조끼
+      for (const y of [1.25,1.05,.88]) k.ball(body,0xd9c06a,0,y,.47,.025);
+      k.box(body,0xc8433a,0,1.33,.47,.08,.2,.03); k.box(body,0xc8433a,0,1.2,.48,.11,.16,.03);       // 빨간 넥타이
+      k.cone(body,o.c,0,.75,-.5,.14,.32,6).rotation.x = -2.3;                                       // 꽁지
+      const board = new T.Group(); board.position.set(.02,-.48,.18); board.rotation.x = -.5; arms[0].add(board); // 결재판
+      k.box(board,0x8a5f3a,0,0,0,.32,.42,.03); k.box(board,0xffffff,0,-.02,.02,.27,.33,.01); k.box(board,0x9aa1a8,0,.19,.03,.12,.05,.03);
+      for (let i = 0; i < 4; i++) k.box(board,0x7a8590,-.02,.08-i*.07,.03,.18-i%2*.06,.012,.005);
     }},
   };
   function build(kind, name) {

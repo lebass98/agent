@@ -2,6 +2,7 @@
 /* zoo-life.js — 동물원에서만: 에이전트가 아닌 동물원 식구와 배경 동물.
    - 원장 코끼리(본부장): 전망대 그루터기 자리 · 회의실 · 카페 · 팀원 옆을 오가며 응원·위로·명언. 팀장이 발표하면 회의실 뒤편에서 듣는다.
    - 공작새(디자인팀장): 산책로와 마을을 쉬지 않고 돌아다닌다(가끔 혼잣말).
+   - 오리(경리팀장): 가장 말이 많다. 곳곳을 돌며 투덜거리고 지적한다(간식·영수증·법인카드·전기세·업무 비용). 팀원에게 가서 지적하고, 원장님께 결재를 독촉한다.
    - 배경 동물(업무와 무관, 이름표 없음): 호수 오리·하늘을 도는 새·사바나 미어캣·극지 펭귄·피크닉 나비.
    팀원이 아니므로 D.names·D.agents 에 넣지 않는다(이름표 겹침 정리 때만 잠깐 끼워 넣는다 — npcs.js 와 같은 방식).
    3D 가 없거나 사무실이면 아무것도 하지 않는다. '움직임 줄이기'면 걷지 않고 제자리에 머문다. index.html 에서 app.js 다음에 읽는다. */
@@ -39,8 +40,8 @@ window.ZooLife = (() => {
   const inStage = p => p.x > STAGE_ROOM.x0 && p.x < STAGE_ROOM.x1 && p.z > STAGE_ROOM.z0 && p.z < STAGE_ROOM.z1;
   const HEAD_SEAT = P(-2.6, -13.2), HEAD_FACE = P(-2.6, -10);
   const BACK = [P(-4.4, 2.7), P(4.4, 2.7), P(4.4, -2.4)];        // 회의실 안 뒤편(의자 뒤 구석)
-  const WANDER = [P(0, -4.6), P(-4.4, -4.6), P(4.4, -4.6), P(-5, -.7), P(5.6, -.3), P(4.4, 3.6), P(2.1, 4.2), P(-4, 4.2), P(0, 6.6), P(0, 9.2),
-    P(-11, -7.4), P(11, -7), P(-13.2, -3.2), P(12, 5.8), P(-10, 12.6), P(4.4, 8.2), P(11, 12.6), P(-6.8, 13.4), P(-16, 7.4), P(16.8, -6.4), P(-6, -12.6), P(6.4, -12.4)];
+  const WANDER = [P(0, -5.4), P(-4.4, -5.4), P(4.4, -5.4), P(-6.6, -.7), P(6.6, -.3), P(4.4, 4.4), P(2.1, 4.4), P(-4, 4.4), P(0, 6.6), P(0, 9.2),
+    P(-11, -7.4), P(11, -7), P(-13.2, -3.2), P(12, 5.8), P(-10, 12.6), P(4.4, 8.2), P(11, 12.6), P(-6.8, 13.4), P(-16, 7.4), P(16.8, -6.4), P(-6, -12.6), P(6.4, -10.8)];
   const FAR = P(9999, 9999);
 
   const sleepRaw = ms => new Promise(r => setTimeout(r, ms));
@@ -59,6 +60,9 @@ window.ZooLife = (() => {
     { key: "elephant", kind: "elephant", start: HEAD_SEAT, speed: 1.8, seat: HEAD_SEAT, monitorTarget: HEAD_FACE,
       def: { label: "본부장", initial: "🐘", color: "#8a8f99", hair: "#43302a", role: "코끼리 · 동물원 원장", model: "", provider: "", leader: false },
       lines: [...L.quote, ...L.chat], script: headScript },
+    { key: "duck", kind: "duck", start: P(4.4, 8.2), speed: 2.3,
+      def: { label: "경리팀장", initial: "🦆", color: "#e08a2a", hair: "#2c2c3a", role: "오리 · 경리팀", model: "", provider: "", leader: false },
+      lines: [], script: duckScript },
   ];
   const list = DEFS.map(d => ({ ...d, agent: null, g: 0 }));
   function create(n) {
@@ -69,7 +73,7 @@ window.ZooLife = (() => {
     const tag = a.tag.cloneNode(true);
     tag.setAttribute("aria-label", `${n.def.label} (에이전트 아님)`);
     tag.title = `${n.def.label} — 동물원 식구(업무를 맡지 않아요)`;
-    tag.addEventListener("click", () => a.say(pick(n.lines), 4200));
+    tag.addEventListener("click", () => a.say(n.key === "duck" ? duckLine(a.group.position) : pick(n.lines), 4200));
     a.tag.replaceWith(tag); a.tag = tag; a.faceEl = tag.querySelector(".face");
     a.teleport(n.start, Math.PI);
     if (n.seat) a.sitDesk("sit"); else a.mode = "stand";
@@ -175,6 +179,121 @@ window.ZooLife = (() => {
       if (alive(n, g) && a.mode === "talk") a.mode = "stand";
       await rest(n, g, rnd(1200, 2600));
     }
+  }
+
+  /* ───────── 경리팀장 오리: 동물원 곳곳을 돌며 쉬지 않고 투덜거리고 지적한다(가장 말이 많다) ─────────
+     말은 묶음(투덜·장소·간식·팀원 지적·업무 비용·혼잣말)에서 고르고, 앞말·끝말·품목·금액을 섞어 매번 다르게 만든다.
+     최근 40마디는 다시 쓰지 않는다. */
+  const D_ = {
+    open: ["아니, ", "하… ", "저기요, ", "잠깐만요, ", "제가 말 안 하려고 했는데, ", "솔직히 말해서, ", "또 저만 신경 쓰죠? ", "어휴, ", "다들 들어 보세요, ", "", "", ""],
+    close: ["", "", " 정말이에요.", " 기억하세요.", " 진짜로요.", " 🙄", " 💸", " 📋", " 메모해 둡니다.", " 이번 달만 벌써 세 번째예요.", " 다음엔 없어요."],
+    grumble: ["이게 다 돈이에요, 돈.", "요즘 다들 너무 편하게 쓰는 것 같아요.", "예산은 한정돼 있다고 몇 번을 말해요.", "정산하다 하루가 다 가겠네.",
+      "결재 올리기 전에 숫자 좀 맞춰 주세요.", "이번 달 마감이 코앞인데 다들 왜 이렇게 여유로워요?", "영수증은 받는 즉시! 사진 찍어서 올리기!", "법인카드는 개인 카드가 아니에요.",
+      "비품 신청서는 양식대로 써 주세요. 칸 비우지 말고요.", "제가 잔소리하는 게 아니라 규정이 그래요.", "적자 나면 다 같이 대나무 먹는 거예요.", "엑셀이 또 안 맞아요. 1원이 어디 갔지…",
+      "다들 저 보면 도망가는 거 다 알아요.", "제가 없으면 이 동물원 벌써 문 닫았어요.", "결재판 들고 다니는 이유가 다 있어요.", "카드 승인 문자 오면 심장이 철렁해요.",
+      "가계부… 아니 장부 다시 맞춰야겠네.", "오늘도 계산기가 제일 친한 친구예요.", "부가세 신고 기간인 거 다들 아시죠?", "출장비 정산 서류 오늘까지예요, 오늘!"],
+    snack: ["탕비실 과자가 왜 하루 만에 다 없어져요?", "초코파이 한 상자가 어제 들어왔는데 지금 두 개 남았어요. 두 개!", "간식은 1인 1개! 이거 써 붙여 놔야 하나…",
+      "누가 새우깡 봉지를 뜯어 놓고 그냥 갔어요? 눅눅해지잖아요!", "젤리는 비품 목록에 없어요. 근데 왜 젤리 영수증이 있어요?", "아이스크림 냉동고 전기세는 누가 내요? 제가 내요, 제가.",
+      "커피믹스 박스가 또 비었네… 하루에 몇 잔씩 마시는 거예요?", "바나나는 원숭이 팀 몫이에요. 다들 손대지 마세요.", "대나무 간식 주문량이 지난달보다 두 배예요. 판다님?",
+      "생선 간식 냄새 때문에 민원 들어왔어요. 수달님…", "유자차 티백은 고급이라 아껴 드세요. 한 번에 두 개 넣는 사람 누구예요?", "과자 부스러기 키보드에 떨어지면 수리비 나와요.",
+      "간식비 예산이 벌써 85% 썼어요. 이제 15일 남았는데요?", "주말에 간식 사 오는 건 좋은데 영수증은 꼭 주세요.", "회의 다과는 회의한 사람만 드세요. 지나가다 집어 가지 말고요!",
+      "편의점 2+1은 좋은데, 1개 더 산 건 누가 먹었어요?", "탕비실 컵라면 개수 세어 놨어요. 저 다 알아요.", "떡볶이 배달은 야근 식대로 안 돼요. 저녁 7시 이후만이에요.",
+      "마카롱 한 개에 3,500원이요? 그걸 열 개나요?!", "견과류는 건강에 좋죠. 근데 비싸요. 한 줌씩만!", "간식 사진 단톡방에 올리지 마세요. 다른 팀이 부러워해요… 아니 예산이 새요.",
+      "빵 남은 거 버리지 말고 내일 아침에 드세요. 아깝잖아요.", "누가 제 책상 사탕 가져갔어요? 그거 제 사비예요!", "간식 투표하자고요? 투표해도 예산은 그대로예요.",
+      "탕비실 냉장고에 이름 안 쓴 요구르트, 오늘 오후 6시에 폐기합니다.", "과자 큰 봉지 사면 싸긴 한데 다들 하루 만에 먹어서 결국 똑같아요.", "단백질 바 박스째로 주문한 사람… 그거 운동용 아니죠?"],
+    snackItems: ["초코파이", "새우깡", "젤리", "아이스크림", "커피믹스", "바나나 우유", "마카롱", "컵라면", "떡볶이", "견과류 믹스", "유자차", "도넛", "꿀꽈배기", "감자칩", "요구르트", "약과", "단백질 바"],
+    items: ["택시비", "회의 다과", "볼펜 한 다스", "포스트잇", "프린터 토너", "야근 식대", "무선 키보드", "마우스", "화분", "모니터 받침대", "대나무 묶음", "생선 간식", "바나나 한 송이", "유자 열 개", "케이블 정리함"],
+    member: [n => `${n}님, ${pick(D_.items)} 영수증 아직 안 냈죠?`, n => `${n}님 이번 달 ${pick(D_.items)} ${won()}… 이거 꼭 필요했어요?`,
+      n => `${n}님, 법인카드로 ${pick(D_.snackItems)}은(는) 안 돼요!`, n => `${n}님, 책상 위 ${pick(D_.snackItems)} 그거 비품 아니죠?`,
+      n => `${n}님 모니터 두 대 다 켜 놓으면 전기세가… 아시죠?`, n => `${n}님, 지난번 ${pick(D_.snackItems)} ${won()} 영수증만 있고 사진이 없어요.`,
+      n => `${n}님 출장비 정산 서류 오늘까지예요.`, n => `${n}님, ${pick(D_.snackItems)} 한 상자 혼자 다 드신 거 아니죠? 장부에 다 나와요.`,
+      n => `${n}님 자리 조명 안 끄고 퇴근했더라고요. 어제요.`, n => `${n}님, 회의 다과 ${won()} 나왔어요. 다과가 회의보다 길었어요.`],
+    reply: ["아… 내일 낼게요 😅", "그거 업무용이었어요!", "네네, 알겠습니다…", "앗, 깜빡했어요!", "그거 제가 산 거 아닌데요…?", "오늘 안으로 꼭 낼게요!", "다음엔 아껴 쓸게요 🙏"],
+    after: ["내일은 꼭이에요. 메모해 둡니다. 📋", "말로만 하지 말고요.", "제가 다 기억하고 있어요.", "좋아요. 믿어 볼게요. 이번 한 번만.", "흠… 일단 넘어가죠."],
+    busy: ["AI 호출 한 번에 얼마인지 아세요? 저는 알아요.", "토큰 올라가는 거 보여요? 저는 보여요… 숫자가 춤춰요.", "구독료 본전은 뽑아야죠. 맞아요. 맞는데…",
+      "업무 끝나면 사용량 꼭 확인할 거예요.", "이 작업 꼭 오늘 다 해야 돼요? 비용이…", "다들 열심히 하니 보기 좋네요. 근데 야근 식대는 7시 이후만이에요."],
+    meeting: ["회의 길어지면 다과비 추가예요.", "회의실 불은 나갈 때 꼭 끄세요.", "발표 자료 출력은 양면으로! 종이값 아끼세요.", "회의는 짧고 굵게! 시간이 다 돈이에요."],
+    mutter: ["흠.", "하아…", "이건 좀…", "어디 보자…", "메모, 메모…", "계산이 안 맞는데?", "또야, 또.", "1원… 1원 어디 갔어…", "뭐지 이 영수증은?", "탕비실 다시 가 봐야겠다."],
+    toHead: ["원장님, 이번 분기 예산안 결재 좀 해 주세요. 간식비 항목 보시면 놀라실 거예요.", "원장님, 아이스크림 냉동고 한 대 더 사자는 건 반대예요.", "원장님도 법인카드로 커피 드셨죠? 영수증이요."],
+    headReply: ["하하, 경리팀장 덕분에 우리 동물원이 굴러가요. 고마워요! 🐘", "알겠어요, 오늘 안으로 볼게요.", "간식은 조금만 봐줘요. 다들 힘내라고…"],
+    place: {
+      cafe: ["카페 매출보다 우리 팀 커피값이 더 나오겠네.", "음료는 한 사람당 한 잔! 기록할 거예요.", "시럽 추가 500원, 이게 쌓이면 얼마인 줄 알아요?", "매점 재고 조사 또 해야겠네. 젤리가 또 비어요."],
+      lake: ["오리배 대여료 정산 안 된 거 누구예요? …저 말고요.", "호수 관리비 청구서 봤어요? 물이 비싸요, 물이.", "연잎 정리 업체 견적이 이게 맞아요?"],
+      meeting: ["회의실 에어컨 켜 놓고 나간 사람 누구예요?", "테이블 위 다과 접시, 누가 치울 거예요?", "화면 켜 둔 채로 나가면 전기세가…"],
+      lobby: ["입장권 판매 내역 맞춰 봐야 하는데…", "분수 물값이 지난달보다 올랐어요. 분수 줄일까요?", "매표소 거스름돈 통 확인했어요?"],
+      picnic: ["돗자리 새로 산 거 영수증 어디 갔어요?", "피크닉 간식은 각자 싸 오기! 회사 돈 아니에요.", "해먹은 비품이에요. 개인 낮잠용 아니에요."],
+      polar: ["이글루 냉방비가 왜 이렇게 나와요?!", "얼음 연못 관리비… 펭귄님 이거 아시죠?", "눈 치우는 삽 또 샀어요? 지난달에 샀잖아요."],
+      bamboo: ["판다 간식 대나무 주문이 또 늘었네…", "대나무 숲 가지치기 비용 견적서 다시 받아야겠어요.", "대나무는 간식이에요, 주식이에요? 정리해 주세요."],
+      jungle: ["야자수 가지치기 견적이 이게 맞아요?", "정글 마을 습도 조절기 전기세가 엄청나요.", "바나나 간식은 일주일에 한 송이! 원숭이님 들으세요."],
+      savanna: ["개미탑 보수 공사? 그런 예산 없어요.", "사바나 마을 햇빛 가리개 또 주문하셨어요?", "기린님 목도리 새로 산 거, 그거 피복비로 안 돼요."],
+      exec: ["팀장 전망대 망원경 수리비 청구서 봤어요?", "나무집 지붕 보수비… 이게 다 팀장님 거예요.", "전망대에서 보면 다 보여요. 누가 간식 들고 다니는지도요."],
+    },
+  };
+  const recent = [];
+  const won = () => `${(Math.round((3000 + Math.random() * 177000) / 100) * 100).toLocaleString("ko-KR")}원`;
+  /** 같은 말을 연달아 하지 않게 최근 40마디를 피해서 고른다 */
+  function fresh(make, tries = 8) {
+    let s = "";
+    for (let i = 0; i < tries; i++) { s = make(); if (!recent.includes(s)) break; }
+    recent.push(s); if (recent.length > 40) recent.shift();
+    return s;
+  }
+  const wrap = body => `${pick(D_.open)}${body}${pick(D_.close)}`.replace(/\s+$/, "");
+  const nearZone = p => { let best = null, d = 1e9; for (const z of Z.zones || []) { const e = Math.hypot(p.x - z.x, p.z - z.z) - z.r; if (e < d) { d = e; best = z.id; } } return d < 2 ? best : null; };
+  const placeKey = id => ({ cafe: "cafe", lake: "lake", meeting: "meeting", lobby: "lobby", picnic: "picnic", polar: "polar", bamboo: "bamboo", jungle: "jungle", savanna: "savanna", exec: "exec" })[id];
+  /** 지금 상황에 맞는 한마디: 간식 이야기가 가장 잦다 */
+  function duckLine(at) {
+    const key = placeKey(nearZone(at)), r = Math.random();
+    if (D.running && r < .22) return fresh(() => wrap(pick(D_.busy)));
+    if (key && r < .4) return fresh(() => wrap(pick(D_.place[key])));
+    if (r < .85) return fresh(() => Math.random() < .3 ? wrap(`${pick(D_.snackItems)} 이번 주에만 ${won()}어치 나갔어요.`) : wrap(pick(D_.snack)));
+    return fresh(() => wrap(pick(D_.grumble)));
+  }
+  const CAFE_SPOT = Z.CAFE || P(4.5, 10.4);
+  const DUCK_SPOTS = [...WANDER, P(CAFE_SPOT.x - 2.4, CAFE_SPOT.z - .8), P(CAFE_SPOT.x + 2.4, CAFE_SPOT.z - .8), P(0, 4.4), P(-6.6, .3), P(6.6, .3), P(11.6, 1.4), P(-9, 10.4), P(0, 13.6)];
+  async function duckScript(n, a, g) {
+    let prev = null, last = "", talk = 0;
+    const say = (text, ms = 3600) => { if (alive(n, g)) a.say(text, ms); };
+    // 걷는 동안에도 투덜투덜(혼잣말)
+    const chatter = setInterval(() => {
+      if (!alive(n, g)) return clearInterval(chatter);
+      if (document.hidden || reduce() || a.mode !== "walk" || Math.random() > .8) return;
+      if (Math.random() < .3) say(fresh(() => pick(D_.mutter)), 2200); else say(duckLine(a.group.position), 3400);
+    }, 3300);
+    while (alive(n, g)) {
+      if (document.hidden) { await sleepRaw(1500); continue; }
+      if (reduce()) { if (a.mode === "walk") a.finishWalk(); say(duckLine(a.group.position), 4200); await sleepRaw(7000); continue; }
+      if (presenting() && Math.random() < .6) { // 회의 중: 회의실 문 앞에서 비용 잔소리
+        if (await walk(n, a, g, P(0, 4.6), 25000)) { a.mode = "stand"; a.face(TABLE); say(fresh(() => wrap(pick(D_.meeting))), 4200); }
+        await rest(n, g, 6500); continue;
+      }
+      const roll = Math.random();
+      const pool = D.names.map(A).filter(m => m && !m.ghost && !m.hidden && m.name !== last);
+      const head = list.find(o => o.key === "elephant")?.agent;
+      if (roll < .38 && pool.length) {                       // 팀원에게 가서 지적
+        const m = pick(pool); last = m.name;
+        if (!(await walk(n, a, g, besideSpot(m, a.group.position), 30000))) { await sleepRaw(600); continue; }
+        a.face(m.group.position); a.mode = "talk";
+        say(fresh(() => wrap(pick(D_.member)(m.def.label))), 4800);
+        await rest(n, g, 4200);
+        if (Math.random() < .7 && A(m.name) === m) { m.say(pick(D_.reply), 2600); await rest(n, g, 2600); say(pick(D_.after), 3000); await rest(n, g, 2800); }
+        a.mode = "stand";
+      } else if (roll < .46 && head && !head.ghost) {        // 원장님께 결재 독촉
+        if (!(await walk(n, a, g, besideSpot(head, a.group.position), 30000))) { await sleepRaw(600); continue; }
+        a.face(head.group.position); a.mode = "talk"; say(pick(D_.toHead), 5000); await rest(n, g, 4600);
+        head.say(pick(D_.headReply), 3800); await rest(n, g, 3600); say(pick(D_.after), 3000); await rest(n, g, 2600);
+        a.mode = "stand";
+      } else {                                              // 여기저기 둘러보며 투덜
+        const choices = DUCK_SPOTS.filter(p => p !== prev && free(p) && !(D.running && inStage(p)));
+        const p = pick(choices.length ? choices : WANDER); prev = p;
+        if (!(await walk(n, a, g, p))) { await sleepRaw(700); continue; }
+        a.mode = "stand"; a.face({ x: p.x + rnd(-3, 3), z: p.z + rnd(-3, 3) });
+        say(duckLine(p), 4200);
+        if (++talk % 2 === 0) { await rest(n, g, 3600); say(duckLine(p), 4000); }
+        await rest(n, g, rnd(2200, 4200));
+      }
+    }
+    clearInterval(chatter);
   }
 
   /* ───────── 배경 동물(이름표 없음, 업무와 무관) ───────── */
