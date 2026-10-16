@@ -1653,7 +1653,7 @@ function membersView() {
         el("button", { class: "tbtn", type: "button", disabled: !live || !TS, title: live ? "AI 선택·모델·하는 일·팀장 바꾸기" : "서버에 연결되면 바꿀 수 있어요", onclick: () => TS?.open() }, icon("gear"), "설정"),
         el("button", { class: "tbtn accent", type: "button", disabled: !live || !TS, title: live ? "새 팀원 추가" : "서버에 연결되면 추가할 수 있어요", onclick: () => TS?.add() }, icon("plus"), "에이전트 추가"))),
     MEMBERS_EL,
-    el("p", { class: "muted small", text: window.SpaceTheme?.isZoo ? "팀원의 동물 얼굴을 누르면 12종 가운데에서 동물을 고를 수 있어요(같은 동물은 한 명만). 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." : "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
+    el("p", { class: "muted small", text: window.SpaceTheme?.isZoo ? "팀원의 동물 얼굴을 누르면 15종 가운데에서 동물을 고를 수 있어요(같은 동물은 한 명만). 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." : "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
     live ? null : el("p", { class: "muted small", text: "데모 모드에서는 설정을 바꿀 수 없어요. 서버(start-mac.command 등)를 켜고 다시 열어 주세요." }),
   ];
 }
