@@ -24,6 +24,7 @@
 - 팀 실행 보강(`agentteam/team.py`): 일시 오류 자동 재시도(`retry`), 팀장 중간 검수 → 보완 요청(`rework`, team.toml `[leader] rework`),
   `runs/<id>/state.json` 체크포인트로 끊긴 업무 이어 하기, `usage.json` 사용량 기록. 화면은 `web/extras.js`(이어 하기 카드·분석 사용량·
   설정 '결과 알림(n8n·웹훅)'·'외부 도구(MCP)'·업무 지시 전 도구 허락 창). 서버는 `server/notify.py`(cache/notify.json)·`server/mcptools.py`(mcp-servers.json, 둘 다 Git 제외)
+- 동물원 공간(docs/space-themes.md): `web/zoo-theme.js`(넓은 섬·마을·작업석 12·동물 고르기) · `web/zoo-animals.js`(동물 12종+코끼리·공작새) · `web/zoo-life.js`(동물원 식구·배경 동물) · `web/zoo-forest.js`(바깥 숲·강·새, '숲' 버튼). 모두 동물원에서만 동작
 - `web/npcs.js` : 에이전트가 아닌 사무실 사람(디자인팀장 — 계속 돌아다님, 본부장 — 회의실·자기 자리·팀원 응원·명언). D.names 에 넣지 않는다
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)
 - `runs/<시각>/` : plan.json, task-*.md, report.md (Git 제외)

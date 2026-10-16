@@ -15,7 +15,7 @@ window.SpaceTheme = (() => {
     if (!dialog) {
       dialog = document.createElement('dialog'); dialog.className = 'space-picker';
       dialog.setAttribute('aria-labelledby', 'spaceTitle');
-      dialog.innerHTML = `<form method="dialog"><header><span class="space-eyebrow">AGENT · YOUR WORKSPACE</span><h1 id="spaceTitle">어디에서 함께 일할까요?</h1><p>공간이 바뀌어도 함께 일하는 AI 팀은 그대로예요.</p></header><div class="space-options"><button type="button" data-space="office"><span class="space-picture office-picture" aria-hidden="true">🏢</span><strong>사무실</strong><span>익숙한 작업 공간과 사람 팀원</span></button><button type="button" data-space="zoo"><span class="space-picture zoo-picture" aria-hidden="true">🦊 🐼 🦦</span><strong>동물원</strong><span>입체 동물 세 마리와 작은 협업 광장</span></button></div><p class="space-note">선택은 이 브라우저에 기억됩니다. 설정에서 다시 바꿀 수 있어요.<br>다른 공간으로 바꾸면 화면을 새로 불러옵니다.</p><p class="space-status" role="status"></p></form>`;
+      dialog.innerHTML = `<form method="dialog"><header><span class="space-eyebrow">AGENT · YOUR WORKSPACE</span><h1 id="spaceTitle">어디에서 함께 일할까요?</h1><p>공간이 바뀌어도 함께 일하는 AI 팀은 그대로예요.</p></header><div class="space-options"><button type="button" data-space="office"><span class="space-picture office-picture" aria-hidden="true">🏢</span><strong>사무실</strong><span>익숙한 작업 공간과 사람 팀원</span></button><button type="button" data-space="zoo"><span class="space-picture zoo-picture" aria-hidden="true">🦊 🐼 🦦 🐧</span><strong>동물원</strong><span>동물 12종 팀과 서식지 마을 5곳이 있는 넓은 동물원</span></button></div><p class="space-note">선택은 이 브라우저에 기억됩니다. 설정에서 다시 바꿀 수 있어요.<br>다른 공간으로 바꾸면 화면을 새로 불러옵니다.</p><p class="space-status" role="status"></p></form>`;
       document.body.append(dialog); status = dialog.querySelector('.space-status');
       for (const button of dialog.querySelectorAll('[data-space]')) {
         button.setAttribute('aria-pressed', String(button.dataset.space === current));
@@ -42,7 +42,7 @@ window.SpaceTheme = (() => {
   document.addEventListener('DOMContentLoaded', () => {
     try { const draft = sessionStorage.getItem('agentOffice.spaceDraft'); sessionStorage.removeItem('agentOffice.spaceDraft'); if (draft && document.getElementById('goal')) { document.getElementById('goal').value=draft; document.getElementById('goal').dispatchEvent(new Event('input',{bubbles:true})); } } catch {}
     if (current === 'zoo') {
-      const roomNames={all:'전체 보기',lobby:'입구',pantry:'차 한 잔',work:'작업실',exec:'여우 작업실',meeting:'협업 광장',lounge:'쉼터',balcony:'연못'};
+      const roomNames={all:'전체 보기',lobby:'정문 광장',pantry:'카페',work:'서식지 마을',exec:'팀장 전망대',meeting:'원형극장',lounge:'피크닉',balcony:'호수 데크'};
       for (const button of document.querySelectorAll('[data-room]')) button.textContent=roomNames[button.dataset.room] || button.textContent;
       document.querySelector('.room-switch')?.setAttribute('aria-label','동물원 공간');
       const home=document.querySelector('[data-view="office"]');if(home){home.title='동물원';const text=home.querySelector('span');if(text)text.textContent='동물원';}

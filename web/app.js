@@ -773,7 +773,7 @@ function pickAct(list, prev) {
   return [list[0][0], list[0][2]];
 }
 /** 팀원별 선택 외형과 해당 인물의 표정 띠. 등록되지 않은 외형은 null. */
-const appearanceOf = n => window.CharacterLooks?.get(n) || n;
+const appearanceOf = n => (window.SpaceTheme?.isZoo && window.ZooTheme ? window.ZooTheme.kindOf(n) : window.CharacterLooks?.get(n) || n); // 동물원: 고른 동물 종류
 const facesOf = n => window.SpaceTheme?.isZoo ? window.ZooTheme.faces(n) : window.SpriteChars?.faces(appearanceOf(n)) || null;
 /** 표정 아바타 CSS 변수: 띠 이미지·칸 수·보여 줄 칸(style.css 의 .face) */
 const faceVars = (f, expr = "기본") => ({ "--face": `url("${f.src}")`, "--fn": f.n, "--fi": f.index(expr) });
@@ -857,8 +857,8 @@ class Agent {
     $("labels").append(this.label);
   }
   changeAppearance(key) {
-    if (this.ghost || window.SpaceTheme?.isZoo) return;
-    const rig = window.SpriteChars?.build(this.def, key);
+    if (this.ghost) return;
+    const rig = window.SpaceTheme?.isZoo ? window.ZooTheme?.buildAnimal(this.def, this.name, key) : window.SpriteChars?.build(this.def, key);
     if (!rig) return;
     const previous = this.rig;
     rig.group.position.copy(this.group.position);
@@ -1222,7 +1222,7 @@ function buildMembers() {
     const title = `${d.label}에게 말 걸기`;
     MEMBERS_EL.append(el("article", { class: "member", style: { "--c": d.color } },
       el("span", { class: "row" },
-        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": window.SpaceTheme?.isZoo ? `${d.label} 동물 캐릭터 안내` : `${d.label} 사람 이미지 변경`, title: window.SpaceTheme?.isZoo ? "동물 캐릭터 안내" : "사람 이미지 변경", onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
+        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": window.SpaceTheme?.isZoo ? `${d.label} 동물 바꾸기` : `${d.label} 사람 이미지 변경`, title: window.SpaceTheme?.isZoo ? "동물 바꾸기" : "사람 이미지 변경", onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
         el("button", { class: "who member-chat", type: "button", title, onclick: () => { closeView(); window.CharacterChat?.open(n); } },
           el("span", { class: "name" }, d.label, d.leader ? el("span", { title: "팀장", text: " 👑" }) : null),
           el("span", { class: "role", text: d.role })),
@@ -1609,7 +1609,7 @@ function statsView() {
 }
 /** 사람 이미지 클릭 시에만 전체 외형 목록을 연다. */
 function openAppearancePicker(n) {
-  if (window.SpaceTheme?.isZoo) { toast("동물원에서는 Claude는 여우, GPT는 판다, Gemini는 수달로 함께 일해요.", "info"); return; }
+  if (window.SpaceTheme?.isZoo) return window.ZooTheme?.openPicker(n); // 동물원: 동물 고르기(zoo-theme.js)
   const options = window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id));
   openModal([
     sheetHead(`${memberDef(n).label} 사람 이미지`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
@@ -1647,7 +1647,7 @@ function membersView() {
         el("button", { class: "tbtn", type: "button", disabled: !live || !TS, title: live ? "AI 선택·모델·하는 일·팀장 바꾸기" : "서버에 연결되면 바꿀 수 있어요", onclick: () => TS?.open() }, icon("gear"), "설정"),
         el("button", { class: "tbtn accent", type: "button", disabled: !live || !TS, title: live ? "새 팀원 추가" : "서버에 연결되면 추가할 수 있어요", onclick: () => TS?.add() }, icon("plus"), "에이전트 추가"))),
     MEMBERS_EL,
-    el("p", { class: "muted small", text: window.SpaceTheme?.isZoo ? "Claude는 여우, GPT는 판다, Gemini는 수달이에요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." : "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
+    el("p", { class: "muted small", text: window.SpaceTheme?.isZoo ? "팀원의 동물 얼굴을 누르면 12종 가운데에서 동물을 고를 수 있어요(같은 동물은 한 명만). 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." : "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
     live ? null : el("p", { class: "muted small", text: "데모 모드에서는 설정을 바꿀 수 없어요. 서버(start-mac.command 등)를 켜고 다시 열어 주세요." }),
   ];
 }
