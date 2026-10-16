@@ -12,7 +12,7 @@ for(const file of files)vm.runInContext(fs.readFileSync(path.join(__dirname,'../
 const zoo=sandbox.window.ZooTheme,decor=sandbox.window.Decor;
 assert.equal(decor.OW,48);assert.equal(decor.OD,38);
 assert.equal(decor.spots(12).length,12,'작업석 12');assert.equal(decor.spots(3).length,3);assert.equal(decor.spareDesks(3).length,9,'빈 마을 책상');
-assert.equal(new Set(decor.spots(12).map(p=>`${p.meet.x},${p.meet.z}`)).size,12,'원형극장 객석 12');
+assert.equal(new Set(decor.spots(12).map(p=>`${p.meet.x},${p.meet.z}`)).size,12,'회의실 의자 12');
 const scene=new THREE.Scene();const built=decor.build(scene);assert(built.strokes.length>=5);assert(built.strokes.every(x=>!x.visible));
 let instanced=0;scene.traverse(o=>{if(o.isInstancedMesh)instanced++;});assert(instanced>=10,'나무·대나무·울타리 등은 한 번에 그린다');
 decor.theme(1);decor.theme(0);
@@ -37,7 +37,7 @@ for(const s of destinations)for(const e of destinations){
 }
 assert(!decor.walkable(zoo.LAKE.x,zoo.LAKE.z),'호수는 통행 금지');assert(!decor.walkable(23,17),'섬 바깥은 통행 금지');assert(!decor.walkable(0,11.2),'분수는 통행 금지');
 for(const r of Object.values(decor.rooms))assert(r.x1>r.x0&&r.z1>r.z0&&r.label);
-console.log(`넓은 동물원 48×38·작업석 12·객석 12·${routes}개 이동 경로·호수·분수·울타리 통행 금지 검증 통과`);
+console.log(`넓은 동물원 48×38·작업석 12·회의실 의자 12·${routes}개 이동 경로·호수·분수·울타리 통행 금지 검증 통과`);
 // 사무실 선택 시 Decor를 교체하지 않는다.
 const officeSandbox={...sandbox,window:{THREE,SpaceTheme:{isZoo:false}}};vm.createContext(officeSandbox);
 vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/decor.js'),'utf8'),officeSandbox);const original=officeSandbox.window.Decor;

@@ -222,3 +222,25 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
   .run-strip:has(.run-project[hidden]) { grid-template-areas:"sym info info info" "steps steps steps steps" "comp comp comp btn"; }
   .run-strip .run-steps { display:flex; }
 }
+
+/* 보고서 도착 표시(app.js paintReport): 현재 업무 카드의 '보고서' 버튼 + 입력창 보고서 버튼의 빨간 점. 열어 보면 표시만 사라지고 버튼은 남는다 */
+.run-report { display:inline-flex;align-items:center;gap:5px;height:28px;min-width:28px;justify-content:center;padding:0 7px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--text-2);font-size:12px;font-weight:600;cursor:pointer;flex:none;white-space:nowrap; }
+.run-report:hover { border-color:var(--line-strong);color:var(--text); }
+.run-report .ic { width:14px;height:14px; }
+.run-report .new-badge { display:none;padding:1px 6px;border-radius:999px;background:#e5484d;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.04em; }
+.run-report.unread { border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:var(--accent-weak);color:var(--accent-text);animation:reportPulse 1.8s ease-in-out infinite; }
+.run-report.unread .new-badge { display:inline-block; }
+@keyframes reportPulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 0%,transparent); } 50% { box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent); } }
+#reportBtn { position:relative; }
+#reportBtn.unread::after { content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px var(--panel); }
+@media(min-width:761px) {
+  .run-strip .run-report { position:absolute;top:10px;right:12px; }
+  .run-strip:has(.run-report:not([hidden])) .run-info { padding-right:40px; }
+  .run-strip:has(.run-report.unread:not([hidden])) .run-info { padding-right:78px; }
+  /* 누를 수 있는 카드 제목: 손가락 커서·밑줄·'보기 ›' 안내 */
+  .run-strip.clickable .run-info, .run-strip.clickable .run-symbol { cursor:pointer; }
+  .run-strip.clickable .run-info:hover strong, .run-strip.clickable .run-info:focus-visible strong { text-decoration:underline;text-underline-offset:3px; }
+  .run-strip.clickable .run-info small::after { content:" · 보기 ›";color:var(--accent-text);font-weight:600; }
+  .run-strip.clickable .run-symbol:hover { background:var(--accent-weak);color:var(--accent-text); }
+}
+@media(prefers-reduced-motion:reduce) { .run-report.unread { animation:none; } }

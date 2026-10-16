@@ -1300,6 +1300,7 @@ function renderBoard() {
   renderBoardLink();
   if (VIEW.name === "board") scheduleView();
   scheduleProgress();
+  if (typeof paintRunCard === "function") paintRunCard();
 }
 function renderBoardLink() {
   const tasks = D.shown ? [...D.shown.tasks.values()] : [];
@@ -1350,8 +1351,13 @@ function popMenu(anchor, items) {
   const m = $("popmenu");
   if (!m.hidden && POP.anchor === anchor) return closeMenu();
   closeMenu();
-  m.replaceChildren(...items.map(it => el("button", { type: "button", role: "menuitemradio", "aria-checked": String(!!it.checked), onclick: () => { closeMenu(); it.onpick(); } },
-    it.color ? el("i", { class: "ldot", style: { "--c": it.color } }) : it.icon ? icon(it.icon) : null, it.label)));
+  // 항목: {label, icon|color, checked, onpick, sub(작은 설명)} · {heading: "구역 이름"} · {sep: true}(구분선) · {note: "안내 문구"}
+  m.replaceChildren(...items.map(it => it.heading ? el("div", { class: "pm-head", role: "presentation", text: it.heading })
+    : it.sep ? el("hr", { class: "pm-sep", role: "separator" })
+    : it.note ? el("p", { class: "pm-note", text: it.note })
+    : el("button", { type: "button", role: "menuitemradio", "aria-checked": String(!!it.checked), title: it.title || null, onclick: () => { closeMenu(); it.onpick(); } },
+      it.color ? el("i", { class: "ldot", style: { "--c": it.color } }) : it.icon ? icon(it.icon) : null,
+      it.sub ? el("span", { class: "pm-text" }, el("span", { class: "pm-label", text: it.label }), el("small", { class: "pm-sub", text: it.sub })) : it.label)));
   m.hidden = false; POP.anchor = anchor; anchor.setAttribute("aria-expanded", "true");
   const r = anchor.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
   m.style.left = `${Math.max(8, Math.min(innerWidth - mw - 8, r.right - mw))}px`;
@@ -2016,7 +2022,33 @@ function normProject(p) {
   return p && typeof p === "object" && p.path ? { id: String(p.id || ""), name: String(p.name || "") || String(p.path).split("/").filter(Boolean).pop() || "", path: String(p.path) } : null;
 }
 const runView = run => ({ project: run.project || null, run_id: run.run_id, goal: run.goal, summary: run.summary, report: run.report, dir: run.dir, error: run.error, tasks: [...run.tasks.values()] });
+/* 보고서 도착 표시: 최근 보고서를 아직 열어 보지 않았으면 입력창의 보고서 버튼에 빨간 점, 현재 업무 카드에 'NEW' 보고서 버튼.
+   열어 보면 '읽음'(이 브라우저에 run_id 저장)이 되고, 닫아도 두 버튼은 남아 언제든 다시 볼 수 있다. */
+const REPORT_SEEN = "agentOffice.reportSeen";
+function paintReport(hide = false) {
+  const r = D.lastRun, has = !hide && !!r?.report, unread = has && store.get(REPORT_SEEN) !== String(r.run_id);
+  const btn = $("reportBtn"), card = $("runReport");
+  btn.hidden = !has; btn.classList.toggle("unread", unread);
+  btn.title = btn.ariaLabel = unread ? "새 보고서가 도착했어요 — 보기" : "최근 보고서 보기";
+  if (card) { card.hidden = !has; card.classList.toggle("unread", unread); card.setAttribute("aria-label", unread ? "새로 도착한 최종 보고서 보기" : "최종 보고서 다시 보기"); card.title = unread ? "새 보고서 보기" : "보고서 다시 보기"; }
+  paintRunCard();
+}
+/** 현재 업무 카드의 제목 부분도 누를 수 있다: 보고서가 있으면 보고서, 진행 중이면 업무별 진행 상황 */
+function paintRunCard() {
+  const strip = document.querySelector(".run-strip"), target = runCardTarget();
+  if (strip) {
+    strip.classList.toggle("clickable", !!target);
+    const info = strip.querySelector(".run-info");
+    if (info) { info.title = target ? (target.report ? "눌러서 최종 보고서 보기" : "눌러서 업무별 진행 상황 보기") : ""; info.tabIndex = target ? 0 : -1; info.setAttribute("role", target ? "button" : "group"); }
+  }
+}
+/** 현재 업무 카드를 눌렀을 때 열 실행: 진행 중이면 지금 업무, 아니면 보고서가 있는 최근 업무 */
+function runCardTarget() {
+  if (D.running && D.shown?.tasks?.size) return D.shown;
+  return D.lastRun?.report ? D.lastRun : D.shown?.tasks?.size ? D.shown : null;
+}
 function openReport(v, back) {
+  if (v.report && v.run_id != null) { store.set(REPORT_SEEN, String(v.run_id)); paintReport(); } // 읽음 표시
   const items = v.tasks.map(t => {
     const d = memberDef(t.assignee), failed = t.state === "failed";
     return el("details", { class: "res" },
@@ -2307,7 +2339,7 @@ async function arrive() {
 async function pRunStart(ev) {
   const run = ev._run;
   D.shown = run; renderBoard(); clearStrokes();
-  $("reportBtn").hidden = true;
+  paintReport(true); // 새 업무 중에는 숨긴다(끝나면 새 보고서로 다시 보인다)
   for (const n of D.names) setMember(n, { ...IDLE });
   setPhase("업무 접수", true);
   log(`새 목표: “${clip(run.goal, 160)}”`);
@@ -2335,7 +2367,7 @@ async function pPlan(ev) {
   renderBoard();
   log(`업무 ${tasks.length}건으로 분해했습니다.`, D.leader);
   if (run.summary) log(`계획: ${clip(run.summary, 200)}`, D.leader);
-  l.say(window.SpaceTheme?.isZoo ? "정리 끝! 협업 광장으로 모여 주세요 📣" : "정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
+  l.say(window.SpaceTheme?.isZoo ? "정리 끝! 회의실로 모여 주세요 📣" : "정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
   setMember(D.leader, { status: "회의", cls: "meet", task: "업무 계획 발표", bar: "", t0: 0 });
   await capped(Promise.all(D.names.map(async n => {
     const a = A(n);
@@ -2437,11 +2469,11 @@ async function pReport(ev) {
   log("최종 보고서를 작성했습니다.", D.leader);
   setPhase("보고 완료", true);
   D.lastRun = run;
-  $("reportBtn").hidden = false;
+  paintReport();
   await wait(900);
   // 보고서 창은 이 화면에서 업무를 지시한 사람에게만 자동으로 연다. 다른 접속자에게는 알림 + '최근 보고서' 버튼
   if (run === D.shown && UI.mine.has(run.run_id) && $("modal").hidden) openReport(runView(run));
-  else if (run === D.shown) toast("최종 보고서가 도착했어요. 입력창의 문서 아이콘(최근 보고서)으로 볼 수 있어요.", "info", 6000);
+  else if (run === D.shown) toast("최종 보고서가 도착했어요. 현재 업무 카드의 NEW 표시나 제목을 누르면 볼 수 있어요.", "info", 6000);
 }
 
 async function pError(ev) {
@@ -2531,7 +2563,7 @@ function applySnapshot(s, first) {
     } else { a.teleport(a.seat, Math.PI); a.mode = "sit"; }
   }
   setPhase(ph === "done" ? (run.ok ? "완료" : "중단됨") : PHASE_KO[ph], ph !== "done");
-  $("reportBtn").hidden = !(ph === "done" && run.report);
+  paintReport(!(ph === "done" && run.report));
   if (ph === "done") log(`최근 업무를 불러왔습니다: “${clip(run.goal, 80)}”`);
   else {
     log(`진행 중인 업무에 합류했습니다: “${clip(run.goal, 80)}”`);
@@ -2767,6 +2799,14 @@ $("goal").addEventListener("input", fitGoal);
 $("speed").addEventListener("click", e => { const s = +e.target.closest("button")?.dataset.s; if (s) setSpeed(s); });
 $("speedCycle").addEventListener("click", () => setSpeed({ 1: 2, 2: 4, 4: 1 }[SPEED]));
 $("reportBtn").addEventListener("click", () => D.lastRun && openReport(runView(D.lastRun)));
+$("runReport")?.addEventListener("click", () => D.lastRun && openReport(runView(D.lastRun)));
+for (const sel of [".run-strip .run-info", ".run-strip .run-symbol"]) {
+  const node = document.querySelector(sel);
+  if (!node) continue;
+  const go = () => { const r = runCardTarget(); if (r) openReport(runView(r)); };
+  node.addEventListener("click", go);
+  node.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+}
 $("conn").addEventListener("click", onConnClick);
 $("attachBtn").addEventListener("click", () => $("attachInput").click());
 $("attachInput").addEventListener("change", e => pickAttachment(e.target.files?.[0]));

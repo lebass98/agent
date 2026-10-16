@@ -42,7 +42,7 @@ window.SpaceTheme = (() => {
   document.addEventListener('DOMContentLoaded', () => {
     try { const draft = sessionStorage.getItem('agentOffice.spaceDraft'); sessionStorage.removeItem('agentOffice.spaceDraft'); if (draft && document.getElementById('goal')) { document.getElementById('goal').value=draft; document.getElementById('goal').dispatchEvent(new Event('input',{bubbles:true})); } } catch {}
     if (current === 'zoo') {
-      const roomNames={all:'전체 보기',lobby:'정문 광장',pantry:'카페',work:'서식지 마을',exec:'팀장 전망대',meeting:'원형극장',lounge:'피크닉',balcony:'호수 데크'};
+      const roomNames={all:'전체 보기',lobby:'정문 광장',pantry:'카페',work:'서식지 마을',exec:'팀장 전망대',meeting:'회의실',lounge:'피크닉',balcony:'호수 데크'};
       for (const button of document.querySelectorAll('[data-room]')) button.textContent=roomNames[button.dataset.room] || button.textContent;
       document.querySelector('.room-switch')?.setAttribute('aria-label','동물원 공간');
       const home=document.querySelector('[data-view="office"]');if(home){home.title='동물원';const text=home.querySelector('span');if(text)text.textContent='동물원';}

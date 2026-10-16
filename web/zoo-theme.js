@@ -1,6 +1,6 @@
 'use strict';
 /* 선택한 동물원 공간: 사무실과 같은 Decor/Agent 계약(build·spots·deskSet·spareDesks·navRects·nav·rooms·LIFE·theme)을 쓴다.
-   넓은 동물원(타원 섬 45×35): 정문 광장 · 원형극장 협업 광장 · 팀장 전망대 · 서식지 마을 5곳(대나무 숲·호수·정글·극지·사바나, 작업석 12) ·
+   넓은 동물원(타원 섬 45×35): 정문 광장 · 회의실(유리벽 회의 건물) · 팀장 전망대 · 서식지 마을 5곳(대나무 숲·호수·정글·극지·사바나, 작업석 12) ·
    카페 · 피크닉 잔디밭 · 호수 데크. 모든 장식은 three.js 기본 도형이며 많은 것(나무·대나무·꽃·울타리)은 InstancedMesh 로 한 번에 그린다.
    팀원 동물은 zoo-animals.js(12종)에서 만들고, 팀원별 동물 선택은 이 브라우저에 저장한다(같은 동물은 한 팀원만). */
 window.ZooTheme = (() => {
@@ -16,10 +16,14 @@ window.ZooTheme = (() => {
     { x: 9.6, z: 3.3, w: 2.2, zone: 'lake' }, { x: -15, z: -1.4, w: 2.2, zone: 'jungle' }, { x: -13, z: -10.2, w: 2.2, zone: 'polar' },
     { x: 13.4, z: 9.2, w: 2.2, zone: 'savanna' }, { x: -13, z: 3.4, w: 2.2, zone: 'jungle' },
   ];
-  // 원형극장: 무대 중심에서 남쪽으로 두 줄 반원(안 5석·바깥 7석). 팀원은 여기 앉아 팀장 발표를 듣는다
-  const STAGE = { x: 0, z: -2.4 };
-  const meetings = [...[30, 60, 90, 120, 150].map(a => [3.2, a]), ...[20, 43, 66, 90, 114, 137, 160].map(a => [4.8, a])]
-    .map(([r, a]) => ({ x: +(STAGE.x + r * Math.cos(a * Math.PI / 180)).toFixed(2), z: +(STAGE.z + r * Math.sin(a * Math.PI / 180)).toFixed(2) }));
+  // 회의실: 섬 가운데의 유리벽 회의 건물(나무 아랫벽 + 유리 + 문 네 곳). 긴 회의 테이블 둘레 의자 12석, 북쪽 벽에 발표 화면.
+  // 팀장은 화면 옆에서 발표하고 팀원은 의자에 앉아 듣는다. 위에서 보이도록 지붕은 두지 않는다(사무실 회의실과 같다)
+  const ROOM = { x0: -5.6, x1: 5.6, z0: -4.6, z1: 3.6 };
+  const DOORS = { s: [-.9, .9], w: [-.6, 1.2], e: [-.6, 1.2], n: [-4.4, -2.6] };   // 벽마다 문 틈(가로 벽은 x 범위, 세로 벽은 z 범위)
+  const MEET_TABLE = { x: 0, z: .2, w: 5.2, d: 1.3 };
+  const SCREEN = { x: .4, w: 3.2 };                                                // 북쪽 벽 안쪽 발표 화면
+  const STAGE = { ...MEET_TABLE };                                                  // (예전 이름 유지) 회의 테이블 가운데
+  const meetings = [...[-2, -1, 0, 1, 2].map(x => ({ x, z: -1.05 })), ...[-2, -1, 0, 1, 2].map(x => ({ x, z: 1.45 })), { x: -3.3, z: .2 }, { x: 3.3, z: .2 }];
   const CAFE = { x: 4.5, z: 10.4 };
   const coffees = Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2 + .26; return { x: +(CAFE.x + Math.cos(a) * 2).toFixed(2), z: +(CAFE.z + Math.sin(a) * 2).toFixed(2) }; })
     .filter(p => p.z < 12.2);
@@ -30,7 +34,7 @@ window.ZooTheme = (() => {
   // 서식지 마을·주요 장소(표지판·나무 심지 않을 곳)
   const zones = [
     { id: 'exec', x: 0, z: -11.5, r: 4.6, sign: '팀장 전망대', ground: 0x8fb36d },
-    { id: 'meeting', x: 0, z: -.5, r: 6.6, sign: '원형극장 광장', ground: 0xd9bd8d },
+    { id: 'meeting', x: 0, z: -.5, r: 7.6, sign: '회의실', ground: 0xd9bd8d },
     { id: 'lobby', x: 0, z: 13.8, r: 3.8, sign: 'WordNCode 동물원', ground: 0xd9bd8d },
     { id: 'cafe', x: 4.5, z: 11.3, r: 3.2, sign: '카페 · 매점', ground: 0xe2c79c },
     { id: 'picnic', x: -10, z: 10.6, r: 4.2, sign: '피크닉 잔디밭', ground: 0x86b766 },
@@ -41,6 +45,13 @@ window.ZooTheme = (() => {
     { id: 'savanna', x: 11.4, z: 9.6, r: 4.2, sign: '사바나 마을', ground: 0xd8c27e },
   ];
   const R = (x, z, w, d, tag) => ({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, tag });
+  /** 회의실 벽 조각(문 틈을 뺀 부분): {axis: 'x'(가로 벽)|'z'(세로 벽), at: 벽 위치, a~b: 벽 범위} */
+  function wallSegments() {
+    const out = [], cut = (axis, at, a, b, gap) => { if (gap) { out.push({ axis, at, a, b: gap[0] }, { axis, at, a: gap[1], b }); } else out.push({ axis, at, a, b }); };
+    cut('x', ROOM.z0, ROOM.x0, ROOM.x1, DOORS.n); cut('x', ROOM.z1, ROOM.x0, ROOM.x1, DOORS.s);
+    cut('z', ROOM.x0, ROOM.z0, ROOM.z1, DOORS.w); cut('z', ROOM.x1, ROOM.z0, ROOM.z1, DOORS.e);
+    return out;
+  }
 
   /* ── 팀원 동물(종류 선택은 이 브라우저에 저장) ── */
   const LOOK_KEY = 'agentOffice.zooLooks';
@@ -174,7 +185,7 @@ window.ZooTheme = (() => {
   const PINES = [[-7, -13.4], [-15.4, -12.4]];
   const IGLOO = { x: -11, z: -13.8 };
   // 표지판 자리(책상·길과 겹치지 않게 손으로 둔다). 정문은 아치 위
-  const SIGNS = { exec: [-3.4, -9], meeting: [3.8, -4.4], lobby: [0, 15.8], cafe: [7.4, 12.6], picnic: [-6.6, 12.8], polar: [-11, -6.8],
+  const SIGNS = { exec: [-3.4, -9], meeting: [6.6, -5.4], lobby: [0, 15.8], cafe: [7.4, 12.6], picnic: [-6.6, 12.8], polar: [-11, -6.8],
     bamboo: [11, -6.6], jungle: [-17.6, 1.8], lake: [11, -3.2], savanna: [11.4, 6.6] };
   const EDGE = .6; // 울타리 안쪽으로 걸을 수 있는 여유
   const TREEHOUSE = { x: 0, z: -14.9 };
@@ -193,13 +204,37 @@ window.ZooTheme = (() => {
       p.rotation.y = Math.atan2(bx - ax, bz - az); p.castShadow = false;
     }
 
-    // ── 원형극장 협업 광장: 무대·발표 보드·두 줄 객석 ──
-    cylinder(scene, 0xc49a68, STAGE.x, .02, STAGE.z, 1.9, .06, 40).castShadow = false;
-    for (const x of [-1.6, 1.6]) cylinder(scene, 0x886342, x, 1.3, -3.6, .09, 2.6);
-    box(scene, 0x946f48, 0, 2.15, -3.6, 3.4, 1.85, .16); box(scene, 0xeee6cb, 0, 2.15, -3.5, 3.1, 1.6, .04);
-    const strokes = Array.from({ length: 6 }, (_, i) => { const m = box(scene, i % 2 ? 0x3c8781 : 0x567963, -.15, 2.72 - i * .22, -3.46, 1.9 - i * .17, .06, .025); m.material = m.material.clone(); m.visible = false; return m; });
-    many(scene, new T.CylinderGeometry(.32, .36, .36, 14), 0xba9364, meetings.map(p => ({ x: p.x, y: .18, z: p.z })));
-    for (const r of [6.1]) for (let a = 12; a <= 168; a += 6) { const t = a * Math.PI / 180; ball(scene, 0x6f9b57, STAGE.x + r * Math.cos(t), .22, STAGE.z + r * Math.sin(t), .45, .3, .4); }
+    // ── 회의실: 나무 바닥·아랫벽·유리벽·문·긴 테이블·의자 12·발표 화면·조명 ──
+    const roomW = ROOM.x1 - ROOM.x0, roomD = ROOM.z1 - ROOM.z0, rcx = (ROOM.x0 + ROOM.x1) / 2, rcz = (ROOM.z0 + ROOM.z1) / 2;
+    box(scene, 0xcaa47a, rcx, .02, rcz, roomW, .04, roomD).castShadow = false;
+    const glass = new T.MeshStandardMaterial({ color: 0xcfe6ee, roughness: .1, metalness: .1, transparent: true, opacity: .28, depthWrite: false });
+    for (const seg of wallSegments()) {
+      const along = seg.axis === 'x', len = seg.b - seg.a, mid = (seg.a + seg.b) / 2;
+      const [x, z] = along ? [mid, seg.at] : [seg.at, mid], [w, d] = along ? [len, .16] : [.16, len];
+      box(scene, 0x9c7851, x, .45, z, w, .9, d);                                   // 나무 아랫벽
+      const g = new T.Mesh(new T.BoxGeometry(w, 1.5, d * .4), glass); g.position.set(x, 1.65, z); scene.add(g); // 유리
+      box(scene, 0x7d5c3d, x, 2.42, z, w, .08, d);                                 // 윗 난간
+      for (const e of [seg.a, seg.b]) { const [px, pz] = along ? [e, seg.at] : [seg.at, e]; box(scene, 0x7d5c3d, px, 1.23, pz, .18, 2.46, .18); }
+    }
+    // 긴 회의 테이블과 의자(등받이는 바깥쪽)
+    box(scene, 0xd4b07c, MEET_TABLE.x, .78, MEET_TABLE.z, MEET_TABLE.w, .1, MEET_TABLE.d);
+    for (const dx of [-MEET_TABLE.w / 2 + .3, MEET_TABLE.w / 2 - .3]) for (const dz of [-MEET_TABLE.d / 2 + .2, MEET_TABLE.d / 2 - .2]) box(scene, 0x916d47, MEET_TABLE.x + dx, .38, MEET_TABLE.z + dz, .1, .76, .1);
+    for (let i = 0; i < 4; i++) box(scene, 0xf2ead8, -1.6 + i * 1.05, .85, MEET_TABLE.z + (i % 2 ? .25 : -.25), .45, .02, .32); // 테이블 위 서류
+    many(scene, new T.BoxGeometry(.5, .08, .5), 0xba9364, meetings.map(p => ({ x: p.x, y: .45, z: p.z })));
+    many(scene, new T.BoxGeometry(.5, .5, .07), 0x9c7851, meetings.map(p => {
+      const out = Math.abs(p.x) > 3 ? [Math.sign(p.x) * .24, 0] : [0, Math.sign(p.z - MEET_TABLE.z) * .24];
+      return { x: p.x + out[0], y: .72, z: p.z + out[1], ry: Math.abs(p.x) > 3 ? Math.PI / 2 : 0 };
+    }));
+    many(scene, new T.CylinderGeometry(.04, .04, .45, 6), 0x7d5c3d, meetings.map(p => ({ x: p.x, y: .22, z: p.z })));
+    // 북쪽 벽 안쪽 발표 화면(계획 줄이 한 장씩 채워진다)
+    box(scene, 0x2e3a40, SCREEN.x, 1.75, ROOM.z0 + .2, SCREEN.w + .2, 1.6, .1); box(scene, 0xeef3ee, SCREEN.x, 1.75, ROOM.z0 + .26, SCREEN.w, 1.4, .02);
+    const strokes = Array.from({ length: 6 }, (_, i) => { const m = box(scene, i % 2 ? 0x3c8781 : 0x567963, SCREEN.x - .2, 2.25 - i * .18, ROOM.z0 + .28, 2 - i * .18, .07, .02); m.material = m.material.clone(); m.visible = false; return m; });
+    // 화분·물병 정수기 같은 소품
+    for (const [x, z] of [[-5.1, -4.1], [5.1, -4.1], [5.1, 3.1], [-5.1, 3.1]]) { cylinder(scene, 0xb07a52, x, .25, z, .22, .5, 12); ball(scene, 0x5a8c50, x, .75, z, .35, .4, .35); }
+    // 테이블 위 매달린 등(밤에 켜진다)
+    cylinder(scene, 0x3b3f42, 0, 2.9, MEET_TABLE.z, .02, .9, 6);
+    const pendantMat = new T.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffc76a, emissiveIntensity: 0, roughness: .4 });
+    const pendant = new T.Mesh(new T.ConeGeometry(.45, .35, 18, 1, true), pendantMat); pendant.position.set(0, 2.35, MEET_TABLE.z); pendant.material.side = T.DoubleSide; scene.add(pendant);
 
     // ── 정문 광장: 아치 문·매표소·분수 ──
     for (const x of [-2.4, 2.4]) { cylinder(scene, 0x8a6a48, x, 1.6, 15.8, .22, 3.2); ball(scene, 0x6a9859, x, 3.3, 15.8, .42); }
@@ -324,14 +359,14 @@ window.ZooTheme = (() => {
     many(scene, new T.CylinderGeometry(.05, .06, 1.8, 8), 0x3b3f42, lampPts.map(p => ({ ...p, y: .9 })));
     const bulbs = new T.InstancedMesh(new T.SphereGeometry(.17, 12, 8), bulbMat, lampPts.length);
     { const o = new T.Object3D(); lampPts.forEach((p, i) => { o.position.set(p.x, 1.9, p.z); o.updateMatrix(); bulbs.setMatrixAt(i, o.matrix); }); scene.add(bulbs); }
-    const lights = [{ x: 0, z: -.5 }, { x: CAFE.x, z: CAFE.z }, { x: 0, z: 13 }].map(p => { const l = new T.PointLight(0xffc98a, 0, 14, 2); l.position.set(p.x, 3, p.z); scene.add(l); return l; });
+    const lights = [{ x: 0, z: MEET_TABLE.z }, { x: CAFE.x, z: CAFE.z }, { x: 0, z: 13 }].map(p => { const l = new T.PointLight(0xffc98a, 0, 14, 2); l.position.set(p.x, 3, p.z); scene.add(l); return l; });
     const flyN = 90, flyPos = new Float32Array(flyN * 3), fr = rng(5);
     for (let i = 0; i < flyN; i++) { let x, z; do { x = (fr() * 2 - 1) * RX; z = (fr() * 2 - 1) * RZ; } while (!inIsland(x, z, 1)); flyPos.set([x, .6 + fr() * 1.8, z], i * 3); }
     const flyGeo = new T.BufferGeometry(); flyGeo.setAttribute('position', new T.BufferAttribute(flyPos, 3));
     const flies = new T.Points(flyGeo, new T.PointsMaterial({ color: 0xfff3a0, size: .14, transparent: true, opacity: 0, depthWrite: false }));
     flies.visible = false; scene.add(flies);
     night.set = n => {
-      bulbMat.emissiveIntensity = n * 1.6; for (const l of lights) l.intensity = n * .9;
+      bulbMat.emissiveIntensity = n * 1.6; pendantMat.emissiveIntensity = n * 2; for (const l of lights) l.intensity = n * .9;
       flies.visible = n > .35; flies.material.opacity = Math.min(1, (n - .35) * 2);
     };
 
@@ -379,7 +414,8 @@ window.ZooTheme = (() => {
   function spareDesks(n) { return desks.slice(n).map(d => ({ x: d.x, z: d.z, w: d.w, cols: 1, col: 0, facing: 0 })); }
   function navRects() {
     return [
-      R(LAKE.x, LAKE.z, LAKE.rx * 2 + .6, LAKE.rz * 2 + .6, 'lake'), R(0, -3.6, 3.6, .35, 'board'), R(FOUNTAIN.x, FOUNTAIN.z, 2.5, 2.5, 'fountain'),
+      R(LAKE.x, LAKE.z, LAKE.rx * 2 + .6, LAKE.rz * 2 + .6, 'lake'), ...wallSegments().map(seg => seg.axis === 'x' ? R((seg.a + seg.b) / 2, seg.at, seg.b - seg.a + .18, .2, 'wall') : R(seg.at, (seg.a + seg.b) / 2, .2, seg.b - seg.a + .18, 'wall')),
+      R(MEET_TABLE.x, MEET_TABLE.z, MEET_TABLE.w, MEET_TABLE.d, 'meeting-table'), R(SCREEN.x, ROOM.z0 + .2, SCREEN.w + .2, .3, 'screen'), R(FOUNTAIN.x, FOUNTAIN.z, 2.5, 2.5, 'fountain'),
       R(-4.4, 14.5, 2, 1.5, 'ticket'), R(-2.4, 15.8, .5, .5, 'gate'), R(2.4, 15.8, .5, .5, 'gate'),
       R(TREEHOUSE.x, TREEHOUSE.z, 2.9, 2.6, 'treehouse'), R(-2.6, -12.2, .9, .9, 'stump-table'), R(2.8, -12.8, .4, .4, 'scope'),
       R(IGLOO.x, IGLOO.z + .3, 3.1, 3.4, 'igloo'), R(-14.6, -11.4, 2.3, 1.6, 'ice'),
@@ -393,7 +429,7 @@ window.ZooTheme = (() => {
   const rooms = {
     lobby: { x0: -5, x1: 5, z0: 10, z1: 17, label: '정문 광장' },
     work: { x0: -17, x1: 15, z0: -12, z1: 11, label: '서식지 마을' },
-    meeting: { x0: -6, x1: 6, z0: -4.5, z1: 3.5, label: '원형극장 광장' },
+    meeting: { x0: ROOM.x0, x1: ROOM.x1, z0: ROOM.z0, z1: ROOM.z1, label: '회의실' },
     exec: { x0: -4, x1: 4, z0: -16, z1: -8, label: '팀장 전망대' },
     pantry: { x0: 1.5, x1: 7.5, z0: 8, z1: 14, label: '카페' },
     lounge: { x0: -15, x1: -5, z0: 7, z1: 14.5, label: '피크닉 잔디밭' },
@@ -414,7 +450,7 @@ window.ZooTheme = (() => {
       return this;
     };
     window.Decor = { OW, OD, PART_H: 0, rooms, nav, sun: office.sun, spots, navRects, build, deskSet, spareDesks, walkable: (x, z) => nav.walkable(x, z),
-      TABLE: { ...STAGE }, PRESENT_SPOT: { x: -2, z: -2.3 }, WHITEBOARD: { x: 0, z: -2.2 }, BOARD_FACE: { x: 0, z: -3.6 },
+      TABLE: { x: MEET_TABLE.x, z: MEET_TABLE.z }, PRESENT_SPOT: { x: SCREEN.x - SCREEN.w / 2 - .7, z: ROOM.z0 + 1.1 }, WHITEBOARD: { x: SCREEN.x, z: ROOM.z0 + 1.2 }, BOARD_FACE: { x: SCREEN.x, z: ROOM.z0 },
       COUNTER: { x: CAFE.x, z: 13.3 }, PANTRY_TABLE: { ...CAFE }, COFFEE: coffees,
       ENTRANCE: { x: 0, z: 14.2 }, LOBBY_DOOR: { axis: 'x', x: 0, z: 15.2 }, REPORT_SPOT: { x: 1.8, z: -9.3 },
       LIFE: { walk: [{ x: -5.6, z: 6.2 }, { x: -7, z: -.6 }, { x: -6.3, z: -6 }], window: { x: 11.5, z: .9 }, windowFace: { x: LAKE.x, z: LAKE.z },
@@ -453,6 +489,6 @@ window.ZooTheme = (() => {
   }
 
   if (window.SpaceTheme?.isZoo) activate();
-  return { buildAnimal, faces, icon, isExtra, PATHS, FOUNTAIN, CAFE, STAGE, kindOf, setKind, assign, species, openPicker, spots, navRects, desks, meetings, zones, LAKE, RX, RZ,
+  return { buildAnimal, faces, icon, isExtra, PATHS, FOUNTAIN, CAFE, STAGE, ROOM, kindOf, setKind, assign, species, openPicker, spots, navRects, desks, meetings, zones, LAKE, RX, RZ,
     get icons() { const o = {}; for (const n of teamNames()) o[n] = icon(n); return o; } };
 })();

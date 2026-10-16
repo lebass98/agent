@@ -59,10 +59,16 @@ window.Projects = (() => {
     if (!live()) { toast(NET.mode === "demo" ? "프로젝트(폴더 접근)는 서버에 연결되어 있을 때만 쓸 수 있어요." : "서버에 연결된 뒤 다시 시도해 주세요.", "info", 3500); return; }
     if (!$("popmenu").hidden && POP.anchor === b) return closeMenu();
     await load();
-    const items = S.list.map(p => ({ label: p.name, icon: "folder-open", checked: p.id === S.current, onpick: () => { setCurrent(p.id); toast(`프로젝트 ‘${p.name}’ 안에서 업무를 실행해요.`, "info", 2500); } }));
-    items.push({ label: "프로젝트 없이 실행", icon: "x", checked: !current(), onpick: () => setCurrent("") });
-    items.push({ label: "폴더 열기…", icon: "plus", onpick: () => openFolder() });
-    items.push({ label: "프로젝트 관리", icon: "gear", onpick: () => showView("projects") });
+    // 프로젝트(등록해 둔 작업 단위: 이름 + 폴더)와 폴더(새로 열기·관리)를 구역으로 나눠 보여 준다
+    const short = path => { const parts = String(path).split(/[\\/]/).filter(Boolean); return (parts.length > 2 ? "…/" : "/") + parts.slice(-2).join("/"); };
+    const items = [{ heading: `프로젝트 ${S.list.length ? S.list.length + "개" : ""}`.trim() }];
+    if (!S.list.length) items.push({ note: "등록한 프로젝트가 없어요. 아래 ‘폴더 열기…’로 만들어요." });
+    for (const p of S.list) items.push({ label: p.name, sub: short(p.path), title: p.path, icon: "kanban", checked: p.id === S.current,
+      onpick: () => { setCurrent(p.id); toast(`프로젝트 ‘${p.name}’ 안에서 업무를 실행해요.`, "info", 2500); } });
+    items.push({ label: "프로젝트 없이 실행", sub: "폴더에 접근하지 않아요", icon: "x", checked: !current(), onpick: () => setCurrent("") });
+    items.push({ sep: true }, { heading: "폴더" });
+    items.push({ label: "폴더 열기…", sub: "새 폴더를 골라 프로젝트로 추가", icon: "folder-open", onpick: () => openFolder() });
+    items.push({ label: "프로젝트 관리", sub: "이름 바꾸기·접근 해제", icon: "gear", onpick: () => showView("projects") });
     popMenu(b, items);
   }
 
