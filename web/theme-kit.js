@@ -10,6 +10,7 @@
   const THEMES = [
     { id: 'office', label: '사무실', icon: '🏢', blurb: '익숙한 작업 공간과 사람 팀원', brand: 'WordNCode Agent Office', title: 'WordNCode Agent Office', picture: '🏢' },
     { id: 'zoo', label: '동물원', icon: '🦊', blurb: '동물 팀원과 서식지 마을 5곳이 있는 넓은 동물원', brand: 'WordNCode Agent Zoo', title: 'WordNCode Agent · 동물원', picture: '🦊 🐼 🦦 🐧' },
+    { id: 'pixel', label: '픽셀 스튜디오', icon: '▦', blurb: '도트 캐릭터가 함께 일하는 따뜻한 2D 픽셀아트 사무실', brand: 'WordNCode Pixel Studio', title: 'WordNCode Agent · 픽셀 스튜디오', picture: 'PIXEL STUDIO' },
   ];
   const SEATS = 12, MEET_SEATS = 12, COFFEE_SPOTS = 12, GUESTS = 3;
   // 방 키 → 역할(모든 테마 공통). 이름(label)은 테마의 Decor.rooms 에서 온다

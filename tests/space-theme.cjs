@@ -3,7 +3,7 @@ const source=fs.readFileSync('web/theme-kit.js','utf8')+'\n'+fs.readFileSync('we
 function page({query='',saved='office',busy=false,blocked=false,enter=null}={}) {
   const local=new Map([['agentOffice.spaceTheme',saved]]),session=new Map(enter?[['agentOffice.enterSpace',enter]]:[]),events={};
   const storage=map=>({getItem:k=>{if(blocked)throw Error('blocked');return map.get(k)||null},setItem:(k,v)=>{if(blocked)throw Error('blocked');map.set(k,v)},removeItem:k=>map.delete(k)});
-  const buttons=['office','zoo'].map(space=>({dataset:{space},attrs:{},setAttribute(k,v){this.attrs[k]=v}}));
+  const buttons=['office','zoo','pixel'].map(space=>({dataset:{space},attrs:{},setAttribute(k,v){this.attrs[k]=v}}));
   const status={textContent:''},goal={value:'미전송 업무',dispatchEvent(){}};
   const dialog={open:false,querySelector:()=>status,querySelectorAll:()=>buttons,setAttribute(){},addEventListener(){},showModal(){this.open=true},close(){this.open=false}};
   const location={search:query,href:'http://localhost/'+query,replace(url){this.changed=url}};
@@ -27,3 +27,8 @@ p=page({saved:'office'});p.theme.show();p.buttons[1].onclick();assert(new URL(p.
 p=page({saved:'zoo',enter:'zoo'});assert(!p.dialog.open);assert(!p.session.has('agentOffice.enterSpace'));
 p=page({saved:'office'});assert(!p.dialog.open,'다음 진입에서도 다시 묻지 않음(설정에서 변경)');
 console.log('공간 선택 기억·처음 한 번만 묻기·유효값 검증·저장소 차단·업무 중 전환 방지·문구 복원 검증 통과');
+p=page({saved:'pixel'});assert(p.theme.isPixel);assert(!p.theme.isZoo);assert(!p.dialog.open);
+p=page({saved:'office',query:'?space=pixel'});assert(p.theme.isPixel);assert(!p.dialog.open);
+p=page({saved:'office'});p.theme.show();p.buttons[2].onclick();assert(new URL(p.location.changed).searchParams.get('space')==='pixel');assert.equal(p.local.get('agentOffice.spaceTheme'),'pixel');
+p=page({saved:'office',busy:true});p.theme.show();p.buttons[2].onclick();assert(!p.location.changed);assert(p.status.textContent.includes('끝나면'));
+console.log('픽셀 테마 선택·기억·주소 지정·업무 중 전환 방지 통과');

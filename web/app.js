@@ -189,9 +189,9 @@ function dispose(obj) {
 function init3D() {
   if (!window.THREE || typeof THREE.OrbitControls !== "function") return false;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = window.SpaceTheme?.isPixel && window.PixelTheme ? new PixelTheme.Renderer() : new THREE.WebGLRenderer({ antialias: true });
   } catch (e) {
-    console.warn("WebGL 사용 불가:", e);
+    console.warn("장면 렌더링 사용 불가:", e);
     renderer = null;
     return false;
   }
@@ -203,11 +203,11 @@ function init3D() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("role", "img");
   renderer.domElement.tabIndex = 0;
-  renderer.domElement.setAttribute("aria-label", `3D ${SPACE.label}. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.`);
+  renderer.domElement.setAttribute("aria-label", window.SpaceTheme?.isPixel ? "2D 픽셀아트 사무실. 드래그로 이동, 휠이나 두 손가락으로 확대, 캐릭터를 클릭하면 대화합니다." : `3D ${SPACE.label}. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.`);
   $("stage").append(renderer.domElement);
 
   scene = new THREE.Scene();
-  if (window.ModelKit && !window.SpaceTheme?.isZoo) scene.environment = ModelKit.environment(renderer).texture;
+  if (window.ModelKit && !window.SpaceTheme?.isZoo && !window.SpaceTheme?.isPixel) scene.environment = ModelKit.environment(renderer).texture;
   camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   CAM_OFF = new THREE.Vector3(22, 20, 22);
   camera.position.copy(CAM_OFF);
@@ -215,6 +215,7 @@ function init3D() {
   Object.assign(controls, {
     enablePan: true, screenSpacePanning: true, panSpeed: .65, enableDamping: true, minZoom: .6, maxZoom: mqMobile.matches ? 6.4 : 4.4, minPolarAngle: .5, maxPolarAngle: 1.2,
   });
+  if(window.SpaceTheme?.isPixel)Object.assign(controls,{enableRotate:false,mouseButtons:{LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN},touches:{ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN}});
 
   hemi = new THREE.HemisphereLight(0xffffff, 0xc9d2e3, .78);
   scene.add(hemi);
@@ -777,7 +778,11 @@ function pickAct(list, prev) {
 /** 팀원별 선택 외형과 해당 인물의 표정 띠. 등록되지 않은 외형은 null. */
 /* 팀원 외형 어댑터(테마마다 모양만 다르다): 고른 외형 · 표정 띠 · 3D 모델 · 이름표 아이콘 · 외형 고르기 창 · 안내 문구.
    동물원은 zoo-theme.js(동물 15종), 사무실은 character-looks.js·sprite-chars.js(사람 그림). 조연·손님도 def.kind 로 같은 길을 탄다 */
-const LOOKS = window.SpaceTheme?.isZoo && window.ZooTheme ? {
+const LOOKS = window.SpaceTheme?.isPixel && window.PixelTheme ? {
+  noun:"픽셀 캐릭터", of:n=>window.CharacterLooks?.get(n)||n,
+  faces:n=>PixelTheme.faces(LOOKS.of(n)),build:(def,name,key)=>PixelTheme.buildCharacter(def,key||def.kind||LOOKS.of(name)),icon:null,pick:null,
+  help:"에이전트 화면의 픽셀 얼굴을 눌러 외형을 바꾸고, 캐릭터나 이름을 눌러 개인 대화를 시작하세요. 팀의 AI·모델·역할은 설정에서 바꿀 수 있어요.",
+} : window.SpaceTheme?.isZoo && window.ZooTheme ? {
   noun: "동물", of: n => window.ZooTheme.kindOf(n), faces: n => window.ZooTheme.faces(n),
   build: (def, name, key) => window.ZooTheme.buildAnimal(def, name, key || def.kind), icon: n => window.ZooTheme.icons[n] || "🐾",
   pick: n => window.ZooTheme.openPicker(n),
@@ -810,7 +815,7 @@ class Agent {
     // group(위치·방향) ─ legs(+knees) / body(엉덩이 축으로 기울기) ─ torso·arms(+elbows·hands)·head(목 축으로 고개)·cup·props
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
-    let rig = window.SpaceTheme?.isZoo ? LOOKS.build(def, name) : null;
+    let rig = window.SpaceTheme?.isZoo || window.SpaceTheme?.isPixel ? LOOKS.build(def, name) : null;
     const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
     if (!rig && (!use3DChar || appearanceOf(name) !== name)) {
       try { rig = LOOKS.build(def, name); }
@@ -1105,7 +1110,7 @@ class Agent {
   }
   /** 듀얼 모니터: 업무 중이면 왼쪽은 역할별 작업 화면·오른쪽은 참고 화면, 쉬는 중이면 브라우저·메신저·바탕화면, 자리를 비우면 잠금화면. */
   paint(now) {
-    if (!this.tv) return;
+    if (!this.tv || window.SpaceTheme?.isPixel) return; // 픽셀 화면은 2D 렌더러가 직접 그린다.
     let main = "lock", side = "lock";
     if (this.mode !== "walk" && this.atDesk()) {
       if (this.mode === "type") { main = this.workKind; side = SIDE_SCREEN[this.workKind]; }
@@ -1650,9 +1655,9 @@ function statsView() {
 /** 사람 이미지 클릭 시에만 전체 외형 목록을 연다. */
 function openAppearancePicker(n) {
   if (LOOKS.pick) return LOOKS.pick(n); // 테마 전용 고르기 창(동물원: zoo-theme.js)
-  const options = window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id));
+  const options = window.CharacterLooks.list.filter(person => window.SpaceTheme?.isPixel || window.SpriteChars?.has(person.id));
   openModal([
-    sheetHead(`${memberDef(n).label} 사람 이미지`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
+    sheetHead(`${memberDef(n).label} ${LOOKS.noun}`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
     el("div", { class: "sheet-body" },
       el("div", { class: "appearance-grid", role: "group", "aria-label": `${memberDef(n).label} 외형 선택` },
         ...options.map(person => el("button", {
@@ -1671,7 +1676,7 @@ function openAppearancePicker(n) {
             window.Dashboard?.schedule(); closeModal();
             toast(`${memberDef(n).label}의 외형을 ${person.label}(으)로 변경했어요.`);
           }
-        }, el("span", { class: "appearance-portrait face", style: faceVars(window.SpriteChars.faces(person.id)), "aria-hidden": "true" }),
+        }, el("span", { class: "appearance-portrait face", style: faceVars(window.SpaceTheme?.isPixel ? PixelTheme.faces(person.id) : window.SpriteChars.faces(person.id)), "aria-hidden": "true" }),
         el("span", { text: person.label }), el("small", { text: !window.CharacterLooks.available(n, person.id, D.names) ? "다른 팀원 사용 중" : person.age ? `${person.age}세` : "기존 캐릭터" }))))),
   ]);
 }
@@ -2875,6 +2880,7 @@ if (HAS3D) {
   renderer.domElement.addEventListener("pointerup",e=>{
     const start=characterPress;characterPress=null;
     if(!start||start.id!==e.pointerId||Math.hypot(e.clientX-start.x,e.clientY-start.y)>8)return;
+    if(window.SpaceTheme?.isPixel){const a=renderer.pick(e.clientX,e.clientY);if(a&&!a.npc&&!a.guest)window.CharacterChat?.open(a.name);else if(a?.npc)a.tag?.click();return;}
     const r=renderer.domElement.getBoundingClientRect(),ray=new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
     const meshes=[];
