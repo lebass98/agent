@@ -16,7 +16,7 @@
     pantry: { x0:-18,x1:-10,z0:12,z1:20,label:"탕비실",door:{x:-10,z:16,axis:"z",w:2.4},chip:{x:-14,z:18} },
     work: { x0:-19,x1:4,z0:-14,z1:12,label:"업무 공간",door:null,chip:{x:-7,z:7.5} },
     meeting: { x0:8,x1:19,z0:-15,z1:0,label:"회의실 1",door:{x:8,z:-3,axis:"z",w:2.4},chip:{x:15,z:-12} },
-    exec: { x0:8,x1:19,z0:0,z1:11,label:"회의실 2",door:{x:8,z:7,axis:"z",w:2.4},chip:{x:15,z:3} },
+    exec: { x0:8,x1:19,z0:0,z1:11,label:"팀장실",door:{x:8,z:7,axis:"z",w:2.4},chip:{x:16.6,z:9.8} }, // 팀장 책상·본부장 소파(동물원 팀장 전망대와 같은 역할)
     lounge: { x0:8,x1:19,z0:11,z1:20,label:"라운지",door:null,chip:{x:14,z:18} },
     balcony: { x0:-19,x1:19,z0:-19.5,z1:-15,label:"베란다",door:{x:1,z:-15,axis:"x",w:2.4},chip:{x:0,z:-18} },
   };
@@ -24,14 +24,18 @@
   const TABLE={x:14,z:-7,w:4.8,d:2}, TV={x:8.1,z:-7,w:2.4,h:1.35,y:1.85};
   const WHITEBOARD={x:9.2,z:-7}, BOARD_FACE={x:8.1,z:-7};
   const COUNTER={x:-16.6,z:14.4}, PANTRY_TABLE={x:-12.6,z:15.4,w:1.9,d:1.15};
-  const COFFEE=[{x:-15.5,z:14.6},{x:-10.5,z:15.4},{x:-14.6,z:17.7},{x:-15.5,z:13.4},{x:-13.6,z:17.9},{x:-10.6,z:13.2},{x:-15.5,z:15.8},{x:-14.6,z:13},{x:-10.6,z:17.6}];
-  const EXEC_DESK={x:-15,z:-2,w:3},EXEC_SEAT={x:-15,z:-1.05},REPORT_SPOT={x:-12.6,z:-.5};
-  const MEET_SEATS=[...[-8.8,-5.2].flatMap(z=>[11,12.5,14,15.5,17].map(x=>({x,z}))),{x:10.4,z:-7},{x:17.6,z:-7},{x:10.4,z:-5.5},{x:17.6,z:-5.5},{x:10.4,z:-8.5},{x:17.6,z:-8.5},{x:14,z:-3.8}];
-  const ROWS=[-11.5,-10,-3.5,-2,8.5,10], ROW_CAP=3,PITCH=7,ROW_CX=-8,DESK_W=2.6,SEAT_DZ=.95;
+  // 공간 테마 규격(theme-kit.js): 커피 자리 12 · 회의 의자 12 · 작업석 12(0번 = 팀장실 팀장 책상)
+  const COFFEE=[{x:-15.5,z:14.6},{x:-10.5,z:15.4},{x:-14.6,z:17.7},{x:-15.5,z:13.4},{x:-13.6,z:17.9},{x:-10.6,z:13.2},{x:-15.5,z:15.8},{x:-14.6,z:13},{x:-10.6,z:17.6},{x:-12.6,z:13.6},{x:-11.8,z:17},{x:-13.2,z:19}];
+  const EXEC_DESK={x:14.5,z:5,w:3},EXEC_SEAT={x:14.5,z:5.95},REPORT_SPOT={x:16.6,z:6.5};
+  const MEET_SEATS=[...[-8.8,-5.2].flatMap(z=>[11,12.5,14,15.5,17].map(x=>({x,z}))),{x:17.6,z:-7},{x:14,z:-3.8}];
+  const PRESENT_SPOT={x:8.9,z:-9.1}; // 회의실 1 TV 옆: 팀장이 여기서 테이블을 보고 발표한다
+  const SEATS=12, ROWS=[-11.5,-10,-3.5,-2], DESK_W=2.6,SEAT_DZ=.95;
   // 구조만 새로 배치한다. 책상·의자·Apple 장비 등 기존 제작 에셋은 그대로 사용한다.
-  function allSlots(){return [3,2,1,0,4,5].flatMap(row=>[-15,-8,-1].flatMap((x,col)=>row===5&&col===2?[]:[{x,z:ROWS[row],w:DESK_W,row,col,cols:3,facing:row%2===0?Math.PI:0}]));}
-  function slots(n){return allSlots().slice(0,Math.max(0,n|0));}
-  function spots(n){return slots(n).map((desk,i)=>({desk:{...desk,w:i===0?3:DESK_W},seat:{x:desk.x,z:desk.z+(desk.facing===0?SEAT_DZ:-SEAT_DZ)},meet:{...MEET_SEATS[i]},coffee:{...COFFEE[i%COFFEE.length]}}));}
+  // 0번: 팀장실 팀장 책상(동물원 팀장 전망대와 같은 역할). 1~11번: 업무 공간 마주 보는 4줄×3열에서 뒤쪽 오른쪽 1석을 뺀 11석
+  function allSlots(){return [{x:EXEC_DESK.x,z:EXEC_DESK.z,w:EXEC_DESK.w,row:-1,col:0,cols:1,facing:0,exec:true},
+    ...[3,2,1,0].flatMap(row=>[-15,-8,-1].flatMap((x,col)=>row===0&&col===2?[]:[{x,z:ROWS[row],w:DESK_W,row,col,cols:3,facing:row%2===0?Math.PI:0}]))];}
+  function slots(n){return allSlots().slice(0,Math.max(0,Math.min(SEATS,n|0)));}
+  function spots(n){return slots(n).map((desk,i)=>({desk:{...desk,w:i===0?EXEC_DESK.w:DESK_W},seat:{x:desk.x,z:desk.z+(desk.facing===0?SEAT_DZ:-SEAT_DZ)},meet:{...MEET_SEATS[i]},coffee:{...COFFEE[i%COFFEE.length]}}));}
 
   /* 벽·칸막이(길 찾기·기하 공통). t: 두께. 문은 gap 으로 비운다. */
   const WT = .1;
@@ -64,7 +68,7 @@
   }
   const R = (cx, cz, w, d, tag) => ({ x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2, tag });
   /* 고정 가구 발자국(길 찾기용). 사람이 앉는 회의 의자는 뺀다(layout 때 빈 의자만 더한다). */
-  const furniture=[R(TABLE.x,TABLE.z,TABLE.w,TABLE.d,"table"),R(14,5,4.8,2,"table"),R(-16.62,14.32,.76,4.25,"counter"),R(-16.55,17.1,.8,.8,"fridge"),R(PANTRY_TABLE.x,PANTRY_TABLE.z,1.9,1.15,"table"),R(14,16,2.2,.9,"sofa")];
+  const furniture=[R(TABLE.x,TABLE.z,TABLE.w,TABLE.d,"table"),R(11,3.6,.9,.5,"coffee-table"),R(17.7,2.42,2,.45,"bookshelf"),R(-16.62,14.32,.76,4.25,"counter"),R(-16.55,17.1,.8,.8,"fridge"),R(PANTRY_TABLE.x,PANTRY_TABLE.z,1.9,1.15,"table"),R(14,16,2.2,.9,"sofa")];
   function spareDesks(n){return allSlots().slice(n);}
   function navRects(n){const out=[...wallRects(),...furniture];allSlots().forEach((d,i)=>{out.push(R(d.x,d.z,d.w+.3,1.5,"desk"));if(i>=n)out.push(R(d.x,d.z+(d.facing===0?SEAT_DZ:-SEAT_DZ),.55,.55,"chair"));});return out;}
 
@@ -228,8 +232,17 @@
   const Decor = {
     sun: SUN,
     LIFE:{walk:[{x:4.5,z:12},{x:6,z:5},{x:4.5,z:-6}],window:{x:1,z:-17},windowFace:{x:1,z:-21},sofaApproach:{x:14,z:16.75},sofa:{x:14,z:16},sofaFace:{x:14,z:19},chat:[{x:-13.95,z:15.4},{x:-11.25,z:15.4}]},
-    OW, OD, WALL_H, PART_H, rooms, walls: wallDefs, wallRects, obstacles: furniture, navRects, slots, spots, spareDesks, nav,
-    ENTRANCE, TABLE, WHITEBOARD, BOARD_FACE, COUNTER, COFFEE, EXEC_DESK, EXEC_SEAT, REPORT_SPOT, MEET_SEATS, PANTRY_TABLE, LOBBY_DOOR, TV,
+    OW, OD, WALL_H, PART_H, SEATS, rooms, walls: wallDefs, wallRects, obstacles: furniture, navRects, slots, spots, spareDesks, nav,
+    ENTRANCE, TABLE, WHITEBOARD, BOARD_FACE, COUNTER, COFFEE, EXEC_DESK, EXEC_SEAT, REPORT_SPOT, PRESENT_SPOT, MEET_SEATS, PANTRY_TABLE, LOBBY_DOOR, TV,
+    // 조연(life.js) 장소: 본부장 자리(팀장실 소파)·발표 때 서서 듣는 회의실 뒤편·산책 지점·경리팀장 순찰 지점·회의실 문 앞
+    NPC: {
+      headSeat: { x: 9.95, z: 3.6 }, headFace: { x: 12.5, z: 3.6 },
+      back: [{ x: 16.5, z: -12.4 }, { x: 12, z: -12.4 }, { x: 18, z: -10.5 }],
+      wander: [{x:-11.5,z:-6.5},{x:-4.5,z:-6.5},{x:-4.5,z:4.5},{x:-11.5,z:4.5},{x:2.5,z:-7},{x:2.5,z:5},{x:-17.5,z:6.5},{x:-4.5,z:-12.8},{x:-3,z:16},{x:3,z:15},
+        {x:-13,z:13.2},{x:11,z:14},{x:16.5,z:13},{x:-6,z:-17.5},{x:8,z:-17.5},{x:1,z:-14},{x:12,z:9.4},{x:17.6,z:9.5},{x:-12,z:9.5},{x:-2,z:9.5},{x:4.5,z:12},{x:6,z:5},{x:10.5,z:-12},{x:17.5,z:-2}],
+      duckSpots: [{x:-12.6,z:13.6},{x:-11.8,z:17},{x:-5,z:18},{x:3,z:-17.5},{x:6.2,z:-3},{x:13.6,z:8.6}],
+      meetingDoor: { x: 6.6, z: -3 },
+    },
     walkable: (x, z) => nav.walkable(x, z), segHits,
   };
   if (typeof window !== "undefined") window.Decor = Decor; else if (typeof module !== "undefined") module.exports = Decor;
@@ -900,13 +913,12 @@
     for(const kind of ['dusk','night']){const m=new T.Mesh(new T.PlaneGeometry(42,4.4),new T.MeshBasicMaterial({map:themed.skyTex[kind]=skylineTex(kind),transparent:true,opacity:0,depthWrite:false}));m.position.set(0,2,-20.49+(kind==='night'?.002:0));m.visible=false;scene.add(m);themed[kind==='night'?'skyNight':'skyDusk']=m;}
     // 기존 소파·커피 머신·냉장고·선반·서적·Apple 장비는 크기와 모양을 유지하고 구역만 이동한다.
     for(const [kind,x,z] of [['pantry',-1,23],['lounge',1.5,7.4],['meeting2',3.5,13.2],['lobby',8.7,8.5]]){const g=new T.Group();g.position.set(x,0,z);scene.add(g);reusedFurniture(kind,g);}
-    for(const table of [TABLE,{x:14,z:5,w:4.8,d:2}]){
+    for(const table of [TABLE]){
       st.box(table.w,.07,table.d,C.meetTop,table.x,.78,table.z);
       for(const side of [-1,1])st.box(.08,.76,table.d-.4,C.legs,table.x+side*(table.w/2-.3),.38,table.z);
       if(window.AppleAssets)for(const dx of [-1.3,0,1.3]){const a=AppleAssets.build('MacBook');a.group.position.set(table.x+dx,.815,table.z);a.group.rotation.y=Math.PI;scene.add(a.group);}
     }
     MEET_SEATS.forEach(m=>{const mb=new MB();chairParts(mb,m.x,m.z,Math.atan2(TABLE.x-m.x,TABLE.z-m.z),'meet');chairs.push({mesh:mb.mesh(scene),x:m.x,z:m.z});});
-    for(const x of [12,14,16])for(const z of [3.3,6.7]){const mb=new MB();chairParts(mb,x,z,z<5?0:Math.PI,'meet');chairs.push({mesh:mb.mesh(scene),x,z});}
     st.box(.08,TV.h+.12,TV.w+.12,C.frame,TV.x+.1,TV.y,TV.z);
     sign(scene,TV.w,TV.h,512,tvChart,TV.x+.145,TV.y,TV.z,{ry:Math.PI/2});
     if(window.AppleAssets){const a=AppleAssets.build('Apple TV');a.group.position.set(TV.x+.3,1.02,TV.z);a.group.rotation.y=Math.PI/2;scene.add(a.group);}

@@ -139,7 +139,7 @@ let KEY = (() => {
    three.js 를 불러오지 못했거나(오프라인·차단) WebGL 을 쓸 수 없으면 HAS3D=false 로, 3D 없이 목록 모드로 동작한다.
    이때도 연결·이벤트 처리·보드·로그·카드·업무 지시는 그대로 돈다(캐릭터는 위치만 가진 '유령'이 된다). */
 const SMALL = mqMobile.matches || Math.min(screen.width, screen.height) < 700;
-/* 평면도(decor.js 의 Decor 가 기준). 방: 앞쪽 현관·왼쪽 모서리 탕비실·업무 공간·오른쪽 회의실 2개·라운지·창가 베란다.
+/* 평면도(테마 지도 Decor 가 기준, 공통 규격 theme-kit.js). 사무실 방: 앞쪽 현관·왼쪽 모서리 탕비실·업무 공간·오른쪽 회의실 1·팀장실·라운지·창가 베란다.
    decor.js 가 없으면 같은 좌표의 최소값으로 동작한다(가구 없는 단순 사무실·직선 이동). */
 const HAS_DECOR = typeof Decor !== "undefined" && !!Decor.rooms;
 const OW = HAS_DECOR ? Decor.OW : 32, OD = HAS_DECOR ? Decor.OD : 22;     // 사무실 가로·세로
@@ -162,7 +162,9 @@ const ROOMS = HAS_DECOR ? Decor.rooms : {                                 // 이
   lounge: { x0: 5, x1: 16, z0: 4.5, z1: 11, label: "라운지", door: null },
 };
 const BOOTH = { x0: ROOMS.meeting.x0, x1: ROOMS.meeting.x1, z0: ROOMS.meeting.z0, z1: ROOMS.meeting.z1, door: .8, h: HAS_DECOR ? Decor.PART_H : 2.6 }; // 회의실(유리 칸막이) 영역 — 예전 이름 유지
-const MAX_DESKS = 17; // 서로 마주 보는 가로 3석 두 줄씩 3묶음에서 앞줄 오른쪽 1석 제외. 그 이상은 목록·보드에만 표시
+/* 공간 테마: 구조(자리 12·방 7·조연 3·손님 3)는 theme-kit.js 규격으로 모든 테마가 같고, 모양만 아래 LOOKS 와 각 테마 파일이 정한다 */
+const SPACE = window.ThemeKit?.current?.() || { id: "office", label: "사무실" };
+const MAX_DESKS = (HAS_DECOR && Decor.SEATS) || window.ThemeKit?.SEATS || 12; // 작업석 수(0번 = 팀장). 그 이상은 목록·보드에만 표시
 let renderer = null, scene = null, camera = null, controls = null, hemi = null, sun = null, teamGroup = null, CAM_OFF = null;
 let strokes = [], OFFICE_PTS = [], ACT_PTS = [];
 const themed = {};
@@ -201,7 +203,7 @@ function init3D() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("role", "img");
   renderer.domElement.tabIndex = 0;
-  renderer.domElement.setAttribute("aria-label", `${window.SpaceTheme?.isZoo ? "3D 동물원" : "3D 사무실"}. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.`);
+  renderer.domElement.setAttribute("aria-label", `3D ${SPACE.label}. 왼쪽 드래그 회전, 오른쪽 드래그 이동, 휠 확대. 방향키로 이동합니다.`);
   $("stage").append(renderer.domElement);
 
   scene = new THREE.Scene();
@@ -773,8 +775,20 @@ function pickAct(list, prev) {
   return [list[0][0], list[0][2]];
 }
 /** 팀원별 선택 외형과 해당 인물의 표정 띠. 등록되지 않은 외형은 null. */
-const appearanceOf = n => (window.SpaceTheme?.isZoo && window.ZooTheme ? window.ZooTheme.kindOf(n) : window.CharacterLooks?.get(n) || n); // 동물원: 고른 동물 종류
-const facesOf = n => window.SpaceTheme?.isZoo ? window.ZooTheme.faces(n) : window.SpriteChars?.faces(appearanceOf(n)) || null;
+/* 팀원 외형 어댑터(테마마다 모양만 다르다): 고른 외형 · 표정 띠 · 3D 모델 · 이름표 아이콘 · 외형 고르기 창 · 안내 문구.
+   동물원은 zoo-theme.js(동물 15종), 사무실은 character-looks.js·sprite-chars.js(사람 그림). 조연·손님도 def.kind 로 같은 길을 탄다 */
+const LOOKS = window.SpaceTheme?.isZoo && window.ZooTheme ? {
+  noun: "동물", of: n => window.ZooTheme.kindOf(n), faces: n => window.ZooTheme.faces(n),
+  build: (def, name, key) => window.ZooTheme.buildAnimal(def, name, key || def.kind), icon: n => window.ZooTheme.icons[n] || "🐾",
+  pick: n => window.ZooTheme.openPicker(n),
+  help: "팀원의 동물 얼굴을 누르면 15종 가운데에서 동물을 고를 수 있어요(같은 동물은 한 명만). 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요.",
+} : {
+  noun: "사람 이미지", of: n => window.CharacterLooks?.get(n) || n, faces: n => window.SpriteChars?.faces(LOOKS.of(n)) || null,
+  build: (def, name, key) => window.SpriteChars?.build(def, key || def.kind || LOOKS.of(name)) || null, icon: null, pick: null,
+  help: "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요.",
+};
+const appearanceOf = n => LOOKS.of(n);
+const facesOf = n => LOOKS.faces(n) || null;
 /** 표정 아바타 CSS 변수: 띠 이미지·칸 수·보여 줄 칸(style.css 의 .face) */
 const faceVars = (f, expr = "기본") => ({ "--face": `url("${f.src}")`, "--fn": f.n, "--fi": f.index(expr) });
 /** 0→1→0 으로 올라갔다 내려오는 동작 곡선(올리기 25% · 유지 · 내리기 20%) */
@@ -796,10 +810,10 @@ class Agent {
     // group(위치·방향) ─ legs(+knees) / body(엉덩이 축으로 기울기) ─ torso·arms(+elbows·hands)·head(목 축으로 고개)·cup·props
     // 그림 캐릭터는 뼈대가 비어 있고 rig.sprite 가 매 프레임 그림(프레임)을 고른다
     ensureCharacterAssets();
-    let rig = window.SpaceTheme?.isZoo ? window.ZooTheme.buildAnimal(def, name) : null;
+    let rig = window.SpaceTheme?.isZoo ? LOOKS.build(def, name) : null;
     const use3DChar = store.get("agentOffice.char3d") === "1" || /[?&]char=3d\b/.test(location.search);
     if (!rig && (!use3DChar || appearanceOf(name) !== name)) {
-      try { rig = window.SpriteChars?.build(def, appearanceOf(name)) || null; }
+      try { rig = LOOKS.build(def, name); }
       catch (e) { console.warn(`그림 캐릭터 생성 실패(${name}), 3D 캐릭터로 대체:`, e); }
     }
     try { rig = rig || (window.Characters && Characters.build(def, name)); } // 프리셋 오류가 팀 전체 구성을 막지 않게
@@ -858,7 +872,7 @@ class Agent {
   }
   changeAppearance(key) {
     if (this.ghost) return;
-    const rig = window.SpaceTheme?.isZoo ? window.ZooTheme?.buildAnimal(this.def, this.name, key) : window.SpriteChars?.build(this.def, key);
+    const rig = LOOKS.build(this.def, this.name, key);
     if (!rig) return;
     const previous = this.rig;
     rig.group.position.copy(this.group.position);
@@ -1162,7 +1176,7 @@ function buildTeam(team) {
     if (used.has(initial)) initial = niceName(n).slice(0, 2);
     used.add(initial);
     return {
-      label: niceName(n), initial: window.SpaceTheme?.isZoo ? (window.ZooTheme.icons[n] || "🐾") : initial, color: k?.color || PALETTE[extra++ % PALETTE.length], hair: HAIR[i % HAIR.length],
+      label: niceName(n), initial: LOOKS.icon ? LOOKS.icon(n) : initial, color: k?.color || PALETTE[extra++ % PALETTE.length], hair: HAIR[i % HAIR.length],
       role: m.role.split(".")[0].trim() || "팀원", model: m.model, provider: m.provider, leader: n === team.leader,
     };
   });
@@ -1171,7 +1185,7 @@ function buildTeam(team) {
   D.names = order;
   // 연결 전('연결 중…'·'접속 키 필요')에도 사무실이 비어 보이지 않게 자리에 앉혀 둔다. 첫 hello 가 오면 arrive() 가 같은 틱에 문 밖으로 옮겨 숨겼다가 출근시키므로 깜빡임은 없다
   if (HAS3D && order.length > MAX_DESKS) { // 팀장에게 몰아넣지 않고, 자리 없는 팀원은 목록·보드에만 보여 준다
-    const msg = `팀원이 ${order.length}명이라 3D 사무실에는 ${MAX_DESKS}명까지만 자리가 있어요. ${order.slice(MAX_DESKS).map(niceName).join(", ")}은(는) 팀원 목록과 업무 보드에만 표시됩니다.`;
+    const msg = `팀원이 ${order.length}명이라 3D ${SPACE.label}에는 ${MAX_DESKS}명까지만 자리가 있어요. ${order.slice(MAX_DESKS).map(niceName).join(", ")}은(는) 팀원 목록과 업무 보드에만 표시됩니다.`;
     setTimeout(() => { toast(msg, "warn", 9000); log(msg); });
   }
   strokes.forEach((s, i) => s.material.color.set(i < defs.length && i < 4 ? defs[i].color : "#6b7489"));
@@ -1224,7 +1238,7 @@ function buildMembers() {
     const title = `${d.label}에게 말 걸기`;
     MEMBERS_EL.append(el("article", { class: "member", style: { "--c": d.color } },
       el("span", { class: "row" },
-        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": window.SpaceTheme?.isZoo ? `${d.label} 동물 바꾸기` : `${d.label} 사람 이미지 변경`, title: window.SpaceTheme?.isZoo ? "동물 바꾸기" : "사람 이미지 변경", onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
+        el("button", { class: facesOf(n) ? "avatar face" : "avatar", type: "button", style: facesOf(n) ? faceVars(facesOf(n)) : null, "aria-label": `${d.label} ${LOOKS.noun} 바꾸기`, title: `${LOOKS.noun} 바꾸기`, onclick: () => openAppearancePicker(n), text: facesOf(n) ? null : d.initial }),
         el("button", { class: "who member-chat", type: "button", title, onclick: () => { closeView(); window.CharacterChat?.open(n); } },
           el("span", { class: "name" }, d.label, d.leader ? el("span", { title: "팀장", text: " 👑" }) : null),
           el("span", { class: "role", text: d.role })),
@@ -1635,7 +1649,7 @@ function statsView() {
 }
 /** 사람 이미지 클릭 시에만 전체 외형 목록을 연다. */
 function openAppearancePicker(n) {
-  if (window.SpaceTheme?.isZoo) return window.ZooTheme?.openPicker(n); // 동물원: 동물 고르기(zoo-theme.js)
+  if (LOOKS.pick) return LOOKS.pick(n); // 테마 전용 고르기 창(동물원: zoo-theme.js)
   const options = window.CharacterLooks.list.filter(person => window.SpriteChars?.has(person.id));
   openModal([
     sheetHead(`${memberDef(n).label} 사람 이미지`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
@@ -1674,7 +1688,7 @@ function membersView() {
         el("button", { class: "tbtn", type: "button", disabled: !live || !TS, title: live ? "AI 선택·모델·하는 일·팀장 바꾸기" : "서버에 연결되면 바꿀 수 있어요", onclick: () => TS?.open() }, icon("gear"), "설정"),
         el("button", { class: "tbtn accent", type: "button", disabled: !live || !TS, title: live ? "새 팀원 추가" : "서버에 연결되면 추가할 수 있어요", onclick: () => TS?.add() }, icon("plus"), "에이전트 추가"))),
     MEMBERS_EL,
-    el("p", { class: "muted small", text: window.SpaceTheme?.isZoo ? "팀원의 동물 얼굴을 누르면 15종 가운데에서 동물을 고를 수 있어요(같은 동물은 한 명만). 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." : "팀원의 사람 이미지를 누르면 외형을 선택할 수 있어요. 이름을 누르면 개인 대화가 열립니다. AI·모델·하는 일·팀장은 오른쪽 위 ‘설정’에서 바꿔요." }),
+    el("p", { class: "muted small", text: LOOKS.help }),
     live ? null : el("p", { class: "muted small", text: "데모 모드에서는 설정을 바꿀 수 없어요. 서버(start-mac.command 등)를 켜고 다시 열어 주세요." }),
   ];
 }
@@ -1716,7 +1730,7 @@ function settingsView() {
   return [
     row("공간 테마", "사무실 또는 동물원을 선택해요. 업무 진행 중에는 바꿀 수 없어요.", window.SpaceTheme?.control()),
     row("화면 테마", "시스템 설정을 따르거나 라이트·다크로 고정해요.", themeControl()),
-    HAS3D ? row(window.SpaceTheme?.isZoo ? "동물원 조명" : "사무실 조명", officeLightNote(), officeLightControl()) : null,
+    HAS3D ? row(`${SPACE.label} 조명`, officeLightNote(), officeLightControl()) : null,
     row("기본 연출 속도", "말풍선·이동 연출의 빠르기. 상단 바에서도 바꿀 수 있어요.", speedControl()),
     row("움직임 줄이기", "카메라 이동과 전환 애니메이션을 최소화해요. 시스템의 '동작 줄이기' 설정은 항상 따릅니다.", switchControl(PREF.reduce, setReduce, "움직임 줄이기")),
     HAS3D && !window.SpaceTheme?.isZoo ? row("방 이름표", "3D 사무실 위에 현관·탕비실·회의실·베란다 같은 방 이름을 띄워요. 휴대폰에서는 확대했을 때만 보여요.", switchControl(PREF.rooms, setRoomTags, "방 이름표")) : null,
@@ -2338,7 +2352,7 @@ function idle(n, run) {
   }));
 }
 /** 탕비실 커피 자리에서 바라보는 곳: 카운터 앞 줄(x≤-14)은 커피 머신, 그 밖(타원 테이블 둘레)은 테이블 */
-const coffeeFace = p => (p.x <= -14 ? COUNTER : PANTRY_TABLE);
+const coffeeFace = p => (Math.hypot(p.x - COUNTER.x, p.z - COUNTER.z) < Math.hypot(p.x - PANTRY_TABLE.x, p.z - PANTRY_TABLE.z) ? COUNTER : PANTRY_TABLE);
 
 /** 출근 연출(처음 팀을 만들었을 때만, 재연결 때는 하지 않는다): 한 명씩 0.9초 간격으로 현관 유리문으로 들어와 인사하고
     자기 자리로 걸어간다(간격이 짧으면 인사 말풍선이 서로 포개진다). 팀장은 팀장실로.
@@ -2388,7 +2402,7 @@ async function pPlan(ev) {
   renderBoard();
   log(`업무 ${tasks.length}건으로 분해했습니다.`, D.leader);
   if (run.summary) log(`계획: ${clip(run.summary, 200)}`, D.leader);
-  l.say(window.SpaceTheme?.isZoo ? "정리 끝! 회의실로 모여 주세요 📣" : "정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
+  l.say("정리 끝! 다들 회의실로 모여 주세요 📣", 1800);
   setMember(D.leader, { status: "회의", cls: "meet", task: "업무 계획 발표", bar: "", t0: 0 });
   await capped(Promise.all(D.names.map(async n => {
     const a = A(n);
@@ -2535,7 +2549,7 @@ function onHello(ev) {
   for (const n of D.names) { A(n).finishWalk(); A(n).presenting=false; }
   const first = !D.greeted;
   D.greeted = true;
-  if (first) log(window.SpaceTheme?.isZoo ? (NET.mode === "demo" ? "데모 동물원에 모였습니다. 목표를 입력해 보세요." : "동물원에 팀이 모였습니다. 목표를 입력해 주세요.") : (NET.mode === "demo" ? "데모 사무실에 출근했습니다. 목표를 입력해 보세요." : "사무실에 출근했습니다. 목표를 입력해 주세요."));
+  if (first) log(NET.mode === "demo" ? `데모 ${SPACE.label}에 모였습니다. 목표를 입력해 보세요.` : `${SPACE.label}에 팀이 모였습니다. 목표를 입력해 주세요.`);
   else log(ev._was === "demo" || ev._was === "auth" ? "서버에 연결되었습니다. 이제 실제 팀이 일합니다." : "서버에 다시 연결되었습니다.");
   applySnapshot(ev.snapshot && typeof ev.snapshot === "object" ? ev.snapshot : null, first);
   if (first && !D.running) later(arrive()); // 첫 출근: 진행 중인 업무가 없으면 현관으로 들어와 자리로 간다(있으면 스냅샷 자리 그대로)

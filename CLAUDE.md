@@ -24,8 +24,9 @@
 - 팀 실행 보강(`agentteam/team.py`): 일시 오류 자동 재시도(`retry`), 팀장 중간 검수 → 보완 요청(`rework`, team.toml `[leader] rework`),
   `runs/<id>/state.json` 체크포인트로 끊긴 업무 이어 하기, `usage.json` 사용량 기록. 화면은 `web/extras.js`(이어 하기 카드·분석 사용량·
   설정 '결과 알림(n8n·웹훅)'·'외부 도구(MCP)'·업무 지시 전 도구 허락 창). 서버는 `server/notify.py`(cache/notify.json)·`server/mcptools.py`(mcp-servers.json, 둘 다 Git 제외)
-- 동물원 공간(docs/space-themes.md): `web/zoo-theme.js`(넓은 섬·마을·작업석 12·동물 고르기) · `web/zoo-animals.js`(동물 12종+코끼리·공작새) · `web/zoo-life.js`(동물원 식구·배경 동물) · `web/zoo-forest.js`(바깥 숲·강·새, '숲' 버튼). 모두 동물원에서만 동작
-- `web/npcs.js` : 에이전트가 아닌 사무실 사람(디자인팀장 — 계속 돌아다님, 본부장 — 회의실·자기 자리·팀원 응원·명언). D.names 에 넣지 않는다
+- 공간 테마(docs/space-themes.md): **모양만 다르고 구조는 같다.** 공통 규격 `web/theme-kit.js`(작업석 12·회의 12·커피 12·방 7·조연 3·손님 3) · 테마 지도 `Decor`(사무실 `web/decor.js`, 동물원 `web/zoo-theme.js`) ·
+  공통 조연 엔진 `web/life.js`(디자인팀장·본부장·경리팀장, 캐릭터끼리 대화, 손님 산책, 배경 생물) + 테마 내용 `web/life-office.js`·`web/life-zoo.js`. 팀원 외형은 `app.js` 의 `LOOKS` 어댑터.
+  동물원 모양: `web/zoo-animals.js`(동물 12종+조연 3종) · `web/zoo-friends.js`(친구 3종) · `web/zoo-forest.js`(바깥 숲). 새 테마는 docs/space-themes.md '새 테마 더하기'를 따른다. 조연·손님은 D.names 에 넣지 않는다
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)
 - `runs/<시각>/` : plan.json, task-*.md, report.md (Git 제외)
 

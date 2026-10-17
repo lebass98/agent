@@ -9,8 +9,7 @@ let valid=0;for(const a of ps){assert(d.walkable(a.x,a.z),JSON.stringify(a));for
 assert.equal(valid,49);console.log('친구 3종 입체·관절 및 안전 산책 경로 '+valid+'개 확인 (불통 경로는 실행에서 제외)');
 
 vm.runInContext(fs.readFileSync('web/zoo-friends.js','utf8'),ctx);assert.equal(ctx.window.ZooAnimals.species.length,15);for(const k of ctx.window.ZooFriends.kinds){const r=ctx.window.ZooAnimals.build(k);assert.equal(r.group.userData.kind,k);assert(r.head&&r.cup&&r.setFace);}
-let now=0;Object.assign(ctx,{scene:new THREE.Scene(),HAS3D:true,Decor:d,performance:{now:()=>now}});ctx.document.hidden=false;ctx.document.body={classList:{contains:()=>false}};ctx.window.matchMedia=()=>({matches:false});ctx.window.declutter=()=>{};
-vm.runInContext(fs.readFileSync('web/zoo-friends-life.js','utf8'),ctx);const live=ctx.window.ZooFriends.list;assert.equal(live.length,3);const before=live.map(f=>f.rig.group.position.clone());
-for(let i=0;i<400;i++){now+=25;ctx.window.declutter();}
-live.forEach((f,i)=>assert(f.rig.group.position.distanceTo(before[i])>.1,'세 친구 모두 이동'));
-ctx.document.hidden=true;const paused=live.map(f=>f.rig.group.position.clone());now+=100;ctx.window.declutter();live.forEach((f,i)=>assert(f.rig.group.position.equals(paused[i])));console.log('동물원 3마리 생성·10초 실제 이동·백그라운드 정지 검증 통과');
+// 손님 산책은 공통 조연 엔진(life.js)이 한다: 동물원 내용(life-zoo.js)에 친구 3종이 손님으로 등록되는지 확인
+for(const f of ['theme-kit.js','life-zoo.js'])vm.runInContext(fs.readFileSync('web/'+f,'utf8'),ctx);
+const zooLife=ctx.window.ThemeKit.life.zoo;assert.equal(JSON.stringify(zooLife.guests.map(g=>g.kind)),JSON.stringify([...ctx.window.ZooFriends.kinds]));assert(zooLife.guests.every(g=>g.alt.length===3));
+console.log('동물원 손님 3종(공통 엔진 등록) 확인');

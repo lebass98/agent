@@ -272,3 +272,10 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
   .nametag { position:relative; }
   .nametag::after { content:"";position:absolute;inset:-11px -4px; } /* 3D 이름표(말 걸기): 글자 크기는 그대로, 누르는 영역만 */
 }
+
+/* 상단 경로의 공간 단추(space-theme.js): '워크스페이스 / 🏢 사무실 ▾' */
+.space-crumb { font:inherit;color:var(--text-2);background:none;border:0;padding:1px 4px;margin:-1px -4px;border-radius:6px;cursor:pointer;position:relative; }
+.space-crumb::after { content:"▾";margin-left:3px;font-size:.9em;color:var(--muted); }
+.space-crumb:hover { background:var(--panel-3);color:var(--text); }
+.space-crumb:focus-visible { outline:2px solid var(--accent);outline-offset:1px; }
+@media(max-width:760px) { .space-crumb::before { content:"";position:absolute;inset:-14px -6px; } } /* 휴대폰: 글자는 작게, 누르는 영역은 44px 가까이 */

@@ -38,6 +38,10 @@ for(const s of destinations)for(const e of destinations){
 assert(!decor.walkable(zoo.LAKE.x,zoo.LAKE.z),'호수는 통행 금지');assert(!decor.walkable(23,17),'섬 바깥은 통행 금지');assert(!decor.walkable(0,11.2),'분수는 통행 금지');
 for(const r of Object.values(decor.rooms))assert(r.x1>r.x0&&r.z1>r.z0&&r.label);
 console.log(`넓은 동물원 48×38·작업석 12·회의실 의자 12·${routes}개 이동 경로·호수·분수·울타리 통행 금지 검증 통과`);
+// 공간 테마 규격(theme-kit.js): 사무실과 같은 구조(12석·회의 12·커피 12·방 7·조연 장소)인지, 조연 장소가 모두 걸을 수 있는지
+const kit=require('../web/theme-kit.js');assert.deepEqual(kit.check(decor),[],'동물원 지도가 공통 규격을 지킨다');
+for(const p of [decor.PRESENT_SPOT,decor.REPORT_SPOT,decor.NPC.headSeat,...decor.NPC.back,...decor.NPC.wander,...decor.NPC.duckSpots,decor.NPC.meetingDoor])assert(decor.walkable(p.x,p.z),`조연 장소에 갈 수 없음: ${JSON.stringify(p)}`);
+console.log('동물원 공통 규격·조연 장소 통행 검증 통과');
 // 사무실 선택 시 Decor를 교체하지 않는다.
 const officeSandbox={...sandbox,window:{THREE,SpaceTheme:{isZoo:false}}};vm.createContext(officeSandbox);
 vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/decor.js'),'utf8'),officeSandbox);const original=officeSandbox.window.Decor;

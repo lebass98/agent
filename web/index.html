@@ -12,7 +12,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="dashboard.css">
-<link rel="stylesheet" href="office-dogs.css">
 <link rel="stylesheet" href="labels.css"><!-- 3D 위 이름표·방 이름(캐릭터/장식 담당) -->
 <link rel="stylesheet" href="projects.css"><!-- 프로젝트(폴더 접근): 폴더 고르기·동의 창·명령창 프로젝트 버튼 -->
 <link rel="stylesheet" href="team-settings.css"><!-- 에이전트 설정(AI 선택·모델·하는 일·팀장) -->
@@ -76,7 +75,7 @@
     <button class="icon-btn round menu-btn" id="menuBtn" type="button" aria-label="메뉴 열기" aria-controls="sidebar" aria-expanded="false">
       <svg class="ic"><use href="#i-menu"/></svg>
     </button>
-    <div class="workspace-brand"><small class="breadcrumb">워크스페이스 <span>/</span> 내 팀</small><div class="brand">WordNCode Agent Office<small id="brandSub">멀티 에이전트 워크스페이스</small></div></div>
+    <div class="workspace-brand"><small class="breadcrumb">워크스페이스 <span>/</span> <button type="button" class="space-crumb" id="spaceBtn" aria-haspopup="dialog">내 팀</button></small><div class="brand">WordNCode Agent Office<small id="brandSub">멀티 에이전트 워크스페이스</small></div></div>
     <button class="icon-btn round" id="searchBtn" type="button" aria-label="검색 (⌘K)" title="검색">
       <svg class="ic"><use href="#i-search"/></svg><span class="search-hint">업무, 기록 검색하기</span><kbd>⌘ K</kbd>
     </button>
@@ -133,7 +132,7 @@
   <button class="primary" type="button" id="newTaskBtn"><svg class="ic"><use href="#i-plus"/></svg>새 업무</button>
 </section>
 <section class="office-frame" id="officeFrame" aria-label="사무실 뷰포트">
-  <nav class="room-switch" aria-label="사무실 공간"><button type="button" data-room="all" aria-pressed="true">전체 보기</button><button type="button" data-room="lobby" aria-pressed="false">현관</button><button type="button" data-room="pantry" aria-pressed="false">탕비실</button><button type="button" data-room="work" aria-pressed="false">업무 공간</button><button type="button" data-room="exec" aria-pressed="false">회의실 2</button><button type="button" data-room="meeting" aria-pressed="false">회의실 1</button><button type="button" data-room="lounge" aria-pressed="false">라운지</button><button type="button" data-room="balcony" aria-pressed="false">베란다</button></nav>
+  <nav class="room-switch" aria-label="사무실 공간"><button type="button" data-room="all" aria-pressed="true">전체 보기</button><button type="button" data-room="lobby" aria-pressed="false">현관</button><button type="button" data-room="pantry" aria-pressed="false">탕비실</button><button type="button" data-room="work" aria-pressed="false">업무 공간</button><button type="button" data-room="exec" aria-pressed="false">팀장실</button><button type="button" data-room="meeting" aria-pressed="false">회의실 1</button><button type="button" data-room="lounge" aria-pressed="false">라운지</button><button type="button" data-room="balcony" aria-pressed="false">베란다</button></nav>
   <span class="office-live" title="왼쪽 드래그: 회전 · 오른쪽 드래그: 이동 · 휠: 확대 · 모바일: 두 손가락 이동"><i></i>실시간 사무실</span>
   <div class="office-tools" role="group" aria-label="카메라 조작"><span class="tool-group"><button type="button" data-pan="left" aria-label="화면 왼쪽으로 이동" title="왼쪽으로"><svg class="ic"><use href="#i-arrow-left"/></svg></button><button type="button" data-pan="up" aria-label="화면 위로 이동" title="위로"><svg class="ic"><use href="#i-arrow-up"/></svg></button><button type="button" data-pan="down" aria-label="화면 아래로 이동" title="아래로"><svg class="ic"><use href="#i-arrow-down"/></svg></button><button type="button" data-pan="right" aria-label="화면 오른쪽으로 이동" title="오른쪽으로"><svg class="ic"><use href="#i-arrow-right"/></svg></button></span><span class="tool-group"><button type="button" id="cameraReset" aria-label="전체 사무실 보기" title="전체 보기"><svg class="ic"><use href="#i-house"/></svg></button></span><span class="tool-group"><button type="button" id="cameraOut" aria-label="축소" title="축소"><svg class="ic"><use href="#i-minus"/></svg></button><button type="button" id="cameraIn" aria-label="확대" title="확대"><svg class="ic"><use href="#i-plus"/></svg></button></span></div>
   <button class="team-toggle" id="teamToggle" type="button" aria-label="팀 활동 열기" aria-expanded="false"><svg class="ic"><use href="#i-users"/></svg>팀 활동</button>
@@ -219,11 +218,12 @@
 <script src="vendor/marked.min.js"></script><!-- marked 12.0.2 -->
 <script src="vendor/purify.min.js"></script><!-- DOMPurify 3.1.6 -->
 <link rel="stylesheet" href="space-theme.css">
+<script src="theme-kit.js"></script><!-- 공간 테마 공통 규격(자리 12·방 7·조연 3·손님 3). docs/space-themes.md -->
 <script src="space-theme.js"></script>
 <script src="model-kit.js"></script>
 <script src="apple-assets.js"></script>
 <script src="decor.js"></script><!-- 사무실 장식·평면(장식 담당). 없어도 app.js 는 동작 -->
-<script src="zoo-animals.js"></script><!-- 동물원 팀원 동물 12종 + 원장 코끼리·공작새(도형으로 만든 입체 모델) -->
+<script src="zoo-animals.js"></script><!-- 동물원 팀원 동물 12종 + 조연(코끼리·공작새·오리) 입체 모델 -->
 <script src="zoo-friends.js"></script><!-- 친구 3종 에셋·에이전트 선택 등록 -->
 <script src="zoo-theme.js"></script><!-- 동물원 공간: 넓은 섬·마을 5곳·작업석 12·밤 조명·동물 고르기 -->
 <script src="characters.js"></script><!-- 캐릭터 외형(캐릭터 담당). 없어도 app.js 는 동작 -->
@@ -240,8 +240,9 @@
 <script src="projects.js"></script><!-- 프로젝트(폴더 접근). app.js 다음에 -->
 <script src="team-settings.js"></script><!-- 에이전트 설정: team.toml 을 화면에서 고친다. app.js 다음에 -->
 <script src="extras.js"></script><!-- 이어 하기·사용량·결과 알림(n8n)·외부 도구(MCP) 승인. app.js 다음에 -->
-<script src="zoo-life.js"></script><!-- 동물원 식구(원장 코끼리·공작새)와 배경 동물(오리·새·미어캣·펭귄·나비). 동물원에서만 동작. app.js 다음에 -->
-<script src="zoo-friends-life.js"></script><!-- 친구 3마리 자유 산책 -->
+<script src="life-office.js"></script><!-- 사무실 조연 내용: 디자인팀장·본부장·경리팀장(사람)·방문객 3·베란다 비둘기·사무실 말투 -->
+<script src="life-zoo.js"></script><!-- 동물원 조연 내용: 공작새·코끼리·오리·친구 3종 손님·배경 동물·동물원 말투 -->
+<script src="life.js"></script><!-- 공통 조연 엔진: 조연 3명 동작·서로 대화(AI 팀원끼리도)·손님 산책·배경 생물. 모든 테마 같은 구조. app.js 다음에 -->
 <script src="zoo-forest.js"></script><!-- 동물원 바깥: 숲·흐르는 강·다리·먼 산·새 떼(축소하면 솟아오름, '숲' 버튼). 동물원에서만 -->
 <script src="outside.js"></script><!-- 바깥 풍경(주소 주변 실제 건물·도로, OpenStreetMap). app.js 다음에. 없어도 app.js 는 동작 -->
 </body>

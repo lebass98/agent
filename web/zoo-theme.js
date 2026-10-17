@@ -406,10 +406,10 @@ window.ZooTheme = (() => {
     box(parent, 0xe7dcc7, x, .94, z + .2, .7, .035, .19);
     const mug = cylinder(parent, 0xf4e7cc, x + w / 2 - .2, 1, z + .18, .075, .16);
     cylinder(parent, 0xba9364, x, .18, z + 1.15, .34, .36);
-    return { screen: screens[0], mug };
+    return { screen: screens[0], mug, dispose() {} }; // 사무실 deskSet 과 같은 모양(장면 정리는 app.js 가 한다)
   }
   const deskOf = d => ({ desk: { x: d.x, z: d.z, w: d.w, facing: 0 }, seat: { x: d.x, z: d.z + 1.15 } });
-  function spots(n) { return desks.slice(0, n).map((d, i) => ({ ...deskOf(d), meet: { ...meetings[i % meetings.length] }, coffee: { ...coffees[i % coffees.length] } })); }
+  function spots(n) { return desks.slice(0, Math.min(desks.length, n)).map((d, i) => ({ ...deskOf(d), meet: { ...meetings[i % meetings.length] }, coffee: { ...coffees[i % coffees.length] } })); }
   /** 팀원이 없는 마을 자리에도 빈 책상을 둔다(마을마다 작업석이 보이게) */
   function spareDesks(n) { return desks.slice(n).map(d => ({ x: d.x, z: d.z, w: d.w, cols: 1, col: 0, facing: 0 })); }
   function navRects() {
@@ -449,9 +449,19 @@ window.ZooTheme = (() => {
       }
       return this;
     };
-    window.Decor = { OW, OD, PART_H: 0, rooms, nav, sun: office.sun, spots, navRects, build, deskSet, spareDesks, walkable: (x, z) => nav.walkable(x, z),
+    window.Decor = { OW, OD, PART_H: 0, SEATS: desks.length, rooms, nav, sun: office.sun, spots, navRects, build, deskSet, spareDesks, walkable: (x, z) => nav.walkable(x, z),
       TABLE: { x: MEET_TABLE.x, z: MEET_TABLE.z }, PRESENT_SPOT: { x: SCREEN.x - SCREEN.w / 2 - .7, z: ROOM.z0 + 1.1 }, WHITEBOARD: { x: SCREEN.x, z: ROOM.z0 + 1.2 }, BOARD_FACE: { x: SCREEN.x, z: ROOM.z0 },
       COUNTER: { x: CAFE.x, z: 13.3 }, PANTRY_TABLE: { ...CAFE }, COFFEE: coffees,
+      // 조연(life.js) 장소: 원장 그루터기 자리·발표 때 서서 듣는 회의실 뒤편·산책 지점·경리팀장 순찰 지점·회의실 문 앞·말투용 구역
+      NPC: {
+        headSeat: { x: -2.6, z: -13.2 }, headFace: { x: -2.6, z: -10 },
+        back: [{ x: -4.4, z: 2.7 }, { x: 4.4, z: 2.7 }, { x: 4.4, z: -2.4 }],
+        wander: [[0, -5.4], [-4.4, -5.4], [4.4, -5.4], [-6.6, -.7], [6.6, -.3], [4.4, 4.4], [2.1, 4.4], [-4, 4.4], [0, 6.6], [0, 9.2], [-11, -7.4], [11, -7], [-13.2, -3.2], [12, 5.8],
+          [-10, 12.6], [4.4, 8.2], [11, 12.6], [-6.8, 13.4], [-16, 7.4], [16.8, -6.4], [-6, -12.6], [6.4, -10.8]].map(([x, z]) => ({ x, z })),
+        duckSpots: [[CAFE.x - 2.4, CAFE.z - .8], [CAFE.x + 2.4, CAFE.z - .8], [0, 4.4], [-6.6, .3], [6.6, .3], [11.6, 1.4], [-9, 10.4], [0, 13.6]].map(([x, z]) => ({ x, z })),
+        meetingDoor: { x: 0, z: 4.6 },
+        zones,
+      },
       ENTRANCE: { x: 0, z: 14.2 }, LOBBY_DOOR: { axis: 'x', x: 0, z: 15.2 }, REPORT_SPOT: { x: 1.8, z: -9.3 },
       LIFE: { walk: [{ x: -5.6, z: 6.2 }, { x: -7, z: -.6 }, { x: -6.3, z: -6 }], window: { x: 11.5, z: .9 }, windowFace: { x: LAKE.x, z: LAKE.z },
         sofaApproach: { x: -9, z: 10.2 }, sofa: { x: -9, z: 9.55 }, sofaFace: { x: -9, z: 12 }, chat: [{ x: 2.2, z: 10.4 }, { x: 6.8, z: 10.4 }] },

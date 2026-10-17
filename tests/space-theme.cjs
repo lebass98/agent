@@ -1,5 +1,5 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
-const source=fs.readFileSync('web/space-theme.js','utf8');
+const source=fs.readFileSync('web/theme-kit.js','utf8')+'\n'+fs.readFileSync('web/space-theme.js','utf8');
 function page({query='',saved='office',busy=false,blocked=false,enter=null}={}) {
   const local=new Map([['agentOffice.spaceTheme',saved]]),session=new Map(enter?[['agentOffice.enterSpace',enter]]:[]),events={};
   const storage=map=>({getItem:k=>{if(blocked)throw Error('blocked');return map.get(k)||null},setItem:(k,v)=>{if(blocked)throw Error('blocked');map.set(k,v)},removeItem:k=>map.delete(k)});
