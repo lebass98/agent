@@ -215,7 +215,27 @@ function init3D() {
   Object.assign(controls, {
     enablePan: true, screenSpacePanning: true, panSpeed: .65, enableDamping: true, minZoom: .6, maxZoom: mqMobile.matches ? 6.4 : 4.4, minPolarAngle: .5, maxPolarAngle: 1.2,
   });
-  if(window.SpaceTheme?.isPixel)Object.assign(controls,{enableRotate:false,mouseButtons:{LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN},touches:{ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN}});
+  if(window.SpaceTheme?.isPixel){
+    Object.assign(controls,{enableRotate:false,enableDamping:false,enableZoom:false,mouseButtons:{LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN},touches:{ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_PAN}});
+    let wheelAmount=0,wheelAt=0;
+    renderer.domElement.addEventListener('wheel',e=>{
+      e.preventDefault();if(!e.deltaY)return;
+      const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1),now=performance.now();
+      if(Math.sign(wheelAmount)!==Math.sign(delta))wheelAmount=0;
+      wheelAmount+=delta;
+      if(Math.abs(wheelAmount)>=40&&now-wheelAt>=90){zoomCamera(wheelAmount<0?1:-1);wheelAmount=0;wheelAt=now;}
+    },{passive:false});
+    const fingers=new Map(),pinched=new Set();let pinch=null;
+    renderer.domElement.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(fingers.size===2){for(const id of fingers.keys())pinched.add(id);const [a,b]=[...fingers.values()];pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom:camera.zoom};}},{passive:true});
+    renderer.domElement.addEventListener('pointermove',e=>{
+      if(!fingers.has(e.pointerId))return;fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(fingers.size!==2||!pinch||pinch.distance<1)return;
+      const [a,b]=[...fingers.values()],steps=Math.round(Math.log(Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance)/Math.log(1.2));
+      const zoom=Math.min(controls.maxZoom,Math.max(controls.minZoom,pinch.zoom*1.2**steps));
+      if(zoom!==camera.zoom)setView(cam.view,controls.target.clone(),false,zoom);
+    },{passive:true});
+    for(const event of ['pointerup','pointercancel'])renderer.domElement.addEventListener(event,e=>{if(pinched.delete(e.pointerId))e.pixelPinch=true;fingers.delete(e.pointerId);pinch=null;},{passive:true});
+  }
 
   hemi = new THREE.HemisphereLight(0xffffff, 0xc9d2e3, .78);
   scene.add(hemi);
@@ -508,8 +528,14 @@ function frame(animate, zoom, points) {
 }
 function setView(view, target, animate, zoom = camera.zoom) {
   const to = { view, target, zoom };
-  if (!animate || mqReduce.matches || document.hidden) { cam.tween = null; applyView(to); return; }
+  if (!animate || window.SpaceTheme?.isPixel || mqReduce.matches || document.hidden) { cam.tween = null; applyView(to); return; }
   cam.tween = { from: { view: cam.view, target: controls.target.clone(), zoom: camera.zoom }, to, t0: performance.now() };
+}
+/** 픽셀 공간은 20% 단계로 한 번에 바꾸어 도트 크기의 연속 재계산을 피한다. */
+function zoomCamera(direction){
+  if(!HAS3D)return;
+  const next=window.SpaceTheme?.isPixel?camera.zoom*(direction>0?1.2:1/1.2):camera.zoom+(direction>0?.2:-.2);
+  setView(cam.view,controls.target.clone(),true,Math.min(controls.maxZoom,Math.max(controls.minZoom,next)));
 }
 function applyView({ view, target, zoom }) {
   const a = innerWidth / innerHeight;
@@ -779,7 +805,7 @@ function pickAct(list, prev) {
 /* 팀원 외형 어댑터(테마마다 모양만 다르다): 고른 외형 · 표정 띠 · 3D 모델 · 이름표 아이콘 · 외형 고르기 창 · 안내 문구.
    동물원은 zoo-theme.js(동물 15종), 사무실은 character-looks.js·sprite-chars.js(사람 그림). 조연·손님도 def.kind 로 같은 길을 탄다 */
 const LOOKS = window.SpaceTheme?.isPixel && window.PixelTheme ? {
-  noun:"픽셀 캐릭터", of:n=>window.CharacterLooks?.get(n)||n,
+  noun:"픽셀 캐릭터", of:n=>PixelTheme.lookOf(n),
   faces:n=>PixelTheme.faces(LOOKS.of(n)),build:(def,name,key)=>PixelTheme.buildCharacter(def,key||def.kind||LOOKS.of(name)),icon:null,pick:null,
   help:"에이전트 화면의 픽셀 얼굴을 눌러 외형을 바꾸고, 캐릭터나 이름을 눌러 개인 대화를 시작하세요. 팀의 AI·모델·역할은 설정에서 바꿀 수 있어요.",
 } : window.SpaceTheme?.isZoo && window.ZooTheme ? {
@@ -1655,16 +1681,18 @@ function statsView() {
 /** 사람 이미지 클릭 시에만 전체 외형 목록을 연다. */
 function openAppearancePicker(n) {
   if (LOOKS.pick) return LOOKS.pick(n); // 테마 전용 고르기 창(동물원: zoo-theme.js)
-  const options = window.CharacterLooks.list.filter(person => window.SpaceTheme?.isPixel || window.SpriteChars?.has(person.id));
+  const pixel=window.SpaceTheme?.isPixel;
+  const available=id=>pixel?!D.names.some(other=>other!==n&&appearanceOf(other)===id):window.CharacterLooks.available(n,id,D.names);
+  const options = pixel?['claude','gpt','gemini'].map(id=>({id,label:PixelTheme.assets.characters[id].label})):window.CharacterLooks.list.filter(person=>window.SpriteChars?.has(person.id));
   openModal([
     sheetHead(`${memberDef(n).label} ${LOOKS.noun}`, "외형을 선택하면 바로 적용되며 이 브라우저에 저장됩니다."),
     el("div", { class: "sheet-body" },
       el("div", { class: "appearance-grid", role: "group", "aria-label": `${memberDef(n).label} 외형 선택` },
         ...options.map(person => el("button", {
           type: "button", class: "appearance-option", "aria-pressed": appearanceOf(n) === person.id ? "true" : "false",
-          disabled: !window.CharacterLooks.available(n, person.id, D.names),
+          disabled: !available(person.id),
           onclick: () => {
-            if (!window.CharacterLooks.set(n, person.id, D.names)) {
+            if (!(pixel?PixelTheme.setLook(n,person.id,D.names):window.CharacterLooks.set(n, person.id, D.names))) {
               toast("다른 팀원이 사용 중인 사람이에요.", "warn"); return;
             }
             A(n).changeAppearance(person.id);
@@ -1677,7 +1705,7 @@ function openAppearancePicker(n) {
             toast(`${memberDef(n).label}의 외형을 ${person.label}(으)로 변경했어요.`);
           }
         }, el("span", { class: "appearance-portrait face", style: faceVars(window.SpaceTheme?.isPixel ? PixelTheme.faces(person.id) : window.SpriteChars.faces(person.id)), "aria-hidden": "true" }),
-        el("span", { text: person.label }), el("small", { text: !window.CharacterLooks.available(n, person.id, D.names) ? "다른 팀원 사용 중" : person.age ? `${person.age}세` : "기존 캐릭터" }))))),
+        el("span", { text: person.label }), el("small", { text: !available(person.id) ? "다른 팀원 사용 중" : person.age ? `${person.age}세` : "기존 캐릭터" }))))),
   ]);
 }
 /** 에이전트: 팀원 카드 + 새 에이전트 추가 안내 */
@@ -2879,7 +2907,7 @@ if (HAS3D) {
   renderer.domElement.addEventListener("pointercancel",()=>{characterPress=null;});
   renderer.domElement.addEventListener("pointerup",e=>{
     const start=characterPress;characterPress=null;
-    if(!start||start.id!==e.pointerId||Math.hypot(e.clientX-start.x,e.clientY-start.y)>8)return;
+    if(e.pixelPinch||!start||start.id!==e.pointerId||Math.hypot(e.clientX-start.x,e.clientY-start.y)>8)return;
     if(window.SpaceTheme?.isPixel){const a=renderer.pick(e.clientX,e.clientY);if(a&&!a.npc&&!a.guest)window.CharacterChat?.open(a.name);else if(a?.npc)a.tag?.click();return;}
     const r=renderer.domElement.getBoundingClientRect(),ray=new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);
@@ -3027,6 +3055,7 @@ function loop(now) {
   stepOffice(now);
   controls.update();
   camera.updateMatrixWorld();
+  if(window.SpaceTheme?.isPixel)PixelTheme.snapCamera(camera,controls.target,innerWidth,innerHeight);
   const w = innerWidth, h = innerHeight;
   for (const n of D.names) { const a = A(n); if (a.ghost) continue; a.update(raw * SPEED); a.paint(now); a.placeLabel(w, h); }
   declutter(mqMobile.matches); // 방 이름표(.room-chip)는 decor.js 가 바닥 메시의 onBeforeRender 에서 옮기고, 이름표와 겹치면 숨긴다

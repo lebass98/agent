@@ -1,0 +1,994 @@
+{
+  "version": 2,
+  "characters": {
+    "claude": {
+      "label": "Claude · 팀장",
+      "src": "pixel/v2/characters/claude.png",
+      "portrait": "pixel/v2/portraits/claude.png",
+      "frames": {
+        "stand.front": {
+          "x": 18,
+          "y": 12,
+          "w": 28,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 82,
+          "y": 12,
+          "w": 27,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 145,
+          "y": 12,
+          "w": 29,
+          "h": 48
+        },
+        "portrait": {
+          "x": 200,
+          "y": 15,
+          "w": 48,
+          "h": 45
+        },
+        "walk.front.0": {
+          "x": 17,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 81,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 145,
+          "y": 76,
+          "w": 30,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 209,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 18,
+          "y": 140,
+          "w": 28,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 82,
+          "y": 140,
+          "w": 28,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 146,
+          "y": 148,
+          "w": 27,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 210,
+          "y": 148,
+          "w": 28,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 18,
+          "y": 212,
+          "w": 28,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 82,
+          "y": 204,
+          "w": 28,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 144,
+          "y": 204,
+          "w": 31,
+          "h": 48
+        },
+        "present.front": {
+          "x": 207,
+          "y": 204,
+          "w": 34,
+          "h": 48
+        }
+      }
+    },
+    "gpt": {
+      "label": "GPT · 디자이너",
+      "src": "pixel/v2/characters/gpt.png",
+      "portrait": "pixel/v2/portraits/gpt.png",
+      "frames": {
+        "stand.front": {
+          "x": 20,
+          "y": 12,
+          "w": 24,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 83,
+          "y": 12,
+          "w": 25,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 148,
+          "y": 12,
+          "w": 24,
+          "h": 48
+        },
+        "portrait": {
+          "x": 202,
+          "y": 12,
+          "w": 43,
+          "h": 48
+        },
+        "walk.front.0": {
+          "x": 20,
+          "y": 76,
+          "w": 24,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 84,
+          "y": 76,
+          "w": 24,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 148,
+          "y": 76,
+          "w": 24,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 212,
+          "y": 76,
+          "w": 24,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 19,
+          "y": 140,
+          "w": 25,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 83,
+          "y": 140,
+          "w": 26,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 148,
+          "y": 148,
+          "w": 23,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 211,
+          "y": 148,
+          "w": 25,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 20,
+          "y": 212,
+          "w": 24,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 83,
+          "y": 204,
+          "w": 26,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 146,
+          "y": 204,
+          "w": 28,
+          "h": 48
+        },
+        "present.front": {
+          "x": 207,
+          "y": 204,
+          "w": 33,
+          "h": 48
+        }
+      }
+    },
+    "gemini": {
+      "label": "Gemini · 업무 지원",
+      "src": "pixel/v2/characters/gemini.png",
+      "portrait": "pixel/v2/portraits/gemini.png",
+      "frames": {
+        "stand.front": {
+          "x": 20,
+          "y": 12,
+          "w": 23,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 83,
+          "y": 12,
+          "w": 25,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 149,
+          "y": 12,
+          "w": 22,
+          "h": 48
+        },
+        "portrait": {
+          "x": 206,
+          "y": 12,
+          "w": 35,
+          "h": 48
+        },
+        "walk.front.0": {
+          "x": 21,
+          "y": 76,
+          "w": 22,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 85,
+          "y": 76,
+          "w": 22,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 149,
+          "y": 76,
+          "w": 22,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 213,
+          "y": 76,
+          "w": 22,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 20,
+          "y": 140,
+          "w": 23,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 84,
+          "y": 140,
+          "w": 23,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 150,
+          "y": 148,
+          "w": 20,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 212,
+          "y": 148,
+          "w": 24,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 21,
+          "y": 212,
+          "w": 22,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 83,
+          "y": 204,
+          "w": 26,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 146,
+          "y": 204,
+          "w": 28,
+          "h": 48
+        },
+        "present.front": {
+          "x": 209,
+          "y": 204,
+          "w": 29,
+          "h": 48
+        }
+      }
+    },
+    "design": {
+      "label": "디자인팀장",
+      "src": "pixel/v2/characters/design.png",
+      "portrait": "pixel/v2/portraits/design.png",
+      "frames": {
+        "stand.front": {
+          "x": 17,
+          "y": 12,
+          "w": 30,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 83,
+          "y": 12,
+          "w": 26,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 145,
+          "y": 12,
+          "w": 29,
+          "h": 48
+        },
+        "portrait": {
+          "x": 200,
+          "y": 16,
+          "w": 48,
+          "h": 44
+        },
+        "walk.front.0": {
+          "x": 17,
+          "y": 76,
+          "w": 30,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 81,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 146,
+          "y": 76,
+          "w": 28,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 210,
+          "y": 76,
+          "w": 28,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 18,
+          "y": 140,
+          "w": 27,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 84,
+          "y": 140,
+          "w": 23,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 148,
+          "y": 148,
+          "w": 24,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 211,
+          "y": 148,
+          "w": 25,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 19,
+          "y": 212,
+          "w": 26,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 81,
+          "y": 204,
+          "w": 29,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 144,
+          "y": 204,
+          "w": 31,
+          "h": 48
+        },
+        "present.front": {
+          "x": 206,
+          "y": 204,
+          "w": 35,
+          "h": 48
+        }
+      }
+    },
+    "head": {
+      "label": "본부장",
+      "src": "pixel/v2/characters/head.png",
+      "portrait": "pixel/v2/portraits/head.png",
+      "frames": {
+        "stand.front": {
+          "x": 18,
+          "y": 12,
+          "w": 27,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 84,
+          "y": 12,
+          "w": 24,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 147,
+          "y": 12,
+          "w": 26,
+          "h": 48
+        },
+        "portrait": {
+          "x": 203,
+          "y": 12,
+          "w": 41,
+          "h": 48
+        },
+        "walk.front.0": {
+          "x": 18,
+          "y": 76,
+          "w": 27,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 83,
+          "y": 76,
+          "w": 26,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 147,
+          "y": 76,
+          "w": 26,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 210,
+          "y": 76,
+          "w": 27,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 19,
+          "y": 140,
+          "w": 25,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 83,
+          "y": 140,
+          "w": 26,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 148,
+          "y": 148,
+          "w": 23,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 210,
+          "y": 148,
+          "w": 27,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 19,
+          "y": 212,
+          "w": 25,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 83,
+          "y": 204,
+          "w": 26,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 146,
+          "y": 204,
+          "w": 27,
+          "h": 48
+        },
+        "present.front": {
+          "x": 207,
+          "y": 204,
+          "w": 33,
+          "h": 48
+        }
+      }
+    },
+    "finance": {
+      "label": "경리팀장",
+      "src": "pixel/v2/characters/finance.png",
+      "portrait": "pixel/v2/portraits/finance.png",
+      "frames": {
+        "stand.front": {
+          "x": 17,
+          "y": 12,
+          "w": 29,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 82,
+          "y": 12,
+          "w": 28,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 145,
+          "y": 12,
+          "w": 29,
+          "h": 48
+        },
+        "portrait": {
+          "x": 200,
+          "y": 14,
+          "w": 48,
+          "h": 46
+        },
+        "walk.front.0": {
+          "x": 17,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 81,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 146,
+          "y": 76,
+          "w": 28,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 210,
+          "y": 76,
+          "w": 28,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 18,
+          "y": 140,
+          "w": 27,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 84,
+          "y": 140,
+          "w": 24,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 148,
+          "y": 148,
+          "w": 24,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 212,
+          "y": 148,
+          "w": 24,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 19,
+          "y": 212,
+          "w": 26,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 82,
+          "y": 204,
+          "w": 28,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 145,
+          "y": 204,
+          "w": 29,
+          "h": 48
+        },
+        "present.front": {
+          "x": 206,
+          "y": 204,
+          "w": 35,
+          "h": 48
+        }
+      }
+    },
+    "intern": {
+      "label": "인턴",
+      "src": "pixel/v2/characters/intern.png",
+      "portrait": "pixel/v2/portraits/intern.png",
+      "frames": {
+        "stand.front": {
+          "x": 20,
+          "y": 12,
+          "w": 24,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 84,
+          "y": 12,
+          "w": 24,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 148,
+          "y": 12,
+          "w": 24,
+          "h": 48
+        },
+        "portrait": {
+          "x": 201,
+          "y": 12,
+          "w": 45,
+          "h": 48
+        },
+        "walk.front.0": {
+          "x": 20,
+          "y": 76,
+          "w": 23,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 85,
+          "y": 76,
+          "w": 22,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 149,
+          "y": 76,
+          "w": 22,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 211,
+          "y": 76,
+          "w": 25,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 19,
+          "y": 140,
+          "w": 26,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 84,
+          "y": 140,
+          "w": 23,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 149,
+          "y": 148,
+          "w": 21,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 210,
+          "y": 148,
+          "w": 27,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 21,
+          "y": 212,
+          "w": 22,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 83,
+          "y": 204,
+          "w": 25,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 147,
+          "y": 204,
+          "w": 26,
+          "h": 48
+        },
+        "present.front": {
+          "x": 207,
+          "y": 204,
+          "w": 33,
+          "h": 48
+        }
+      }
+    },
+    "courier": {
+      "label": "택배 기사",
+      "src": "pixel/v2/characters/courier.png",
+      "portrait": "pixel/v2/portraits/courier.png",
+      "frames": {
+        "stand.front": {
+          "x": 18,
+          "y": 12,
+          "w": 28,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 80,
+          "y": 12,
+          "w": 31,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 147,
+          "y": 12,
+          "w": 25,
+          "h": 48
+        },
+        "portrait": {
+          "x": 200,
+          "y": 14,
+          "w": 48,
+          "h": 46
+        },
+        "walk.front.0": {
+          "x": 18,
+          "y": 76,
+          "w": 28,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 82,
+          "y": 76,
+          "w": 28,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 147,
+          "y": 76,
+          "w": 25,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 212,
+          "y": 76,
+          "w": 24,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 16,
+          "y": 140,
+          "w": 32,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 79,
+          "y": 140,
+          "w": 33,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 148,
+          "y": 148,
+          "w": 24,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 209,
+          "y": 148,
+          "w": 30,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 19,
+          "y": 212,
+          "w": 26,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 80,
+          "y": 204,
+          "w": 31,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 144,
+          "y": 204,
+          "w": 32,
+          "h": 48
+        },
+        "present.front": {
+          "x": 206,
+          "y": 204,
+          "w": 35,
+          "h": 48
+        }
+      }
+    },
+    "visitor": {
+      "label": "방문객",
+      "src": "pixel/v2/characters/visitor.png",
+      "portrait": "pixel/v2/portraits/visitor.png",
+      "frames": {
+        "stand.front": {
+          "x": 17,
+          "y": 12,
+          "w": 30,
+          "h": 48
+        },
+        "stand.side": {
+          "x": 82,
+          "y": 12,
+          "w": 27,
+          "h": 48
+        },
+        "stand.back": {
+          "x": 145,
+          "y": 12,
+          "w": 29,
+          "h": 48
+        },
+        "portrait": {
+          "x": 200,
+          "y": 14,
+          "w": 48,
+          "h": 46
+        },
+        "walk.front.0": {
+          "x": 16,
+          "y": 76,
+          "w": 32,
+          "h": 48
+        },
+        "walk.front.1": {
+          "x": 81,
+          "y": 76,
+          "w": 30,
+          "h": 48
+        },
+        "walk.back.0": {
+          "x": 145,
+          "y": 76,
+          "w": 30,
+          "h": 48
+        },
+        "walk.back.1": {
+          "x": 209,
+          "y": 76,
+          "w": 29,
+          "h": 48
+        },
+        "walk.side.0": {
+          "x": 17,
+          "y": 140,
+          "w": 29,
+          "h": 48
+        },
+        "walk.side.1": {
+          "x": 82,
+          "y": 140,
+          "w": 27,
+          "h": 48
+        },
+        "sit.front": {
+          "x": 145,
+          "y": 148,
+          "w": 29,
+          "h": 40
+        },
+        "sit.side": {
+          "x": 209,
+          "y": 148,
+          "w": 30,
+          "h": 40
+        },
+        "sit.back": {
+          "x": 17,
+          "y": 212,
+          "w": 29,
+          "h": 40
+        },
+        "tea.front": {
+          "x": 82,
+          "y": 204,
+          "w": 28,
+          "h": 48
+        },
+        "tea.side": {
+          "x": 146,
+          "y": 204,
+          "w": 28,
+          "h": 48
+        },
+        "present.front": {
+          "x": 206,
+          "y": 204,
+          "w": 36,
+          "h": 48
+        }
+      }
+    }
+  },
+  "furniture": {
+    "desk": {
+      "src": "pixel/v2/furniture/desk.png",
+      "w": 96,
+      "h": 69
+    },
+    "leaderDesk": {
+      "src": "pixel/v2/furniture/leaderDesk.png",
+      "w": 96,
+      "h": 68
+    },
+    "meetingTable": {
+      "src": "pixel/v2/furniture/meetingTable.png",
+      "w": 96,
+      "h": 60
+    },
+    "sofa": {
+      "src": "pixel/v2/furniture/sofa.png",
+      "w": 96,
+      "h": 75
+    },
+    "coffeeCounter": {
+      "src": "pixel/v2/furniture/coffeeCounter.png",
+      "w": 96,
+      "h": 86
+    },
+    "bookcase": {
+      "src": "pixel/v2/furniture/bookcase.png",
+      "w": 55,
+      "h": 96
+    },
+    "plant": {
+      "src": "pixel/v2/furniture/plant.png",
+      "w": 63,
+      "h": 96
+    },
+    "reception": {
+      "src": "pixel/v2/furniture/reception.png",
+      "w": 96,
+      "h": 69
+    },
+    "display": {
+      "src": "pixel/v2/furniture/display.png",
+      "w": 83,
+      "h": 96
+    },
+    "coffeeTable": {
+      "src": "pixel/v2/furniture/coffeeTable.png",
+      "w": 75,
+      "h": 96
+    },
+    "chair": {
+      "src": "pixel/v2/furniture/chair.png",
+      "w": 64,
+      "h": 96
+    },
+    "lamp": {
+      "src": "pixel/v2/furniture/lamp.png",
+      "w": 43,
+      "h": 96
+    }
+  }
+}

@@ -1,10 +1,38 @@
 'use strict';
 /* Canvas 2D renderer. Three.js supplies only camera/position math and the shared Agent contract.
-   No WebGL context, photo sprites, external art or post-processing is used in this theme. */
+   Generated pixel atlases are local; no WebGL context or post-processing is used. */
 window.PixelTheme = (() => {
   const T=window.THREE, office=window.Decor;
   const rigs=new Set(), spriteCache=new Map(), faceCache=new Map();
+  const assets=window.PIXEL_ASSETS_V2||{characters:{},furniture:{}},images=new Map();
   let night=0,ambientTime=0;
+  function imageOf(src){
+    if(!src||typeof Image==='undefined')return null;
+    if(!images.has(src)){const im=new Image();im.src=src;images.set(src,im);}
+    const im=images.get(src);return im.complete&&im.naturalWidth?im:null;
+  }
+  if(window.SpaceTheme?.isPixel)for(const a of [...Object.values(assets.characters),...Object.values(assets.furniture)])imageOf(a.src);
+  const lookKey=name=>'agentOffice.pixel.appearance.'+name,lookOverrides=new Map();
+  function lookOf(name){let saved=lookOverrides.get(name);try{saved||=localStorage.getItem(lookKey(name));}catch{}return assets.characters[saved]&&['claude','gpt','gemini'].includes(saved)?saved:name;}
+  function setLook(name,id,names){
+    if(!['claude','gpt','gemini'].includes(id)||names.some(n=>n!==name&&lookOf(n)===id))return false;
+    lookOverrides.set(name,id);try{localStorage.setItem(lookKey(name),id);}catch{}return true;
+  }
+  function frameOf(key,pose,dir,step){
+    const a=assets.characters[key];if(!a)return null;
+    const action=pose==='type'||pose==='seatedTea'?'sit':pose;
+    let name=action==='walk'?`walk.${dir}.${step}`:action==='tea'?`tea.${dir==='side'?'side':'front'}`:action==='present'?'present.front':`${action}.${dir}`;
+    return {asset:a,frame:a.frames[name]||a.frames['stand.front']};
+  }
+  // Snap the whole camera translation once, so fixed objects share one stable pixel phase.
+  function snapCamera(camera,target,width,height){
+    const origin=new T.Vector3().project(camera),w=Math.ceil(width/2),h=Math.ceil(height/2);
+    const x=(origin.x*.5+.5)*w,y=(.5-origin.y*.5)*h;
+    const stepX=(camera.right-camera.left)/(camera.zoom*w),stepY=(camera.top-camera.bottom)/(camera.zoom*h);
+    const right=new T.Vector3(1,0,0).applyQuaternion(camera.quaternion),up=new T.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+    const shift=right.multiplyScalar((x-Math.round(x))*stepX).add(up.multiplyScalar((Math.round(y)-y)*stepY));
+    camera.position.add(shift);target.add(shift);camera.updateMatrixWorld();
+  }
   const palette={ink:'#263b43',edge:'#334a50',cream:'#f4e8cb',mint:'#a7c5ae',green:'#527e6d',wood:'#c68e64',woodLight:'#e3b781',rose:'#c98586',gold:'#eac779',blue:'#759fba'};
   const people={
     claude:{hair:'#664639',shirt:'#f3dfb8',pants:'#bc946c',long:true},
@@ -48,6 +76,7 @@ window.PixelTheme = (() => {
     spriteCache.set(id,cv);return cv;
   }
   function faces(key){
+    if(assets.characters[key])return {src:assets.characters[key].portrait,n:1,index:()=>0};
     if(faceCache.has(key))return faceCache.get(key);
     const cv=document.createElement('canvas');cv.width=cv.height=24;const c=cv.getContext('2d');
     c.fillStyle=styleOf(key).shirt;c.fillRect(0,0,24,24);c.imageSmoothingEnabled=false;c.drawImage(sprite(key),0,0,24,16,0,1,24,24);
@@ -76,15 +105,15 @@ window.PixelTheme = (() => {
       this.domElement=document.createElement('canvas');this.domElement.className='pixel-canvas';
       this.domElement.dataset.renderer='canvas2d';this.ctx=this.domElement.getContext('2d',{alpha:false});
       if(!this.ctx)throw new Error('Canvas 2D를 사용할 수 없습니다.');
-      this.shadowMap={};this.factor=2;this.width=1;this.height=1;this.hits=[];this.background='#162c35';
+      this.shadowMap={};this.factor=2;this.width=1;this.height=1;this.hits=[];this.background='#eee8db';
     }
     setPixelRatio(){} // Deliberately render on a fixed pixel grid, independent of display DPR.
     setClearColor(color){this.background=new T.Color(color).getStyle();}
     setSize(w,h){
       this.width=w;this.height=h;this.domElement.width=Math.ceil(w/this.factor);this.domElement.height=Math.ceil(h/this.factor);
-      this.domElement.style.width=w+'px';this.domElement.style.height=h+'px';this.ctx.imageSmoothingEnabled=false;
+      this.domElement.style.width=this.domElement.width*this.factor+'px';this.domElement.style.height=this.domElement.height*this.factor+'px';this.ctx.imageSmoothingEnabled=false;
     }
-    clear(){this.ctx.fillStyle=this.background;this.ctx.fillRect(0,0,this.domElement.width,this.domElement.height);}
+    clear(){this.ctx.fillStyle=night>.5?'#243842':'#eee8db';this.ctx.fillRect(0,0,this.domElement.width,this.domElement.height);}
     point(x,y,z){const v=new T.Vector3(x,y,z).project(this.camera);return{x:Math.round((v.x*.5+.5)*this.domElement.width),y:Math.round((.5-v.y*.5)*this.domElement.height)};}
     poly(points,color,stroke){const c=this.ctx;c.beginPath();points.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();c.fillStyle=color;c.fill();if(stroke){c.strokeStyle=stroke;c.lineWidth=1;c.stroke();}}
     rect(x,y,w,h,color){this.ctx.fillStyle=color;this.ctx.fillRect(Math.round(x),Math.round(y),Math.max(1,Math.round(w)),Math.max(1,Math.round(h)));}
@@ -96,30 +125,17 @@ window.PixelTheme = (() => {
       this.poly([a,b,c,e],top,palette.ink);
       this.poly([a,b,{x:b.x,y:b.y+1},{x:a.x,y:a.y+1}],'#ffffff30');
     }
-    plant(x,z,large=false){
-      const p=this.point(x,0,z),s=Math.max(1,Math.round(this.unit*(large?.22:.16)));
-      this.rect(p.x-2*s,p.y-s,4*s,3*s,'#b48670');this.rect(p.x-s,p.y+2*s,2*s,s,'#7d605b');
-      this.rect(p.x-s,p.y-8*s,2*s,7*s,'#44674f');
-      for(const [dx,dy,col]of [[-3,-6,'#658d68'],[1,-7,'#86ad78'],[-4,-3,'#93ba84'],[2,-4,'#557f64'],[-2,-9,'#b0cc8c']])this.rect(p.x+dx*s,p.y+dy*s,3*s,3*s,col);
+    asset(id,x,z,width,depth=1,flip=false){
+      const meta=assets.furniture[id],im=imageOf(meta?.src);if(!im)return false;
+      const p=this.point(x,0,z),left=this.point(x-width/2,0,z+depth/2),right=this.point(x+width/2,0,z-depth/2);
+      const w=Math.max(3,Math.abs(right.x-left.x)),h=Math.round(w*meta.h/meta.w);
+      const bottom=this.point(x+width/2,0,z+depth/2).y;
+      const c=this.ctx;c.save();c.translate(Math.round(p.x),Math.round(bottom));if(flip)c.scale(-1,1);
+      c.drawImage(im,Math.round(-w/2),-h,w,h);c.restore();return true;
     }
-    chair(x,z){this.block(x,z,.8,.7,.55,'#6f9c98','#3d6166');this.block(x,z+.22,.8,.16,1.05,'#8bb9ac','#4a7371');}
-    monitor(x,z,kind,phase){
-      const p=this.point(x,1.65,z),w=Math.max(5,Math.round(this.unit*.86)),h=Math.max(4,Math.round(w*.66));
-      this.rect(p.x-w/2,p.y-h/2,w,h,palette.ink);this.rect(p.x-w/2+1,p.y-h/2+1,w-2,h-2,'#305662');
-      const lines=['#8dceb3','#e7c77c','#90b8d2'];
-      for(let j=0;j<3;j++)this.rect(p.x-w/2+2,p.y-h/2+2+j*2,Math.max(1,w-5-j-(phase?j%2:0)),1,lines[j]);
-      this.rect(p.x,p.y+h/2,1,2,'#b8c4bb');
-    }
-    desk(d,now){
-      const {x,z,w}=d;
-      this.block(x,z,w,1.3,.83,d.exec?'#bc956b':palette.woodLight,'#a4775a');
-      for(const dx of [-w*.3,w*.3])this.block(x+dx,z+.15,.12,.8,.7,'#92a9a2','#597779');
-      const rear=d.facing?z+.28:z-.28;
-      this.monitor(x-.57,rear,'code',Math.floor(now/600)%2);this.monitor(x+.5,rear,'chart',0);
-      this.block(x,z+(d.facing?-.3:.3),.7,.24,.05,'#d5d9c7','#96a5a4',.85);
-      this.plant(x+w/2-.1,z-.38);
-      const p=this.point(x+w/2-.35,1.06,z+.35);this.rect(p.x,p.y,2,3,'#f6ebca');
-    }
+    plant(x,z,large=false){if(!this.asset('plant',x,z,large?1.2:.65,.6))this.block(x,z,.5,.5,1.3,palette.green);}
+    chair(x,z){if(!this.asset('chair',x,z,.85,.75))this.block(x,z,.8,.7,.55,'#6f9c98');}
+    desk(d){if(!this.asset(d.exec?'leaderDesk':'desk',d.x,d.z,d.w,1.3,!!d.facing))this.block(d.x,d.z,d.w,1.3,.83,palette.woodLight);}
     roomSign(key){
       const r=decor.rooms[key],p=this.point(r.x0+1.3,0,r.z0+1.2),c=this.ctx;
       c.font='bold 6px monospace';const labels={pantry:'COFFEE',work:'STUDIO',exec:'LEAD',meeting:'IDEAS',lounge:'LOUNGE',lobby:'WELCOME',balcony:'GARDEN'};
@@ -133,27 +149,32 @@ window.PixelTheme = (() => {
       const rel=Math.atan2(Math.sin(a.targetRot-Math.PI/4),Math.cos(a.targetRot-Math.PI/4));
       const direction=Math.abs(rel)>2.2?'back':Math.abs(rel)>.7?'side':'front';
       const still=window.SpaceTheme?.reduce||document.hidden,frame=still?0:Math.floor(now/(pose==='type'?180:180))%2;
-      const sheet=sprite(rig.pixel.key,pose,direction,frame),high=rig.pixel.seated?2.45:3;
-      const top=this.point(pos.x,high,pos.z),h=Math.max(12,p.y-top.y),w=Math.round(h*24/36),c=this.ctx;
-      this.floor(pos.x,pos.z,1.15,.65,'#263c4335');
+      const generated=frameOf(rig.pixel.key,pose,direction,frame),im=imageOf(generated?.asset.src),f=generated?.frame;
+      const top=this.point(pos.x,3,pos.z),unitHeight=Math.max(12,p.y-top.y);
+      const h=Math.max(8,Math.round(unitHeight*(im?f.h/48:rig.pixel.seated?2.45/3:1)));
+      const w=Math.max(5,Math.round(h*(im?f.w/f.h:24/36))),c=this.ctx;
+      this.floor(pos.x,pos.z,1.15,.65,'#263c4320');
       if(rig.pixel.seated&&!['lounge','seatedTea'].includes(a.lifePose))this.chair(pos.x,pos.z);
-      c.save();if(rel<-.7&&direction==='side'){c.translate(p.x+w/2,p.y-h);c.scale(-1,1);c.drawImage(sheet,0,0,w,h);}else c.drawImage(sheet,p.x-w/2,p.y-h,w,h);c.restore();
+      c.save();c.translate(Math.round(p.x),Math.round(p.y));if(rel<-.7&&direction==='side')c.scale(-1,1);
+      if(im)c.drawImage(im,f.x,f.y,f.w,f.h,Math.round(-w/2),-h,w,h);
+      else c.drawImage(sprite(rig.pixel.key,pose,direction,frame),Math.round(-w/2),-h,w,h);
+      c.restore();
       this.hits.push({a,x:p.x-w/2-2,y:p.y-h-2,w:w+4,h:h+4});
     }
     render(scene,camera){
       this.camera=camera;this.clear();this.hits=[];
       const origin=this.point(0,0,0),u=this.point(1,0,0);this.unit=Math.max(2,Math.hypot(u.x-origin.x,u.y-origin.y));
       const c=this.ctx;
-      // Matte wood tile map and room rugs; crisp, limited-colour pixel geometry.
-      this.block(0,0,40,40,.35,'#e6c796','#7c715f',-.35);
-      for(let x=-20;x<20;x+=2)for(let z=-20;z<20;z+=2){
-        const room=Object.entries(decor.rooms).find(([,r])=>x>=r.x0&&x<r.x1&&z>=r.z0&&z<r.z1)?.[0];
-        const colors=room==='balcony'?['#b3c797','#aabd8e']:room==='work'?['#d9be93','#d1b58a']:room==='meeting'?['#aec7bf','#a2bdb4']:room==='exec'?['#baa0a6','#b39a9f']:room==='pantry'?['#dcd4b2','#c5ceb0']:room==='lounge'?['#a9c2b3','#a0b9aa']:['#d8c9a9','#d1c1a0'];
-        this.floor(x+1,z+1,2,2,colors[(x+z)/2%2===0?0:1],'#7169561c');
+      // Sparse matte floor: long planks and flat room rugs, no reflected highlights.
+      this.block(0,0,40,40,.35,'#e8d9b9','#667779',-.35);
+      for(let z=-20;z<20;z+=2.5)this.floor(0,z+1.25,40,2.5,(z/2.5)%2===0?'#e5d4b2':'#e9dabc');
+      for(const [key,color]of Object.entries({balcony:'#acbf94',meeting:'#bdd0c1',exec:'#dbc9ba',pantry:'#e0d8bf',lounge:'#bdd0c1',lobby:'#e5dfcd'})){
+        const r=decor.rooms[key];this.floor((r.x0+r.x1)/2,(r.z0+r.z1)/2,r.x1-r.x0,r.z1-r.z0,color);
       }
+      for(const [x,z]of [[-15,-2.5],[-8,-2.5],[-1,-2.5],[-15,-10.75],[-8,-10.75]])this.floor(x,z,4.5,4,'#c5d0bb');
       const queue=[],add=(x,z,fn)=>queue.push({depth:x+z,fn});
       // Low cutaway partitions retain the exact navigation openings of the common map.
-      const wall=(x,z,w,d)=>add(x,z,()=>this.block(x,z,w,d,1.15,'#f0dfbc','#778e87'));
+      const wall=(x,z,w,d)=>add(x,z,()=>this.block(x,z,w,d,1.15,'#faf1d9','#a0b0a4'));
       wall(0,-20,40,.35);wall(-20,0,.35,40);
       for(const r of Object.values(decor.rooms)){
         if(!r.door)continue;const door=r.door,vertical=door.axis==='z',start=vertical?r.z0:r.x0,end=vertical?r.z1:r.x1,at=vertical?door.z:door.x;
@@ -162,18 +183,19 @@ window.PixelTheme = (() => {
       const now=window.SpaceTheme?.reduce?0:performance.now();
       for(const d of office.slots(12))add(d.x,d.z,()=>this.desk(d,now));
       for(const s of office.spots(12))add(s.seat.x,s.seat.z,()=>this.chair(s.seat.x,s.seat.z));
-      add(decor.TABLE.x,decor.TABLE.z,()=>{this.block(decor.TABLE.x,decor.TABLE.z,5,2,.83,'#e4bd8d','#a47a62');for(const dx of [-1.4,0,1.4])this.monitor(decor.TABLE.x+dx,decor.TABLE.z,'chart',0);});
+      add(decor.TABLE.x,decor.TABLE.z,()=>this.asset('meetingTable',decor.TABLE.x,decor.TABLE.z,5,2));
       for(const s of office.MEET_SEATS||[])add(s.x,s.z,()=>this.chair(s.x,s.z));
-      add(9,-9,()=>{this.block(8.6,-9,.2,4,3.3,'#35515d','#263c46');const p=this.point(8.8,2.8,-9);this.rect(p.x-8,p.y-7,17,13,'#28454f');for(let i=0;i<4;i++)this.rect(p.x-6+i*4,p.y+3-(i*2),2,3+i*2,['#8dc8af','#7ca5bc','#d9bc76','#bd99b7'][i]);});
-      add(-16,14,()=>{this.block(-16,14,4,1.2,1.2,'#e4c497','#8e7b65');this.block(-17.3,14,.9,.7,1.1,'#c2ccc0','#758d89',1.2);const p=this.point(-15,1.65,14);this.rect(p.x-3,p.y-4,6,7,'#334d54');this.rect(p.x-2,p.y-3,4,3,'#c2dfd1');});
-      add(-12.6,15.4,()=>this.block(-12.6,15.4,2.3,1.5,.8,'#d4ac77','#927659'));
-      for(const [x,z]of [[12,15.7],[15,15.7],[12,9.1]])add(x,z,()=>{this.block(x,z,2.6,1.2,.55,'#84a99b','#527b76');this.block(x,z-.45,2.6,.3,1.1,'#a7c5ae','#5f8a7b');});
-      add(14,17.5,()=>this.block(14,17.5,2,1,.45,'#deb78c','#a17e65'));
-      add(-4,17,()=>this.block(-4,17,3.6,1.2,1.05,'#9ab8a4','#608978'));
+      add(9,-9,()=>this.asset('display',9,-9,1.1,2.8));
+      add(-16,14,()=>this.asset('coffeeCounter',-16,14,3.6,1.2));
+      add(-12.6,15.4,()=>this.asset('coffeeTable',-12.6,15.4,2.3,1.5));
+      for(const [x,z]of [[12,15.7],[15,15.7],[12,9.1]])add(x,z,()=>this.asset('sofa',x,z,2.6,1.2));
+      add(14,17.5,()=>this.asset('coffeeTable',14,17.5,2,1));
+      add(-4,17,()=>this.asset('reception',-4,17,3.6,1.2));
+      add(17,10,()=>this.asset('lamp',17,10,.7,.6));
       // Rear windows, shelving, terrace plants and a few tiny city silhouettes.
       for(let x=-17;x<19;x+=4){add(x,-19,()=>{this.block(x,-19,2.9,.18,2.7,night>.5?'#6c88a1':'#a9d9da','#587b82');const p=this.point(x,2.1,-19);this.rect(p.x-1,p.y-4,2,10,'#e7d6b4');});}
       for(const [x,z]of [[-18,-12],[2,-12],[3,8],[-18,18],[17,18],[18,2],[17,-17],[-17,-17],[-11,-17],[18,-12]])add(x,z,()=>this.plant(x,z,true));
-      add(18,5,()=>{this.block(18,5,1,3.8,2.5,'#c4a17c','#8e765f');for(let i=0;i<3;i++){const p=this.point(18,1+i*.5,5);for(let j=0;j<5;j++)this.rect(p.x-5+j*2,p.y-4,1,4,['#a2c2ac','#d9ba81','#b58d9f','#85adbb','#e2c69d'][j]);}});
+      add(18,5,()=>this.asset('bookcase',18,5,1,3));
       for(const rig of rigs){const a=rig.pixel.agent;if(a&&!a.hidden)add(rig.group.position.x,rig.group.position.z,()=>this.drawCharacter(rig,now));}
       queue.sort((a,b)=>a.depth-b.depth);for(const item of queue)item.fn();
       for(let i=0;i<3;i++){const t=window.SpaceTheme?.reduce?0:ambientTime,p=this.point(-8+i*3+Math.sin(t*.2+i)*.35,.1,-17.4+Math.cos(t*.2+i)*.3);this.rect(p.x-2,p.y-1,4,2,'#e7e1cb');this.rect(p.x+2,p.y-2,1,2,'#637e80');this.rect(p.x-1,p.y+1,2,1,'#907b66');}
@@ -186,5 +208,5 @@ window.PixelTheme = (() => {
     pick(clientX,clientY){const r=this.domElement.getBoundingClientRect(),x=(clientX-r.left)/r.width*this.domElement.width,y=(clientY-r.top)/r.height*this.domElement.height;return [...this.hits].reverse().find(h=>x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h)?.a||null;}
   }
   if(window.SpaceTheme?.isPixel)window.Decor=decor;
-  return {Renderer,buildCharacter,faces,sprite,styleOf,decor,palette,stepAmbient(t){ambientTime=t;}};
+  return {Renderer,buildCharacter,faces,sprite,frameOf,snapCamera,lookOf,setLook,assets,styleOf,decor,palette,stepAmbient(t){ambientTime=t;}};
 })();

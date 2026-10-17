@@ -3,6 +3,8 @@
 (function(){
   const kit=window.ThemeKit,office=kit?.life?.office;if(!office)return;
   kit.life.pixel={...office,
+    npcs:office.npcs.map(n=>({...n,kind:n.key==='duck'?'finance':n.key})),
+    guests:office.guests.map((n,i)=>({...n,kind:['visitor','courier','intern'][i]})),
     words:{head:'본부장님',org:'픽셀 스튜디오'},
     lookOk:()=>true,ambient:()=>t=>window.PixelTheme?.stepAmbient(t),
     lines:{...office.lines,

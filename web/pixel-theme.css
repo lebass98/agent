@@ -18,3 +18,35 @@
 [data-space-theme=pixel] .bubble{border-radius:4px;box-shadow:3px 3px #263b4360}
 [data-space-theme=pixel] .activity-avatar,[data-space-theme=pixel] .face-ring{border-radius:5px}
 @media(max-width:520px){.space-options{grid-template-columns:1fr}.space-options button{display:grid;grid-template-columns:105px 1fr;column-gap:14px;align-items:center}.space-options .space-picture{grid-row:span 2;height:92px;box-sizing:border-box}.space-options strong{align-self:end}.space-options button>span:last-child{align-self:start}.pixel-picture{font-size:10px}.pixel-picture::before{font-size:16px;letter-spacing:4px;top:15px}.pixel-picture::after{font-size:6px;bottom:12px;letter-spacing:0}}
+/* 승인 시안 v2: 적은 색과 넓은 여백, 큰 도트. */
+.pixel-picture{background:#e7dcc6 url('pixel/v2/characters/claude.png') no-repeat 10px 25%;background-size:256px 256px;text-align:right;padding-right:12px;color:#263b43;text-shadow:none}
+.pixel-picture::before{content:none}.pixel-picture::after{content:'PIXEL STUDIO';right:12px;bottom:18px;color:#466c62}
+:root[data-space-theme=pixel]{--accent:#81a99b;--accent-btn:#477a6d;--accent-text:#a9ceba;--grad:linear-gradient(#668f7e,#477a6d);--line:#465d60;--accent-weak:#304b46}
+:root[data-space-theme=pixel][data-theme=light]{--bg:#eee8dc;--panel:#fbf6e9;--panel-2:#eae4d4;--panel-3:#ddd9c7;--line:#c9c6b3;--text:#293c42;--text-2:#4c6263;--muted:#6b7d78;--accent-text:#3f7163;--accent-weak:#d6e3d2}
+[data-space-theme=pixel] .brand{font-family:ui-monospace,monospace;letter-spacing:-1px}
+[data-space-theme=pixel] #officeFrame{border-color:#657e76;border-radius:3px;box-shadow:0 0 0 2px #d6dcc8}
+[data-space-theme=pixel] .run-strip,[data-space-theme=pixel] .right,[data-space-theme=pixel] .commandbar,[data-space-theme=pixel] .card{border-radius:4px}
+[data-space-theme=pixel] .activity-agents{display:grid;grid-template-columns:1fr;gap:8px;padding:0;background:none;border:0;border-radius:0}
+[data-space-theme=pixel].dashboard-v2 .activity-agents .activity-agent,[data-space-theme=pixel] .dashboard-v2 .activity-agents .activity-agent{width:100%;display:flex;align-items:center;gap:12px;padding:9px 10px;border:1px solid var(--line);background:var(--panel-2);border-radius:3px;text-align:left}
+[data-space-theme=pixel] .face-ring{flex:none;width:44px;height:44px;border-radius:3px;padding:2px}
+[data-space-theme=pixel] .activity-avatar{border-radius:2px;background-color:#d7ddc9}
+[data-space-theme=pixel] .pixel-member-copy{display:grid;gap:4px;min-width:0;color:var(--text)}
+[data-space-theme=pixel] .pixel-member-copy strong{font-size:13px;font-family:ui-monospace,monospace}
+[data-space-theme=pixel] .pixel-member-copy small{color:var(--muted);font-size:10px;max-width:205px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+[data-space-theme=pixel] .office-tools button{border-radius:2px}
+@media(min-width:761px){
+ [data-space-theme=pixel] .office-frame{top:164px}
+ [data-space-theme=pixel] .run-strip{top:88px;left:var(--dash-left);right:var(--dash-right);width:auto;height:64px;display:flex;gap:12px;padding:10px 12px;backdrop-filter:none;box-shadow:none}
+ [data-space-theme=pixel] .run-strip .run-info{flex:1}
+ [data-space-theme=pixel] .run-strip .run-steps{display:none}
+ [data-space-theme=pixel] .run-strip .run-completion{flex:none}
+ [data-space-theme=pixel] .run-strip .run-completion progress{width:50px}
+ [data-space-theme=pixel] .room-switch{flex-direction:row;max-width:calc(100% - 24px);max-height:none;overflow-x:auto;overflow-y:hidden;left:12px;top:12px;background:#263e46}
+ [data-space-theme=pixel] .room-switch button{padding:7px 10px}
+ [data-space-theme=pixel] body.team-collapsed .pixel-member-copy{display:none}
+}
+@media(max-width:760px){[data-space-theme=pixel] .activity-agents{display:flex}[data-space-theme=pixel] .pixel-member-copy{display:none}[data-space-theme=pixel] .office-tools button{min-width:36px;min-height:36px}}
+
+@media(prefers-color-scheme:light){:root[data-space-theme=pixel]:not([data-theme=dark]){--bg:#eee8dc;--panel:#fbf6e9;--panel-2:#eae4d4;--panel-3:#ddd9c7;--line:#c9c6b3;--text:#293c42;--text-2:#4c6263;--muted:#6b7d78;--accent-text:#3f7163;--accent-weak:#d6e3d2}}
+
+@media(min-width:761px){[data-space-theme=pixel] body.team-collapsed .activity-agents .activity-agent{padding:0;border:0;background:none;width:44px;gap:0}[data-space-theme=pixel] body.team-collapsed .activity-agents{overflow:visible}}

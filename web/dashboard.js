@@ -49,6 +49,7 @@ window.Dashboard = (() => {
         const dot = el("span",{class:"conn-dot","aria-hidden":"true",hidden:true}); // 연결 표시: 초록 준비 / 빨강 연결 안 됨(D.ready)
         const button = el("button",{type:"button",class:"activity-agent",style:{"--c":d.color,"--p":0},onclick:()=>{ hideTip(); window.CharacterChat?.open(n); },
           onpointerenter:()=>showTip(n),onpointerleave:hideTip,onfocus:()=>showTip(n),onblur:hideTip}, ring, dot);
+        if(window.SpaceTheme?.isPixel)button.append(el('span',{class:'pixel-member-copy'},el('strong',{text:d.label}),el('small',{text:d.leader?'팀장 · 기획 / 검수':d.role})));
         cards.set(n,{button,ring,avatar,dot,d}); return button;
       }));
     }
@@ -105,7 +106,7 @@ window.Dashboard = (() => {
     $("teamToggle").onclick=()=>{const open=!$("dock").classList.contains("open");setDock(open,"log");$("teamToggle").setAttribute("aria-expanded",String(open));};
     $("newTaskBtn").onclick=()=>{closeView();$("goal").focus();};
     $("cameraReset").onclick=()=>{resetView();selectRoom("all");};
-    for(const [id,delta] of [["cameraIn",.2],["cameraOut",-.2]]) $(id).onclick=()=>{if(HAS3D){const zoom=Math.min(controls.maxZoom,Math.max(controls.minZoom,camera.zoom+delta));setView(cam.view,controls.target.clone(),true,zoom);}};
+    for(const [id,delta] of [["cameraIn",1],["cameraOut",-1]]) $(id).onclick=()=>zoomCamera(delta);
     const moves={left:[-1,0],right:[1,0],up:[0,1],down:[0,-1]};
     for(const b of document.querySelectorAll("[data-pan]"))b.onclick=()=>pan(...moves[b.dataset.pan]);
     $("stage").addEventListener("keydown",e=>{
