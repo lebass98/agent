@@ -135,4 +135,5 @@ LAN 공개 시 서버가 접속 키를 쓴다(`.env` 의 `ACCESS_KEY`, 없으면
   - `web/` 안의 파일이 바뀌면 `{"type": "reload", "files": ["app.js", …]}` → 페이지가 `location.reload()`
   - 끊기면 0.8초 간격으로 재접속하고, 다시 받은 `boot` 가 이전과 다르면(서버 재시작) 새로고침한다.
 - 모든 HTTP 응답에 `Cache-Control: no-store` 를 붙여 브라우저가 옛 파일을 쓰지 않게 한다.
+- 개발 모드를 끄면(`--no-dev`) `web/` 정적 파일에만 `Cache-Control: no-cache` 를 붙인다: 브라우저가 매번 ETag·Last-Modified 로 재검증하고 바뀌지 않았으면 `304`. `/api/*`·WebSocket 은 그대로.
 - `*.py`·`team.toml` 이 바뀌면 uvicorn 이 서버를 재시작한다(진행 중이던 업무는 중단, `/ws` 는 1012 로 닫힘 → 클라이언트가 재접속).

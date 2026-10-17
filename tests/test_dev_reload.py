@@ -12,6 +12,22 @@ def test_dev_mode_off_by_default(make_client):
         assert c.get("/__dev/livereload.js").status_code == 404
 
 
+def test_non_dev_static_files_revalidate(make_client, tmp_path):
+    """개발 모드가 아니면 web/ 정적 파일은 no-cache(매번 재검증, 그대로면 304). API 는 건드리지 않는다."""
+    (tmp_path / "web" / "app.js").write_text("// v1", encoding="utf-8")
+    with make_client() as c:
+        for path in ("/", "/index.html", "/app.js"):
+            r = c.get(path)
+            assert r.status_code == 200
+            assert r.headers["cache-control"] == "no-cache"
+        r = c.get("/app.js")
+        assert r.headers.get("etag") and r.headers.get("last-modified")
+        again = c.get("/app.js", headers={"If-None-Match": r.headers["etag"]})
+        assert again.status_code == 304
+        assert again.headers["cache-control"] == "no-cache"
+        assert "cache-control" not in c.get("/api/team").headers
+
+
 def test_dev_index_injects_script_and_no_store(make_client, tmp_path):
     (tmp_path / "web" / "app.js").write_text("// v1", encoding="utf-8")
     with make_client(dev=True) as c:
@@ -22,7 +38,7 @@ def test_dev_index_injects_script_and_no_store(make_client, tmp_path):
         assert c.get("/index.html").text == r.text
         js = c.get("/__dev/livereload.js")
         assert js.status_code == 200 and "/__dev/ws" in js.text
-        assert c.get("/app.js").headers["cache-control"] == "no-store"  # 정적 파일도 캐시 금지
+        assert c.get("/app.js").headers["cache-control"] == "no-store"  # 정적 파일도 캐시 금지(no-cache 를 덮어씀)
         assert c.get("/api/team").headers["cache-control"] == "no-store"
 
 

@@ -387,6 +387,15 @@ class PlaceIn(BaseModel):
 
 
 # ── 앱 ────────────────────────────────────────────────
+class RevalidatedStaticFiles(StaticFiles):
+    """web/ 정적 파일: 매번 ETag·Last-Modified 로 재검증(바뀌지 않았으면 304). 업데이트 뒤 옛 JS 가 섞이지 않게 한다."""
+
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+
 def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False,
                cache_dir: Path | None = None, projects_file: Path | None = None,
                notify_file: Path | None = None, tools_file: Path | None = None) -> FastAPI:
@@ -822,5 +831,5 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
                 sender.cancel()
 
     # API 라우트 뒤에 마운트해야 가려지지 않는다. check_dir=False: 서버 실행 뒤 web/ 이 생겨도 재시작 없이 제공
-    app.mount("/", StaticFiles(directory=web_dir, html=True, check_dir=False), name="web")
+    app.mount("/", RevalidatedStaticFiles(directory=web_dir, html=True, check_dir=False), name="web")
     return app

@@ -439,3 +439,4 @@ pytest -v
 - 사무실을 규격에 맞춤: 작업석 17→12, '회의실 2'를 팀장실(팀장 책상·본부장 소파)로 바꾸고 발표 자리(회의실 1 TV 옆)·검수 보고 자리 정리
 - 캐릭터끼리 대화·조연 3명(디자인팀장·본부장·경리팀장)·산책 손님·배경 생물을 공통 엔진 web/life.js 로 통일, 테마 내용은 life-office.js(사람·방문객·비둘기)·life-zoo.js(동물·친구·배경 동물)
 - 테마 선택 단추를 상단 경로(워크스페이스 / 🏢 사무실 ▾)에 추가, 팀원 외형 분기를 app.js LOOKS 어댑터로 모음, 옛 npcs.js·zoo-life.js·zoo-friends-life.js·office-dogs 정리
+- --no-dev 실행 때 web/ 정적 파일에 Cache-Control: no-cache(ETag·Last-Modified 재검증, 그대로면 304)를 붙여 업데이트 뒤 옛 스크립트가 섞이지 않게 함 (개발 모드 no-store·/api·WebSocket 은 그대로)
