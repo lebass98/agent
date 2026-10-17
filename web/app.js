@@ -1603,17 +1603,13 @@ function statsView() {
   const all = allRuns(), today = all.filter(r => isToday(r.created)).length, week = all.filter(r => r.created >= weekStart()).length;
   const durs = SESSION.durations, avg = durs.length ? durs.reduce((s, d) => s + d.ms, 0) / durs.length : 0;
   const stat = (k, v, unit, note) => el("div", { class: "stat" }, el("div", { class: "k", text: k }), el("div", { class: "v" }, String(v), unit ? el("small", { text: unit }) : null), note ? el("div", { class: "k", text: note }) : null);
-  const barSvg = (parts, total) => { // parts: [{w, fill}] (w: 0~1)
-    const s = svgEl("svg", { viewBox: "0 0 100 14", preserveAspectRatio: "none", "aria-hidden": "true" }, svgEl("rect", { x: 0, y: 0, width: 100, height: 14, rx: 4, fill: "var(--track)" }));
-    let x = 0;
-    for (const p of parts) if (p.w > 0) { s.append(svgEl("rect", { x, y: 0, width: Math.max(1.5, p.w * 100), height: 14, rx: 4, fill: p.fill })); x += p.w * 100; }
-    s.append(svgEl("title", {}, total));
-    return s;
-  };
+  // 사용량 막대(extras.js)와 같은 CSS 막대(.ubar). parts: [{w, fill}] (w: 0~1) 를 왼쪽부터 이어 붙인다
+  const meter = (parts, total) => el("span", { class: "ubar", title: total, "aria-hidden": "true" },
+    ...parts.filter(p => p.w > 0).map(p => el("i", { style: { width: `${Math.max(2, p.w * 100)}%`, background: p.fill } })));
   const bar = n => {
     const d = memberDef(n), p = per[n] || { done: 0, failed: 0 }, tot = p.done + p.failed;
     return el("div", { class: "brow", style: { "--c": d.color } }, el("span", { class: "bname mc", text: d.label }),
-      barSvg([{ w: p.done / max, fill: "var(--c)" }, { w: p.failed / max, fill: "var(--err-dot)" }], `${d.label}: 완료 ${p.done}, 실패 ${p.failed}`),
+      meter([{ w: p.done / max, fill: "var(--c)" }, { w: p.failed / max, fill: "var(--err-dot)" }], `${d.label}: 완료 ${p.done}, 실패 ${p.failed}`),
       el("span", { class: "bval", text: tot ? `완료 ${p.done}${p.failed ? ` · 실패 ${p.failed}` : ""}` : "기록 없음" }));
   };
   const byName = Object.create(null);
@@ -1622,7 +1618,7 @@ function statsView() {
   const dbar = n => {
     const d = memberDef(n), list = byName[n], a = list.reduce((s, v) => s + v, 0) / list.length;
     return el("div", { class: "brow", style: { "--c": d.color } }, el("span", { class: "bname mc", text: d.label }),
-      barSvg([{ w: a / dmax, fill: "var(--c)" }], `${d.label}: 평균 ${fmtDur(a)} (${list.length}건)`),
+      meter([{ w: a / dmax, fill: "var(--c)" }], `${d.label}: 평균 ${fmtDur(a)} (${list.length}건)`),
       el("span", { class: "bval", text: `${fmtDur(a)} · ${list.length}건` }));
   };
   return [

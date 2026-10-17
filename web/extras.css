@@ -13,9 +13,6 @@
 .resume-card .btn .ic { width:14px;height:14px; }
 @media(max-width:760px) { .resume-card { right:12px;left:12px;width:auto;bottom:calc(150px + var(--safe-b,0px)); } }
 
-.ubar { display:block;height:10px;border-radius:5px;background:var(--track,var(--line));overflow:hidden; }
-.ubar i { display:block;height:100%;background:var(--c);border-radius:5px; }
-
 .nt-msg { margin:10px 0 0; }
 .ok-text { color:#15965a; }
 .nt-help { margin-top:16px;font-size:13px;color:var(--text-2); }

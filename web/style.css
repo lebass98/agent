@@ -343,7 +343,9 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
 .bars { display: grid; gap: 10px; }
 .brow { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 14px; }
 .brow .bname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.brow svg { width: 100%; height: 14px; display: block; }
+/* 막대: 분석 보기의 팀원별 완료·평균 시간(app.js)·사용량(extras.js) 공통. 조각(i)을 왼쪽부터 이어 붙인다 */
+.ubar { display: flex; height: 10px; border-radius: 5px; background: var(--track, var(--line)); overflow: hidden; }
+.ubar i { flex: none; display: block; height: 100%; background: var(--c); border-radius: 5px; }
 .brow .bval { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
 
 /* 팀원 관리 */
