@@ -102,6 +102,17 @@ def has_key(m: Member) -> bool:
     return not names or any(os.getenv(n, "").strip() for n in names)
 
 
+def setup_hint(m: Member) -> str:
+    """이 팀원을 쓰려면 무엇을 해야 하는지(화면에 보일 한국어). 준비됐으면 빈 문자열. 로그인 여부는 보지 않는다."""
+    if has_key(m):
+        return ""
+    if m.provider in cli.BINS:
+        b = cli.BINS[m.provider]
+        return f"`{b}` 명령을 찾을 수 없어요. {cli.INSTALL.get(b, '')}".strip()
+    names = _KEYS.get(m.provider, ())
+    return f".env 에 {' 또는 '.join(names)} 가 없어요." if names else "준비되지 않았어요."
+
+
 def _require_key(m: Member) -> None:
     """키가 없으면 SDK 의 난해한 오류 대신 바로 원인을 알려준다. (CLI provider 는 cli 모듈이 직접 안내한다)"""
     if m.provider not in cli.BINS and not has_key(m):

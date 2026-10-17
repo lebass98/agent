@@ -21,7 +21,7 @@ CLAUDE_FILE_TOOLS = "Read,Edit,Write,Glob,Grep"  # 프로젝트 모드에서 cla
 
 BINS = {"claude-cli": "claude", "codex-cli": "codex", "gemini-cli": "gemini", "antigravity-cli": "agy"}
 INSTALL = {
-    "claude": "npm i -g @anthropic-ai/claude-code 설치 후 `claude` 를 실행해 로그인하세요.",
+    "claude": "`curl -fsSL https://claude.ai/install.sh | bash` 로 설치한 뒤 `claude` 를 실행해 로그인하세요.",
     "codex": "npm i -g @openai/codex 설치 후 `codex login` 으로 ChatGPT 계정에 로그인하세요.",
     "gemini": "npm i -g @google/gemini-cli 설치 후 `gemini` 를 실행해 Google 계정으로 로그인하세요. (개인 Google 로그인은 2026-06 종료 → antigravity-cli 사용)",
     "agy": "`curl -fsSL https://antigravity.google/cli/install.sh | bash` 로 설치한 뒤 `agy` 를 실행해 Google 계정(AI Pro/Ultra 구독)으로 로그인하세요.",

@@ -42,6 +42,24 @@ def test_missing_cli_gives_install_hint(bin_dir):
     assert not cli.installed("gemini-cli")
 
 
+def test_team_info_reports_ready_and_hint(bin_dir, tmp_path, monkeypatch):
+    """화면의 연결 표시: 설치 안 된 CLI 는 ready=False + 설치 안내, 설치된 CLI·모의 실행은 ready=True."""
+    from agentteam import Team
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    cfg = tmp_path / "team.toml"
+    cfg.write_text('[leader]\nmember = "a"\n'
+                   '[members.a]\nprovider = "claude-cli"\nmodel = "opus"\nrole = "팀장"\n'
+                   '[members.b]\nprovider = "codex-cli"\nmodel = "default"\nrole = "디자인"\n'
+                   '[members.c]\nprovider = "google"\nmodel = "gemini-3.6-flash"\nrole = "잡무"\n', encoding="utf-8")
+    fake(bin_dir, "codex", "exit 0\n")
+    a, b, c = Team(cfg).info()["members"]
+    assert a["ready"] is False and "`claude` 명령을 찾을 수 없어요" in a["hint"] and "claude.ai/install.sh" in a["hint"]
+    assert b["ready"] is True and b["hint"] == ""
+    assert c["ready"] is False and "GEMINI_API_KEY" in c["hint"]
+    assert all(m["ready"] and m["provider"] == "mock" for m in Team(cfg, mock=True).info()["members"])
+
+
 def test_claude_cli_parses_json_and_hides_api_key(bin_dir, tmp_path):
     log = tmp_path / "args.txt"
     fake(bin_dir, "claude", f'''printf '%s\\n' "$@" > "{log}"; echo "key=$ANTHROPIC_API_KEY cc=$CLAUDECODE" >> "{log}"

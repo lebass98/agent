@@ -110,14 +110,6 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
   background: var(--accent-btn); color: #fff; font-weight: 600; font-size: 14.5px; white-space: nowrap;
   box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.topnav {
-  display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
-}
-.topnav button {
-  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none;
-  color: var(--muted); font-weight: 600; font-size: 14px; white-space: nowrap;
-}
-.topnav button[aria-current="page"] { background: var(--accent-weak); color: var(--accent-text); }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; white-space: nowrap;
   background: var(--panel); border: 1px solid var(--line); font-size: 13.5px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums;
@@ -155,7 +147,7 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
 @media (hover: hover) {
   .icon-btn:hover, .tbtn:hover { color: var(--text); background: var(--panel-3); }
   .icon-btn.ghost:hover { background: var(--chip); }
-  .topnav button:not([aria-current="page"]):hover, .sidenav button:not([aria-current="page"]):hover { background: var(--panel-3); color: var(--text); }
+  .sidenav button:not([aria-current="page"]):hover { background: var(--panel-3); color: var(--text); }
   .primary:hover { filter: brightness(1.06); }
   .link:hover { background: var(--accent-weak); }
   .trow:hover, .lrow:hover, .run-item:hover, .pitem:hover, .popmenu button:hover { background: var(--panel-2); }
@@ -383,6 +375,13 @@ body:not(.rendered) #labels { visibility: hidden; } /* 첫 3D 프레임 전에�
 .badge.fail { background: var(--err-weak); color: var(--err); font-weight: 700; }
 .member .meta { font-size: 13px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
 .member .meta span { background: var(--panel-2); border-radius: 6px; padding: 1px 6px; }
+/* 연결 표시(서버 hello.team 의 ready/hint) */
+.member .meta .conn-state { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.member .meta .conn-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.member .meta .conn-state.ok { background: var(--ok-weak); color: var(--ok); }
+.member .meta .conn-state.off { background: var(--err-weak); color: var(--err); }
+.member-setup { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--err-weak); color: var(--err); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.conn-warn { color: var(--err); }
 .member .task { display: flex; gap: 8px; font-size: 13px; color: var(--muted); min-height: 18px; }
 .task-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task-time { flex: none; font-variant-numeric: tabular-nums; }
@@ -546,14 +545,12 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
 .stage-empty-card b { display: block; margin-bottom: 6px; color: var(--text); font-size: 16px; }
 
 /* ───────────── 넓지 않은 데스크톱 (1101–1400px, 흔한 노트북): 상단 바 여유 확보 ─────────────
-   '+ 새 에이전트' 글자는 그대로 둔다(폭이 충분하다). 브랜드 부제만 숨기고 탭·칩 간격을 조금 줄인다 */
+   '+ 새 에이전트' 글자는 그대로 둔다(폭이 충분하다). 브랜드 부제만 숨기고 칩 간격을 조금 줄인다 */
 @media (max-width: 1400px) and (min-width: 1101px) {
   .topbar { display: flex; } /* 좌우 열을 같은 너비로 묶지 않고, 가운데 탭은 남는 자리의 가운데에 */
   .tb-left { flex: 0 1 auto; }
-  .topnav { margin: 0 auto; }
   .tb-right { flex: 0 0 auto; gap: 6px; }
   .brand small { display: none; }
-  .topnav button { padding: 0 10px; }
 }
 
 /* ───────────── 태블릿 (761–1100px): 아이콘 레일 + 좁은 오른쪽 열 ───────────── */
@@ -561,7 +558,6 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
   :root { --side-w: 64px; --right-w: 280px; --tb-h: 68px; }
   .topbar { gap: 8px; display: flex; }
   .tb-left { flex: 0 1 auto; }
-  .topnav { margin: 0 auto; }
   .tb-right { flex: 0 0 auto; }
   .conn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* 점만 보이고 글은 보조기기용 */
   .conn { width: 34px; padding: 0; justify-content: center; position: relative; }
@@ -570,8 +566,6 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
   .brand small { display: none; }
   .primary span { display: none; }
   .primary { width: 38px; padding: 0; justify-content: center; }
-  .topnav button span { display: none; }
-  .topnav button { padding: 0 12px; }
   #dateChip { display: none; }
   .left { padding: 8px; overflow: visible; }
   .sidenav button { justify-content: center; width: 48px; height: 48px; padding: 0; }
@@ -609,7 +603,7 @@ kbd { font: 11px/1 var(--font); color: var(--muted); border: 1px solid var(--lin
   .topbar .menu-btn { display: grid; }
   .icon-btn, .icon-btn.round { width: 44px; height: 44px; }
   .brand { font-size: 17px; }
-  .brand small, .topnav, #searchBtn, #newAgentBtn, #dateChip, #clock, .avatar-btn, .speed { display: none; }
+  .brand small, #searchBtn, #newAgentBtn, #dateChip, #clock, .avatar-btn, .speed { display: none; }
   .speed-cycle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-weight: 700; font-size: 14px; }
   .chip { height: 36px; padding: 0 10px; font-size: 13px; }
   .conn span { max-width: 84px; overflow: hidden; text-overflow: ellipsis; }

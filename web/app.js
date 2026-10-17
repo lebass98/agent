@@ -1124,6 +1124,7 @@ function snapPx(v) { const d = devicePixelRatio || 1; return Math.round(v * d) /
 /* 이름 → 객체 표(agents·lanes)는 프로토타입 없는 객체: 팀원 이름이 constructor·toString 같아도 Object.prototype 을 타지 않는다 */
 const D = {
   names: [], agents: Object.create(null), leader: "", teamKey: "", mock: false, greeted: false,
+  ready: Object.create(null), // 팀원별 연결 준비 {ok, hint} (hello.team 의 ready/hint). 값이 없으면(데모·옛 서버) 표시하지 않는다
   run: null,      // 서버 기준 현재 실행(이벤트 도착 즉시 반영)
   shown: null,    // 화면(보드)에 보여 주는 실행(연출 진행에 맞춰 바뀜)
   lastRun: null,  // '최근 보고서 보기' 대상
@@ -1202,7 +1203,7 @@ function icon(name, cls = "ic") {
   s.append(u);
   return s;
 }
-const MEMBERS_EL = document.getElementById("members"); // 팀원 카드 목록(팀원 관리 보기에 들어갔다가 닫히면 #membersHome 으로 돌아온다)
+const MEMBERS_EL = document.getElementById("members"); // 팀원 카드 목록(에이전트 보기에 들어갔다가 닫히면 #membersHome 으로 돌아온다)
 const PROVIDER_KO = { anthropic: "Anthropic", openai: "OpenAI", google: "Google", mock: "모의" };
 /** 경과 시간 m:ss (padMin: mm:ss, 1시간 넘으면 h:mm:ss) */
 function mmss(ms, padMin = false) {
@@ -1212,13 +1213,14 @@ function mmss(ms, padMin = false) {
 const isToday = ms => { const d = new Date(ms), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate(); };
 function weekStart() { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); } // 월요일 0시
 
-/* 팀원 카드 (팀원 관리 보기). 상태(st)는 보기가 닫혀 있어도 계속 갱신된다. */
+/* 팀원 카드 (에이전트 보기). 상태(st)는 보기가 닫혀 있어도 계속 갱신된다. */
 function buildMembers() {
   MEMBERS_EL.replaceChildren();
   for (const n of D.names) {
     const a = A(n), d = a.def;
     const badge = el("span", { class: "badge", text: "대기" }), task = el("span", { class: "task-text", text: "—" });
     const time = el("span", { class: "task-time" }), bar = el("span", { class: "bar" }, el("i"));
+    const conn = el("span", { class: "conn-state", hidden: true }), setup = el("p", { class: "member-setup", hidden: true });
     const title = `${d.label}에게 말 걸기`;
     MEMBERS_EL.append(el("article", { class: "member", style: { "--c": d.color } },
       el("span", { class: "row" },
@@ -1228,14 +1230,36 @@ function buildMembers() {
           el("span", { class: "role", text: d.role })),
         badge),
       el("span", { class: "meta" },
+        conn,
         el("span", { text: PROVIDER_KO[d.provider] || d.provider || "제공사 미정" }),
         d.model ? el("span", { text: d.model }) : null,
         d.leader ? el("span", { text: "팀장" }) : null),
+      setup,
       el("span", { class: "task" }, task, time),
       bar));
-    a.card = { badge, task, time, bar, st: { ...IDLE } };
+    a.card = { badge, task, time, bar, conn, setup, st: { ...IDLE } };
+    paintReady(n);
   }
   renderSummary();
+}
+/** 연결 표시(기획안 C1): 서버가 hello.team 에 실어 보낸 ready/hint 를 팀원 카드·팀원 얼굴(dashboard.js)에 반영 */
+function setReady(team) {
+  D.ready = Object.create(null);
+  for (const m of Array.isArray(team?.members) ? team.members : [])
+    if (m && typeof m.ready === "boolean") D.ready[String(m.name)] = { ok: m.ready, hint: String(m.hint || "") };
+  for (const n of D.names) paintReady(n);
+  window.Dashboard?.schedule();
+  if (VIEW.name === "members") scheduleView();
+}
+function paintReady(n) {
+  const c = A(n)?.card, r = D.ready[n];
+  if (!c) return;
+  c.conn.hidden = !r; c.setup.hidden = !r || r.ok;
+  if (!r) return;
+  c.conn.className = `conn-state ${r.ok ? "ok" : "off"}`;
+  c.conn.textContent = r.ok ? "연결됨" : "연결 안 됨";
+  c.conn.title = r.ok ? "실행 준비 완료(CLI 설치·API 키 확인. 로그인 여부는 업무를 맡길 때 확인돼요)" : r.hint;
+  c.setup.textContent = r.ok ? "" : r.hint || "연결 설정이 필요해요.";
 }
 function setMember(n, patch) {
   const a = A(n);
@@ -1481,9 +1505,9 @@ function setRoomTags(v) {
   document.body.classList.toggle("no-roomtags", !PREF.rooms);
 }
 
-/* ── 보기 오버레이: 업무 보드 · 타임라인 · 분석 · 팀원 관리 · 자료실 · 설정 (사무실/대시보드는 3D 그대로) ── */
+/* ── 보기 오버레이: 업무 · 타임라인 · 분석 · 에이전트 · 프로젝트 · 자료실 · 설정 (사무실/대시보드는 3D 그대로) ── */
 const VIEW = { name: "", t: 0 };
-const VIEW_TITLES = { board: "업무 보드", timeline: "타임라인", stats: "분석", members: "팀원 관리", projects: "프로젝트", library: "자료실", settings: "설정" };
+const VIEW_TITLES = { board: "업무", timeline: "타임라인", stats: "분석", members: "에이전트", projects: "프로젝트", library: "자료실", settings: "설정" }; // 왼쪽 메뉴(#sidenav) 이름과 같게 둔다
 function showView(name) {
   if (!VIEW_TITLES[name]) return closeView();
   closeMenu(); closePalette(); setDrawer(false);
@@ -1504,14 +1528,14 @@ function closeView() {
     $("view").hidden = true;
     $("membersHome").append(MEMBERS_EL); // 팀원 목록은 숨은 집으로(setMember 가 계속 갱신한다)
     $("viewBody").replaceChildren();
-    const back = document.querySelector(`#topnav [data-view="${was}"], #sidenav [data-view="${was}"]`);
+    const back = document.querySelector(`#sidenav [data-view="${was}"]`);
     (back?.offsetParent ? back : $("goal")).focus({ preventScroll: true });
   }
   markNav();
 }
 function markNav() {
   const cur = VIEW.name || "office";
-  for (const b of document.querySelectorAll("#topnav [data-view], #sidenav [data-view]")) {
+  for (const b of document.querySelectorAll("#sidenav [data-view]")) {
     if (b.dataset.view === cur) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   }
 }
@@ -1641,14 +1665,15 @@ function openAppearancePicker(n) {
         el("span", { text: person.label }), el("small", { text: !window.CharacterLooks.available(n, person.id, D.names) ? "다른 팀원 사용 중" : person.age ? `${person.age}세` : "기존 캐릭터" }))))),
   ]);
 }
-/** 팀원 관리: 팀원 카드 + 새 에이전트 추가 안내 */
+/** 에이전트: 팀원 카드 + 새 에이전트 추가 안내 */
 function membersView() {
   const conn = NET.mode === "live" ? (D.mock ? "서버 연결됨 · 모의 실행" : "서버 연결됨") : NET.mode === "demo" ? "데모 팀 (서버 없음)" : NET.mode === "auth" ? "접속 키 필요" : "서버 연결 대기";
   const live = NET.mode === "live", TS = window.TeamSettings;
   return [
     // 팀원 카드 위 머리줄: 왼쪽 요약, 오른쪽 [설정]·[에이전트 추가] (에이전트 설정 창: team-settings.js)
     el("div", { class: "members-head" },
-      el("p", { class: "muted small", text: `팀원 ${D.names.length}명 · 팀장 ${memberDef(D.leader).label} · ${conn}` }),
+      el("p", { class: "muted small", text: `팀원 ${D.names.length}명 · 팀장 ${memberDef(D.leader).label} · ${conn}` },
+        D.names.some(n => D.ready[n]?.ok === false) ? el("strong", { class: "conn-warn", text: ` · 연결 안 된 팀원 ${D.names.filter(n => D.ready[n]?.ok === false).length}명` }) : null),
       el("div", { class: "members-actions" },
         el("button", { class: "tbtn", type: "button", disabled: !live || !TS, title: live ? "AI 선택·모델·하는 일·팀장 바꾸기" : "서버에 연결되면 바꿀 수 있어요", onclick: () => TS?.open() }, icon("gear"), "설정"),
         el("button", { class: "tbtn accent", type: "button", disabled: !live || !TS, title: live ? "새 팀원 추가" : "서버에 연결되면 추가할 수 있어요", onclick: () => TS?.add() }, icon("plus"), "에이전트 추가"))),
@@ -2508,6 +2533,7 @@ function onHello(ev) {
   D.stage = new Lane(); D.lanes = Object.create(null);
   const team = normTeam(ev.team);
   if (JSON.stringify(team) !== D.teamKey) buildTeam(team);
+  setReady(ev.team); // 연결 상태는 teamKey 에 넣지 않는다(바뀌어도 캐릭터를 다시 만들지 않게)
   D.mock = !!ev.mock; brandSub();
   if (NET.mode === "live") setConn("live"); // 모의 여부가 정해졌으니 칩 설명·기록 갱신
   for (const n of D.names) { A(n).finishWalk(); A(n).presenting=false; }
@@ -2816,7 +2842,7 @@ for (const id of ["newAgentBtn", "drawerNewAgent"]) $(id).addEventListener("clic
 $("menuBtn").addEventListener("click", () => setDrawer(!document.body.classList.contains("drawer-open")));
 $("drawerClose").addEventListener("click", () => setDrawer(false));
 $("scrim").addEventListener("click", () => setDrawer(false));
-for (const b of document.querySelectorAll("#topnav [data-view], #sidenav [data-view]")) b.addEventListener("click", () => showView(b.dataset.view));
+for (const b of document.querySelectorAll("#sidenav [data-view]")) b.addEventListener("click", () => showView(b.dataset.view));
 $("viewClose").addEventListener("click", closeView);
 $("boardLink").addEventListener("click", () => showView("board"));
 $("logFilterBtn").addEventListener("click", () => openLogFilter($("logFilterBtn")));

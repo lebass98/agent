@@ -84,12 +84,6 @@
       <svg class="ic"><use href="#i-plus"/></svg><span>에이전트 추가</span>
     </button>
   </div>
-  <nav class="topnav" id="topnav" aria-label="주요 보기">
-    <button type="button" data-view="office" aria-current="page" aria-label="사무실"><svg class="ic"><use href="#i-house"/></svg><span>사무실</span></button>
-    <button type="button" data-view="timeline" aria-label="타임라인"><svg class="ic"><use href="#i-timeline"/></svg><span>타임라인</span></button>
-    <button type="button" data-view="stats" aria-label="분석"><svg class="ic"><use href="#i-chart"/></svg><span>분석</span></button>
-    <button type="button" data-view="settings" aria-label="설정"><svg class="ic"><use href="#i-gear"/></svg><span>설정</span></button>
-  </nav>
   <div class="tb-right">
     <button class="chip conn" id="conn" type="button" role="status" aria-live="polite"><i></i><span id="connText">연결 중…</span></button>
     <span class="chip" id="dateChip"><svg class="ic"><use href="#i-calendar"/></svg><span id="dateText">—</span></span>
@@ -112,10 +106,12 @@
   <a class="rail-logo" href="./" aria-label="WordNCode Agent Office 홈"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 27 16 4l13 23H20l-4-8-4 8Z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/></svg></a>
   <nav class="sidenav" id="sidenav" aria-label="메뉴">
     <button type="button" data-view="office" aria-current="page" title="사무실"><svg class="ic"><use href="#i-dash"/></svg><span>사무실</span></button>
-    <button type="button" data-view="board" title="업무 보드"><svg class="ic"><use href="#i-kanban"/></svg><span>업무</span></button>
-    <button type="button" data-view="members" title="팀원 관리"><svg class="ic"><use href="#i-users"/></svg><span>에이전트</span></button>
+    <button type="button" data-view="board" title="업무"><svg class="ic"><use href="#i-kanban"/></svg><span>업무</span></button>
+    <button type="button" data-view="timeline" title="타임라인"><svg class="ic"><use href="#i-timeline"/></svg><span>타임라인</span></button>
+    <button type="button" data-view="stats" title="분석(사용량·비용)"><svg class="ic"><use href="#i-chart"/></svg><span>분석</span></button>
+    <button type="button" data-view="members" title="에이전트"><svg class="ic"><use href="#i-users"/></svg><span>에이전트</span></button>
     <button type="button" data-view="projects" title="프로젝트(폴더 접근)"><svg class="ic"><use href="#i-folder-open"/></svg><span>프로젝트</span></button>
-    <button type="button" data-view="library" title="자료실"><svg class="ic"><use href="#i-folder"/></svg><span>자료</span></button>
+    <button type="button" data-view="library" title="자료실"><svg class="ic"><use href="#i-folder"/></svg><span>자료실</span></button>
     <button type="button" data-view="settings" title="설정"><svg class="ic"><use href="#i-gear"/></svg><span>설정</span></button>
   </nav>
   <div class="drawer-only drawer-tools">
@@ -170,11 +166,11 @@
     </div>
     <div class="panes" id="panes">
       <aside class="panel right" id="rightcol" aria-label="팀 활동">
-        <header class="activity-heading"><div><h2>팀 활동</h2><p id="teamActivityCount">팀 연결 중…</p></div><button class="icon-btn" type="button" id="activityMembers" aria-label="팀원 관리"><svg class="ic"><use href="#i-users"/></svg></button><button class="icon-btn activity-collapse" type="button" id="activityCollapse" aria-label="팀 활동 접기" aria-expanded="true" title="팀 활동 접기"><svg class="ic"><use href="#i-chev-right"/></svg></button><button class="icon-btn activity-close" type="button" id="activityClose" aria-label="팀 활동 닫기"><svg class="ic"><use href="#i-x"/></svg></button></header>
+        <header class="activity-heading"><div><h2>팀 활동</h2><p id="teamActivityCount">팀 연결 중…</p></div><button class="icon-btn" type="button" id="activityMembers" aria-label="에이전트 보기" title="에이전트"><svg class="ic"><use href="#i-users"/></svg></button><button class="icon-btn activity-collapse" type="button" id="activityCollapse" aria-label="팀 활동 접기" aria-expanded="true" title="팀 활동 접기"><svg class="ic"><use href="#i-chev-right"/></svg></button><button class="icon-btn activity-close" type="button" id="activityClose" aria-label="팀 활동 닫기"><svg class="ic"><use href="#i-x"/></svg></button></header>
         <div class="activity-agents scroll" id="activityAgents"></div>
         <section class="card pane" data-pane="board" aria-label="업무 보드">
           <h3><svg class="ic"><use href="#i-clipboard"/></svg><span class="h-title">진행 중인 업무</span><span class="h-sub" id="boardPhase"></span>
-            <button class="link" id="boardLink" type="button" title="업무 보드 열기">보드 열기<svg class="ic"><use href="#i-chev-right"/></svg></button></h3>
+            <button class="link" id="boardLink" type="button" title="업무 화면 열기">보드 열기<svg class="ic"><use href="#i-chev-right"/></svg></button></h3>
           <div class="board scroll" id="board"></div>
         </section>
         <section class="card pane" data-pane="log" aria-label="활동 로그">
@@ -188,7 +184,7 @@
   </div>
 </section>
 
-<!-- ── 보기(업무 보드·타임라인·분석·팀원·자료실·설정) 오버레이 ── -->
+<!-- ── 보기(업무·타임라인·분석·에이전트·프로젝트·자료실·설정) 오버레이. 제목은 왼쪽 메뉴 이름과 같다(VIEW_TITLES) ── -->
 <section class="view" id="view" hidden role="region" aria-labelledby="viewTitle">
   <header class="view-head">
     <h2 id="viewTitle"></h2>
@@ -196,7 +192,7 @@
   </header>
   <div class="view-body scroll" id="viewBody"></div>
 </section>
-<!-- 팀원 목록은 보기와 무관하게 항상 갱신된다(팀원 관리 보기에 들어간다) -->
+<!-- 팀원 목록은 보기와 무관하게 항상 갱신된다(에이전트 보기에 들어간다) -->
 <div id="membersHome" hidden><div class="members" id="members"></div></div>
 
 <!-- 검색(명령 팔레트) -->

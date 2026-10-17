@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from .providers import Member
+from .providers import Member, setup_hint
 
 Emit = Callable[[dict], Awaitable[None] | None]
 RESULT_LIMIT = 20_000
@@ -132,13 +132,12 @@ class Team:
                          for m in self.members.values())
 
     def info(self) -> dict:
-        return {
-            "leader": self.leader.name,
-            "members": [
-                {"name": m.name, "provider": m.provider, "model": m.model, "role": m.role}
-                for m in self.members.values()
-            ],
-        }
+        """화면용 팀 정보. ready/hint: CLI 설치·API 키 준비 여부와 준비 방법(모의 실행이면 provider 가 mock 이라 항상 준비됨)."""
+        members = []
+        for m in self.members.values():
+            hint = setup_hint(m)
+            members.append({"name": m.name, "provider": m.provider, "model": m.model, "role": m.role, "ready": not hint, "hint": hint})
+        return {"leader": self.leader.name, "members": members}
 
     # ── 단일 지시 ─────────────────────────────────────
     async def ask(self, name: str, prompt: str) -> str:

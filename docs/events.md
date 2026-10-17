@@ -27,7 +27,9 @@
 ```jsonc
 // team (hello, GET /api/team)
 { "leader": "claude",
-  "members": [{ "name": "claude", "provider": "anthropic", "model": "claude-opus-5-5", "role": "팀장 겸 퍼블리셔..." }] }
+  "members": [{ "name": "claude", "provider": "anthropic", "model": "claude-opus-5-5", "role": "팀장 겸 퍼블리셔...",
+                "ready": true,   // CLI 설치·API 키 준비 여부(로그인까지는 보지 않음). 모의 실행이면 항상 true
+                "hint": "" }] }  // 준비 안 됐을 때 할 일(예: "`claude` 명령을 찾을 수 없어요. …"). 화면은 에이전트 카드·팀원 얼굴에 연결 표시로 보여 준다
 
 // task (plan.tasks[])
 { "id": 1, "assignee": "gemini", "title": "요구사항 분석", "instruction": "...", "depends_on": [] }

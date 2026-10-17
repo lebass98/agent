@@ -3,8 +3,8 @@
 window.SpaceTheme = (() => {
   const key = 'agentOffice.spaceTheme';
   const valid = value => ['office', 'zoo'].includes(value);
-  let saved = 'office';
-  try { const value = localStorage.getItem(key); if (valid(value)) saved = value; } catch {}
+  let saved = 'office', chosen = false; // chosen: 이 브라우저에 고른 공간이 저장되어 있다(처음 한 번만 묻는다)
+  try { const value = localStorage.getItem(key); if (valid(value)) { saved = value; chosen = true; } } catch {}
   const query = new URLSearchParams(location.search).get('space');
   const current = valid(query) ? query : saved;
   document.documentElement.dataset.spaceTheme = current;
@@ -53,7 +53,7 @@ window.SpaceTheme = (() => {
       document.title='WordNCode Agent · 동물원';
       for (const brand of document.querySelectorAll('.brand')) for (const child of brand.childNodes) if (child.nodeType===3 && child.textContent.includes('WordNCode Agent Office')) child.textContent=child.textContent.replace('WordNCode Agent Office','WordNCode Agent Zoo');
     }
-    if (!skip) show();
+    if (!skip && !chosen && !valid(query)) show(); // 처음 진입(저장값·주소 지정 없음)일 때만 묻는다. 이후 변경은 설정 '공간 테마'
   });
   return {current, isZoo:current === 'zoo', show, control, get reduce(){try{return mqReduce.matches;}catch{return false;}}};
 })();

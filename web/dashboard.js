@@ -28,6 +28,7 @@ window.Dashboard = (() => {
     tip.replaceChildren(
       el("div",{class:"ft-head"}, el("strong",{text:c.d.label}), el("span",{class:`ft-status${i.busy ? " busy" : ""}${i.failed ? " failed" : ""}`,text:i.failed ? `${i.status} · 실패 있음` : i.status})),
       c.d.role ? el("p",{class:"ft-role",text:c.d.role}) : null,
+      i.ready && !i.ready.ok ? el("p",{class:"ft-conn",text:`연결 안 됨 · ${i.ready.hint || "연결 설정이 필요해요"}`}) : null,
       el("p",{class:"ft-task",text:i.task}),
       el("div",{class:"ft-prog"}, el("span",{class:"bar"},el("i",{style:{width:`${i.pct}%`}})), el("small",{text:i.total ? `업무 ${i.fin}/${i.total} · ${i.pct}%` : "배정된 업무 없음"})),
       el("small",{class:"ft-model",text:c.d.model || PROVIDER_KO[c.d.provider] || c.d.provider || ""}));
@@ -45,9 +46,10 @@ window.Dashboard = (() => {
         const avatar = facesOf(n) ? el("span", {class:"activity-avatar face",style:faceVars(facesOf(n)),"aria-hidden":"true"}) : el("span",{class:"activity-avatar",text:d.initial,"aria-hidden":"true"});
         // 얼굴만 보이는 팀원 칩: 얼굴 둘레 테두리(링)가 그 팀원의 업무 진행률. 이름·역할·상태는 툴팁·스크린리더로
         const ring = el("span",{class:"face-ring","aria-hidden":"true"}, avatar);
+        const dot = el("span",{class:"conn-dot","aria-hidden":"true",hidden:true}); // 연결 표시: 초록 준비 / 빨강 연결 안 됨(D.ready)
         const button = el("button",{type:"button",class:"activity-agent",style:{"--c":d.color,"--p":0},onclick:()=>{ hideTip(); window.CharacterChat?.open(n); },
-          onpointerenter:()=>showTip(n),onpointerleave:hideTip,onfocus:()=>showTip(n),onblur:hideTip}, ring);
-        cards.set(n,{button,ring,avatar,d}); return button;
+          onpointerenter:()=>showTip(n),onpointerleave:hideTip,onfocus:()=>showTip(n),onblur:hideTip}, ring, dot);
+        cards.set(n,{button,ring,avatar,dot,d}); return button;
       }));
     }
     const runNow = D.shown, all = runNow ? [...runNow.tasks.values()] : [];
@@ -59,8 +61,10 @@ window.Dashboard = (() => {
       c.button.style.setProperty("--p", busy && pct < 8 ? 8 : pct); // 작업 중인데 0% 면 조금 채워 움직임이 보이게
       c.ring.className = `face-ring${busy ? " busy" : ""}${mine.length ? " has" : ""}${failed ? " failed" : ""}`;
       const prog = mine.length ? `업무 ${fin}/${mine.length} (${pct}%)` : "배정된 업무 없음";
-      c.info = { status: state.status, busy, task, fin, total: mine.length, pct, failed };
-      c.button.setAttribute("aria-label", `${c.d.label}, ${state.status}, ${prog}. 말 걸기`);
+      const ready = D.ready?.[n];
+      c.dot.hidden = !ready; if (ready) c.dot.className = `conn-dot ${ready.ok ? "ok" : "off"}`;
+      c.info = { status: state.status, busy, task, fin, total: mine.length, pct, failed, ready };
+      c.button.setAttribute("aria-label", `${c.d.label}, ${ready && !ready.ok ? "연결 안 됨, " : ""}${state.status}, ${prog}. 말 걸기`);
       if (facesOf(n)) for (const [k,v] of Object.entries(faceVars(facesOf(n),A(n).expr))) c.avatar.style.setProperty(k,v);
     }
     if (tipFor) fillTip();
