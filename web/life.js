@@ -57,6 +57,15 @@ window.Life = (() => {
   const leader = () => (D.leader ? A(D.leader) : null);
   const presenting = () => !!leader()?.presenting;
   const statusOf = a => a?.card?.st?.status || "대기";
+  /* 뭉치지 않기: 갈 곳은 다른 캐릭터가 SPACE 안에 없는 곳을 먼저 고르고, 근처에서 이미 누가 말하고 있으면 새 말을 꺼내지 않는다(말풍선 겹침 방지) */
+  const SPACE = 3.2, QUIET = 3.6;
+  const bodies = () => { try { return [...D.names.map(A), ...list.map(o => o.agent), ...guests.map(o => o.agent)].filter(a => a && !a.ghost && !a.hidden && a.group); } catch { return []; } };
+  const crowdAt = (p, self, r = SPACE) => bodies().filter(o => o !== self && Math.hypot(o.group.position.x - p.x, o.group.position.z - p.z) < r).length;
+  /** 후보 중 가장 한적한 곳들만 남긴다(모두 붐비면 덜 붐비는 곳) */
+  const roomy = (pool, self) => { if (!pool.length) return pool; const c = pool.map(p => crowdAt(p, self)), m = Math.min(...c); return pool.filter((_, i) => c[i] === m); };
+  /** p 근처(QUIET)에서 지금 말풍선을 띄운 캐릭터 수(나·제외 대상 빼고) */
+  const talkersNear = (p, ...skip) => bodies().filter(o => !skip.includes(o) && o.bubble?.classList.contains("show") && Math.hypot(o.group.position.x - p.x, o.group.position.z - p.z) < QUIET).length + EXTRA.filter(e => e.talking?.() && Math.hypot(e.x - p.x, e.z - p.z) < QUIET).length;
+  const EXTRA = []; // 조연 엔진 밖의 이름표·말풍선(동물원 아기 펭귄 이든): declutter·붐빔 판단에 함께 넣는다
   const teamLooks = () => new Set(D.names.map(n => { try { return appearanceOf(n); } catch { return n; } }));
 
   /* ───────── 조연 3명(이름표 있음). 모양(kind 고정 또는 looks 후보)·이름·색은 테마 내용(C.npcs)에서 ───────── */
@@ -116,11 +125,11 @@ window.Life = (() => {
     let prev = null, stops = 0;
     while (alive(n, g)) {
       if (document.hidden || reduce()) { if (a.mode === "walk") a.finishWalk(); await sleepRaw(1500); continue; }
-      const pool = WANDER.filter(p => p !== prev && free(p) && !(D.running && inStage(p)));
+      const pool = roomy(WANDER.filter(p => p !== prev && free(p) && !(D.running && inStage(p))), a);
       const p = pickRaw(pool.length ? pool : WANDER); prev = p;
       if (!(await walk(n, a, g, p))) { await sleepRaw(800); continue; }
       a.mode = "stand"; a.face({ x: p.x + rnd(-3, 3), z: p.z + rnd(-3, 3) });
-      if (++stops % 3 === 0 && Math.random() < .5) a.say(pick(L.design), 3600);
+      if (++stops % 3 === 0 && Math.random() < .5 && !talkersNear(a.group.position, a)) a.say(pick(L.design), 3600);
       await rest(n, g, rnd(1500, 4500));
       // 가끔 쉬고 있는 팀원에게 다가가 먼저 말을 건다
       const idle = D.names.map(A).filter(m => m && !m.ghost && !m.hidden && !working(m) && !engaged(m) && cooled(a, m));
@@ -135,11 +144,11 @@ window.Life = (() => {
   }
   function besideSpot(m, from) {
     const s = m.seat, c = [P(s.x + 1.2, s.z + .6), P(s.x - 1.2, s.z + .6), P(s.x + 1.2, s.z + 1), P(s.x - 1.2, s.z + 1), P(s.x, s.z + 1.5), P(s.x + 1.2, s.z - .6), P(s.x - 1.2, s.z - .6)]
-      .filter(free).sort((p, q) => Math.hypot(p.x - from.x, p.z - from.z) - Math.hypot(q.x - from.x, q.z - from.z));
+      .filter(free).sort((p, q) => (crowdAt(p, null, 1.6) - crowdAt(q, null, 1.6)) * 100 + Math.hypot(p.x - from.x, p.z - from.z) - Math.hypot(q.x - from.x, q.z - from.z));
     return c[0] || P(s.x, s.z + 1.5);
   }
   async function listenMeeting(n, a, g) {
-    const spot = BACK.find(free) || BACK[0];
+    const spot = roomy(BACK.filter(free), null)[0] || BACK[0];
     if (!(await walk(n, a, g, spot, 25000))) return;
     a.mode = "stand"; a.face(TABLE);
     if (!presenting()) return;
@@ -186,7 +195,7 @@ window.Life = (() => {
         await rest(n, g, rnd(10000, 20000), presenting);
       } else if (kind === "stage") {
         if (D.running) { prev = ""; await sleepRaw(300); continue; }
-        if (!(await walk(n, a, g, BACK.find(free) || BACK[0]))) continue;
+        if (!(await walk(n, a, g, roomy(BACK.filter(free), null)[0] || BACK[0]))) continue;
         a.mode = "stand"; a.face(TABLE); a.say(pick(Math.random() < .6 ? L.stage : L.quote), 4600);
         await rest(n, g, rnd(7000, 11000), presenting);
       } else {
@@ -270,7 +279,7 @@ window.Life = (() => {
     // 걷는 동안에도 투덜투덜(혼잣말)
     const chatter = setInterval(() => {
       if (!alive(n, g)) return clearInterval(chatter);
-      if (document.hidden || reduce() || a.mode !== "walk" || Math.random() > .8) return;
+      if (document.hidden || reduce() || a.mode !== "walk" || Math.random() > .8 || talkersNear(a.group.position, a)) return;
       if (Math.random() < .3) say(fresh(() => pickRaw(Dk.mutter)), 2200); else say(duckLine(a.group.position), 3400);
     }, 3300);
     while (alive(n, g)) {
@@ -298,12 +307,12 @@ window.Life = (() => {
         head.say(fill(pickRaw(Dk.headReply)), 3800); await rest(n, g, 3600); say(pickRaw(Dk.after), 3000); await rest(n, g, 2600);
         a.mode = "stand";
       } else {                                              // 여기저기 둘러보며 투덜
-        const choices = DUCK_SPOTS.filter(p => p !== prev && free(p) && !(D.running && inStage(p)));
+        const choices = roomy(DUCK_SPOTS.filter(p => p !== prev && free(p) && !(D.running && inStage(p))), a);
         const p = pickRaw(choices.length ? choices : WANDER); prev = p;
         if (!(await walk(n, a, g, p))) { await sleepRaw(700); continue; }
         a.mode = "stand"; a.face({ x: p.x + rnd(-3, 3), z: p.z + rnd(-3, 3) });
-        say(duckLine(p), 4200);
-        if (++talk % 2 === 0) { await rest(n, g, 3600); say(duckLine(p), 4000); }
+        if (!talkersNear(p, a)) say(duckLine(p), 4200);
+        if (++talk % 2 === 0) { await rest(n, g, 3600); if (!talkersNear(p, a)) say(duckLine(p), 4000); }
         await rest(n, g, rnd(2200, 4200));
       }
     }
@@ -395,6 +404,7 @@ window.Life = (() => {
     if (!near.length || Math.random() > (depth === 0 ? .85 : .55)) return;
     near.sort((a, b) => gap(a, sp) - gap(b, sp));
     const to = near[0], t = depth === 0 ? topic(text) : (Math.random() < .5 ? "ack" : topic(text));
+    if (talkersNear(to.group.position, to, sp) >= 1) return; // 둘 말고도 누가 말하고 있으면 끼어들지 않는다
     hold(to, 4000); hold(sp, 3000);
     setTimeout(() => {
       if (!to.group || to.ghost || gap(to, sp) > reach + 1.5 || presenting()) return;
@@ -445,6 +455,8 @@ window.Life = (() => {
     for (let i = 0; i < idle.length; i++) for (let j = i + 1; j < idle.length; j++) {
       const a = idle[i], b = idle[j], far = a.npc || b.npc ? 7.5 : 6;
       if (gap(a, b) > far || !cooled(a, b) || Math.random() > .6) continue;
+      const mid = { x: (a.group.position.x + b.group.position.x) / 2, z: (a.group.position.z + b.group.position.z) / 2 };
+      if (crowdAt(mid, null, QUIET) > 2 || talkersNear(mid, a, b)) continue; // 셋 이상 모여 있거나 옆에서 말하는 중이면 잡담하지 않는다
       startChat(a, b);
       return;
     }
@@ -464,6 +476,7 @@ window.Life = (() => {
     hush: f => { const d = CV.depth; CV.depth = 3; try { return f(); } finally { CV.depth = d; } }, // 이 안의 말에는 다른 이가 대답하지 않는다
     topic, persona, label, everyone, working, engaged, hold, presenting, skipLine,
     busy: () => document.hidden || reduce() || presenting(),
+    crowdAt, talkersNear, addLabel: e => EXTRA.push(e), // addLabel: {tag, bubble, role:null, ly, az, lastSay, moveLabel(), shown(), talking(), x, z}
   };
 
   /* ───────── 산책 손님 3명(이름표 없음, 말 안 함): 쉼터·창가·산책로를 오간다. 모양은 테마(C.guests: kind 고정 또는 looks 후보) ───────── */
@@ -486,8 +499,9 @@ window.Life = (() => {
         await sleepRaw(wait); wait = 1000 + Math.random() * 2000;
         if (document.hidden || reduce() || !alive(n, g)) continue;
         k = (k + 1 + Math.floor(Math.random() * 3)) % DEST.length;
-        const end = DEST[k];
+        let end = DEST[k];
         if (!free(end)) continue;
+        if (crowdAt(end, a)) { const alt = roomy(DEST.filter(free), a); if (alt.length) end = pickRaw(alt); }
         if (await walk(n, a, g, end, 40000)) { a.mode = "stand"; a.face({ x: end.x + rnd(-2, 2), z: end.z + rnd(-2, 2) }); }
       }
     })().catch(e => console.warn("손님 산책:", e));
@@ -509,6 +523,7 @@ window.Life = (() => {
     for (const n of guests) { const a = n.agent; if (a && !a.ghost) { try { a.update(dt); } catch (e) { console.warn("손님 갱신:", e); } } }
     const names = D.names, agents = D.agents, keys = [];
     for (const a of live) { const k = `\u0000npc:${a.npc}`; if (!Object.hasOwn(agents, k)) { agents[k] = a; keys.push(k); } }
+    EXTRA.forEach((e, i) => { const k = `\u0000extra:${i}`; if (e.shown?.() && !Object.hasOwn(agents, k)) { agents[k] = e; keys.push(k); } });
     D.names = keys.length ? names.concat(keys) : names;
     try { return base.call(this, mobile); }
     finally { D.names = names; for (const k of keys) delete agents[k]; }

@@ -69,7 +69,7 @@
   const ANIMAL_KO = { fox: "여우", panda: "판다", otter: "수달", penguin: "펭귄", elephant: "코끼리", duck: "오리", peacock: "공작", rabbit: "토끼", bear: "곰",
     cat: "고양이", dog: "강아지", lion: "사자", tiger: "호랑이", koala: "코알라", monkey: "원숭이", giraffe: "기린", meerkat: "미어캣", owl: "부엉이", raccoon: "너구리", hamster: "햄스터" };
   /** 이든이의 말 걸기·대답·끼어들기. 말풍선은 tag 의 .bubble 에 띄운다 */
-  function chickEden(chick, tag, talk) {
+  function chickEden(chick, tag, talk, me) {
     const bubble = tag.querySelector(".bubble"), pick = a => a[Math.floor(Math.random() * a.length)];
     const SP = () => Math.max(1, typeof SPEED === "number" ? SPEED : 1);
     const used = [];
@@ -77,8 +77,8 @@
     let bt = 0, lastSay = 0, z = 50;
     const say = (text, ms = 3200) => {
       ms = Math.max(ms, 1200 + text.length * 85); // 긴 말은 오래 보인다
-      bubble.textContent = text; bubble.classList.add("show"); tag.style.zIndex = String(9000 + (++z % 500)); lastSay = performance.now();
-      clearTimeout(bt); bt = setTimeout(() => bubble.classList.remove("show"), ms / SP());
+      bubble.textContent = text; bubble.style.translate = ""; bubble.classList.add("show"); tag.style.zIndex = String(9000 + (++z % 500)); lastSay = performance.now(); if (me) me.lastSay = lastSay;
+      clearTimeout(bt); bt = setTimeout(() => { bubble.classList.remove("show", "covered"); bubble.style.translate = ""; }, ms / SP());
     };
     const later = (ms, f) => setTimeout(f, ms / SP());
     const mom = () => { try { const m = A("gpt"); return m && !m.ghost && !m.hidden && m.rig?.group.userData.kind === "penguin" ? m : null; } catch { return null; } };
@@ -94,6 +94,8 @@
     };
     const momSay = (m, text) => { if (["stand", "talk", "coffee"].includes(m.mode)) m.face(pos()); talk.hush(() => m.say(text, 3200)); };
     const ready = () => chick.group.visible && !talk.busy();
+    const others = () => (talk.talkersNear ? talk.talkersNear(pos()) - (bubble.classList.contains("show") ? 1 : 0) : 0); // 이든 말고 근처에서 말하는 수
+    const roomy = () => !talk.crowdAt || talk.crowdAt(pos(), mom(), 3.2) <= 2; // 엄마 빼고 둘 넘게 모여 있으면 조용히
     // 엄마에게 말 걸기 → 엄마 대답 → 가끔 이든이 한마디 더
     function toMom() {
       const m = mom(); if (!m) return false;
@@ -129,6 +131,7 @@
     setInterval(() => {
       const now = performance.now();
       if (now < next || !ready() || !mom()) return;
+      if (others() > 0 || !roomy()) { next = now + 2500; return; } // 옆에서 누가 말하는 중이거나 붐비면 조금 뒤에
       next = now + (5000 + Math.random() * 4000) / SP();
       const r = Math.random();
       if (r < .1) { say(fresh(EDEN.solo), 3400); return; }
@@ -137,9 +140,9 @@
     }, 1000);
     // 근처에서 누가 말하면 가끔 끼어든다(엄마가 가끔 타이른다)
     talk.ear((sp, text) => {
-      if (!ready() || sp === undefined || performance.now() - lastSay < 3000 || talk.skipLine(text) || gapTo(sp) > 6 || Math.random() > .55) return;
+      if (!ready() || sp === undefined || performance.now() - lastSay < 3000 || talk.skipLine(text) || gapTo(sp) > 6 || Math.random() > .55 || others() > 1 || !roomy()) return;
       later(1300 + Math.random() * 700, () => {
-        if (!ready()) return;
+        if (!ready() || others() > 1) return;
         say(fresh(EDEN.hear[talk.topic(text)] || EDEN.hear.any), 2800);
         const m = mom();
         if (m && m !== sp && !talk.working(m) && gapTo(m) < 4 && Math.random() < .4) later(1700, () => ready() && momSay(m, fresh(EDEN.momRe.hush)));
@@ -339,9 +342,18 @@
         v3.copy(chick.group.position); v3.y += 1.05; v3.project(cam);
         if (v3.z > 1) { chickTag.hidden = true; return; }
         chickTag.hidden = false;
-        const w = innerWidth, h = innerHeight, x = (v3.x * .5 + .5) * w - chickTag.offsetWidth / 2, y = (-v3.y * .5 + .5) * h - chickTag.offsetHeight;
-        chickTag.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+        chickLabel.ax = (v3.x * .5 + .5) * innerWidth; chickLabel.ay = (-v3.y * .5 + .5) * innerHeight; chickLabel.az = v3.z; chickLabel.ly = 0;
+        chickLabel.moveLabel();
       }
+      // 겹침 정리(declutter)에 팀원 이름표처럼 끼워 넣을 모양: 이름표가 겹치면 위로 밀고, 말풍선끼리도 피한다
+      const chickLabel = chickTag && {
+        ghost: false, hidden: false, role: null, ly: 0, ax: 0, ay: 0, az: 1, lastSay: 0,
+        tag: chickTag.querySelector(".nametag"), bubble: chickTag.querySelector(".bubble"),
+        get x() { return chick.group.position.x; }, get z() { return chick.group.position.z; },
+        shown: () => !chickTag.hidden, talking: () => !chickTag.hidden && chickTag.querySelector(".bubble").classList.contains("show"),
+        moveLabel() { const x = this.ax - chickTag.offsetWidth / 2, y = this.ay - this.ly - chickTag.offsetHeight; chickTag.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`; },
+      };
+      if (chickLabel && talk?.addLabel) talk.addLabel(chickLabel);
       function followChick(t, dt) {
         if (!chick) return;
         const parent = typeof A === "function" ? A("gpt") : null;
@@ -369,7 +381,7 @@
         chick.arms.forEach((arm,i)=>arm.rotation.z=(i?1:-1)*(.15+(moving?Math.sin(t*12)*.12:0)));
       }
       // ── 이든(4살): 디자인과장(gpt 펭귄)을 '엄마'라 부르며 계속 말을 걸고, 근처 팀원·조연과도 이야기한다 ──
-      const eden = chickTag && talk ? chickEden(chick, chickTag, talk) : null;
+      const eden = chickTag && talk ? chickEden(chick, chickTag, talk, chickLabel) : null;
       function animateCritters(t, dt) {
         followChick(t, dt); placeChickTag();
         for (const d of ducks) { d.a += d.w * dt; const x = L0.x + Math.cos(d.a) * d.r * .9, z = L0.z + Math.sin(d.a) * d.r; d.g.position.set(x, .05 + Math.sin(t * 2 + d.r) * .02, z); d.g.rotation.y = -d.a; }
