@@ -50,3 +50,7 @@
   .nametag .face { width: 15px; height: 15px; margin-left: -3px; }
   .bubble { max-width: 150px; font-size: 12.5px; padding: 5px 9px; border-radius: 11px; }
 }
+
+/* 아기 펭귄 '이든'(life-zoo.js): 팀원 이름표보다 작게 */
+.chick-tag .nametag { font-size: 11px; padding: 1px 7px; }
+.chick-tag .nametag .dot { width: 6px; height: 6px; }

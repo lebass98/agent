@@ -183,6 +183,24 @@
         chick.group.visible = false;
         chick.head.scale.setScalar(1.18);
       }
+      // 아기 펭귄 이름표 '이든'(팀원 이름표와 같은 모양, 작게). 클릭은 받지 않는다
+      const chickTag = chick && document.getElementById?.("labels") ? Object.assign(document.createElement("div"), { className: "tagwrap chick-tag" }) : null;
+      if (chickTag) {
+        chickTag.innerHTML = '<span class="nametag"><i class="dot"></i><b>이든</b></span>';
+        chickTag.style.setProperty("--c", "#7fb3d5"); chickTag.hidden = true;
+        document.getElementById("labels").append(chickTag);
+      }
+      const v3 = new T.Vector3();
+      function placeChickTag() {
+        if (!chickTag) return;
+        const cam = typeof camera !== "undefined" ? camera : null;
+        if (!chick.group.visible || !cam) { chickTag.hidden = true; return; }
+        v3.copy(chick.group.position); v3.y += 1.05; v3.project(cam);
+        if (v3.z > 1) { chickTag.hidden = true; return; }
+        chickTag.hidden = false;
+        const w = innerWidth, h = innerHeight, x = (v3.x * .5 + .5) * w - chickTag.offsetWidth / 2, y = (-v3.y * .5 + .5) * h - chickTag.offsetHeight;
+        chickTag.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+      }
       function followChick(t, dt) {
         if (!chick) return;
         const parent = typeof A === "function" ? A("gpt") : null;
@@ -210,7 +228,7 @@
         chick.arms.forEach((arm,i)=>arm.rotation.z=(i?1:-1)*(.15+(moving?Math.sin(t*12)*.12:0)));
       }
       function animateCritters(t, dt) {
-        followChick(t, dt);
+        followChick(t, dt); placeChickTag();
         for (const d of ducks) { d.a += d.w * dt; const x = L0.x + Math.cos(d.a) * d.r * .9, z = L0.z + Math.sin(d.a) * d.r; d.g.position.set(x, .05 + Math.sin(t * 2 + d.r) * .02, z); d.g.rotation.y = -d.a; }
         for (const b of birds) { b.a += b.w * dt * b.dir; b.g.position.set(Math.cos(b.a) * b.r, b.y + Math.sin(t + b.r) * .4, Math.sin(b.a) * b.r * .75); b.g.rotation.y = -b.a + (b.dir > 0 ? 0 : Math.PI); const f = Math.sin(t * 10 + b.r) * .7; b.wings[0].rotation.z = f; b.wings[1].rotation.z = -f; }
         for (const m of meerkats) { const up = Math.max(0, Math.sin(t * .8 + m.t)); m.rig.group.position.y = -1.1 * .38 * (1 - up); m.rig.group.rotation.y = Math.sin(t * .5 + m.t) * .8; }
