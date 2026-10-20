@@ -6,6 +6,147 @@
    - 배경 생물: 호수 오리·하늘을 도는 새·미어캣·펭귄·나비 */
 (function () {
   const kit = window.ThemeKit;
+
+  /* 아기 펭귄 '이든'(4살 남자아이, 말 많고 말을 아주 잘한다)의 말. 말풍선은 이름표(chickTag) 위. talk 는 life.js 의 대화 도구(TALK_KIT) */
+  const EDEN = {
+    mom: [["엄마! 엄마! 이거 봐봐!", "show"], ["엄마, 나 배고파… 물고기 먹고 싶어 🐟", "hungry"], ["엄마 왜 하늘은 파래?", "why"], ["엄마 나 업어 줘~", "hug"],
+      ["엄마 이거 무슨 색이야?", "why"], ["엄마 나 이만큼 컸어! 🙌", "show"], ["엄마, 오리 아저씨가 또 화났어", "tell"], ["엄마 사랑해! 💙", "love"],
+      ["엄마 나 쉬 마려…", "potty"], ["엄마 저기 코끼리 할아버지 있다!", "tell"], ["엄마 나도 그림 그릴래! 🖍️", "show"], ["엄마 언제 집에 가?", "why"],
+      ["엄마 나 졸려…", "sleepy"], ["엄마 이거 내가 찾았다! 조개껍데기!", "show"], ["엄마 왜? 왜애?", "why"], ["엄마 나 혼자 걸을 수 있어!", "show"],
+      ["엄마 뽀뽀! 😚", "love"], ["엄마, 내가 엄마 도와줄게!", "love"], ["엄마 나 네 살이지? 손가락 네 개! ✋", "show"], ["엄마 다리 아파… 안아 줘", "hug"],
+      ["엄마, 수달 삼촌은 왜 물에서 살아?", "why"], ["엄마 나 오늘 착했지?", "love"], ["엄마! 새가 날아가! 🐦", "tell"], ["엄마 아이스크림 사 줘 🍦", "hungry"],
+      ["엄마, 내가 생각해 봤는데… 펭귄은 날개가 있는데 왜 못 날아? 혹시 너무 귀여워서 그래?", "why"],
+      ["엄마 있잖아, 아까 수달 삼촌이 조개를 돌로 깼거든? 그거 진짜 대단한 기술이야!", "tell"],
+      ["엄마, 나 커서 뭐 될지 정했어. 디자인과장 할 거야! 엄마처럼! 근데 과장이 뭐야?", "love"],
+      ["엄마 엄마, 공룡이랑 펭귄이랑 친척이래! 그러니까 나도 공룡이야. 크앙! 🦖", "show"],
+      ["엄마, 오늘 내가 걸은 거 다 합치면 백 걸음, 아니 천 걸음은 될걸?", "show"],
+      ["엄마, 나 형아 되면 동생한테 물고기 잡는 법 알려 줄 거야. 내가 제일 잘 가르쳐!", "love"],
+      ["엄마, 비밀인데… 오리 아저씨 사실 착한 것 같아. 아까 나 보고 웃었어!", "tell"],
+      ["엄마, 하늘에 구름이 왜 움직이는지 알아? 바람이 밀어서야! 내가 알아냈어!", "show"],
+      ["엄마, 나 오늘 하나도 안 울었다? 넘어졌는데도 안 울었어. 나 남자니까!", "show"],
+      ["엄마, 물고기는 물속에서 어떻게 숨 쉬어? 빨대 있어?", "why"],
+      ["엄마 이거 봐, 내가 날개로 박수 칠 수 있어! 짝짝짝! 👏", "show"],
+      ["엄마, 나 배고픈 거 아닌데… 그냥 물고기가 보고 싶어서 그래. 진짜야. 🐟", "hungry"]],
+    solo: ["하나, 둘, 셋, 넷! 나 네 살! ✋", "뒤뚱뒤뚱~ 펭귄 걸음 연습 중!", "나는 세상에서 제일 빠른 펭귄이다! 슝~", "어? 저기 나비다! 나비야 기다려!",
+      "오늘은 기분이 좋아서 노래를 부를 거야. 펭귄은 뒤뚱~ 이든이는 씩씩~ 🎵", "이 돌멩이는 내 보물 1호야. 아무도 못 줘!", "내가 크면 바다 끝까지 수영해서 갈 거야!",
+      "음… 지금 몇 시지? 간식 시간인 것 같은데?", "나는 용감한 펭귄 기사 이든! 엄마를 지킨다! ⚔️", "공룡은 몇 살까지 살아? 백 살? 나는 네 살!"],
+    momBusy: ["엄마 아직 일해?", "엄마 언제 끝나…?", "엄마 나 조용히 있을게… 쉿 🤫", "엄마 화이팅! 💪", "엄마 그거 내가 색칠해 줄까?", "엄마… 심심해…"],
+    momRe: {
+      show: ["우와, 우리 이든이 최고! 👏", "어머, 진짜 잘했네!", "그랬어? 엄마한테 더 보여 줘~"],
+      hungry: ["이따 맛있는 물고기 먹자 🐟", "조금만 참자~ 엄마 일 끝나면 간식!", "배고팠구나. 엄마가 금방 챙겨 줄게."],
+      why: ["음… 그건 같이 찾아보자!", "우리 이든이는 궁금한 게 많네 ㅎㅎ", "그건 말이지… 이따 그림책 보면서 알려 줄게."],
+      hug: ["이리 와, 엄마가 안아 줄게 🤗", "조금만 더 걸어 보자. 이든이 씩씩하잖아!"],
+      tell: ["그래? 엄마한테 알려 줘서 고마워~", "어머, 그랬구나!", "오리 아저씨는 원래 그래. 무서운 분 아니야 ㅎㅎ"],
+      love: ["엄마도 이든이 사랑해 💙", "우리 이든이 제일 착해!", "고마워, 우리 아기 😚"],
+      potty: ["어머, 얼른 화장실 가자! 🚻", "조금만 참아! 엄마랑 같이 가자."],
+      sleepy: ["엄마 옆에서 조금 쉬자~", "졸리구나. 엄마 품에서 코~ 자자."],
+      busy: ["엄마 지금 일하는 중이야. 조금만 기다려 줄래?", "착하다 우리 이든이. 금방 끝낼게!", "이든아, 엄마 옆에서 그림 그리고 있을래?"],
+      hush: ["이든아, 어른들 얘기할 땐 기다려야지~", "ㅎㅎ 우리 이든이 끼고 싶구나?"],
+    },
+    to: {
+      team: ["{n}! 나랑 놀자!", "{n}, 안녕! 👋 나 이든이야!", "{n}은 뭐 하는 사람이야?", "{n}, 꼬리 만져 봐도 돼?", "{n}! 이거 봐, 나 뛸 수 있어!", "{n}, 우리 엄마 알아? 디자인과장이야!"],
+      duck: ["{n}! 왜 맨날 화나 있어?", "{n}, 과자 하나만~ 🍪", "{n} 안경 멋지다!", "{n}, 그 종이에 뭐 써 있어?"],
+      head: ["{n}! 코로 물 뿌려 줘!", "{n} 키 진짜 크다!", "{n}, 나 업어 줄 수 있어?"],
+      design: ["{n}! 그림 그려 줘!", "{n}, 나 색칠 잘해!", "{n}, 이 색 예뻐? 🖍️"],
+    },
+    re: {
+      team: ["이든이 안녕~ 😊", "우와, 이든이 많이 컸네!", "이든아, 엄마 옆에 있어야지~", "하이파이브! ✋", "이든이 귀엽다 ㅎㅎ", "그래, 이따 같이 놀자!", "오, 진짜 잘 뛰는데?"],
+      teamBusy: ["이든아, 지금 일하는 중이야. 이따 놀자!", "조금만 기다려 줘~ 금방 끝나!"],
+      duck: ["…이든이니? 과자는 하나만이야.", "아저씨 화 안 났어. 원래 이런 얼굴이야.", "이든아 뛰지 마. 넘어지면 병원비 나와.", "흠… 착하네. 사탕 하나 줄게. 비밀이야. 🍬", "이건 장부야. 어른 되면 알려 줄게."],
+      head: ["허허, 우리 이든이 왔구나!", "할아버지가 나중에 물 뿌려 줄게~", "이든이가 우리 동물원 막내지요. 허허", "그래그래, 씩씩하게 크렴."],
+      design: ["이든아, 이모가 그림 그려 줄게 🎨", "와, 이든이 색칠 솜씨 좋은데?", "이든이 오늘 귀여움 200%!", "그 색 예쁘다~ 엄마 닮았네!"],
+    },
+    after: ["헤헤 😆", "약속이야! 🤙 손가락 걸고 도장도 찍어!", "응! 그럼 나 기다릴게!", "와아~! 역시 그럴 줄 알았어!", "진짜? 진짜? 거짓말 아니지?", "좋아좋아! 그럼 그다음엔 뭐 해?",
+      "그치? 내 말이 맞지? 😎", "알겠어! 근데 하나만 더 물어봐도 돼?"],
+    hear: {
+      snack: ["나도! 나도 간식 줘! 🍪", "엄마 나도 그거 먹을래!", "과자? 과자 어딨어?"], money: ["돈이 뭐야? 먹는 거야?", "영수증이 뭐야?"],
+      cheer: ["나도 화이팅! 💪", "이든이도 잘했어?"], quote: ["무슨 말이야? 어려워…", "나도 그거 알아! …근데 뭐야?"],
+      design: ["나도 그림 그릴 수 있어! 🖍️", "그 색 나도 좋아!"], work: ["일 말고 놀자~", "다들 일만 해… 심심해."],
+      weather: ["밖에 나가서 놀자!", "구름이 토끼 모양이다!"], greet: ["안녕하세요! 👋 나 이든이야!", "안녕! 안녕!"],
+      any: ["왜? 왜애? 그건 왜 그런 거야?", "그게 뭐야? 나도 알려 줘!", "나도! 나도! 나도 끼워 줘!", "헤헤, 재밌다! 또 해 줘!", "아~ 나 그거 알아. 그러니까 그게… 음… 뭐였더라?"],
+    },
+  };
+  const ANIMAL_KO = { fox: "여우", panda: "판다", otter: "수달", penguin: "펭귄", elephant: "코끼리", duck: "오리", peacock: "공작", rabbit: "토끼", bear: "곰",
+    cat: "고양이", dog: "강아지", lion: "사자", tiger: "호랑이", koala: "코알라", monkey: "원숭이", giraffe: "기린", meerkat: "미어캣", owl: "부엉이", raccoon: "너구리", hamster: "햄스터" };
+  /** 이든이의 말 걸기·대답·끼어들기. 말풍선은 tag 의 .bubble 에 띄운다 */
+  function chickEden(chick, tag, talk) {
+    const bubble = tag.querySelector(".bubble"), pick = a => a[Math.floor(Math.random() * a.length)];
+    const SP = () => Math.max(1, typeof SPEED === "number" ? SPEED : 1);
+    const used = [];
+    const fresh = arr => { let x = pick(arr); for (let i = 0; i < 6 && used.includes(x); i++) x = pick(arr); used.push(x); if (used.length > 16) used.shift(); return x; };
+    let bt = 0, lastSay = 0, z = 50;
+    const say = (text, ms = 3200) => {
+      ms = Math.max(ms, 1200 + text.length * 85); // 긴 말은 오래 보인다
+      bubble.textContent = text; bubble.classList.add("show"); tag.style.zIndex = String(9000 + (++z % 500)); lastSay = performance.now();
+      clearTimeout(bt); bt = setTimeout(() => bubble.classList.remove("show"), ms / SP());
+    };
+    const later = (ms, f) => setTimeout(f, ms / SP());
+    const mom = () => { try { const m = A("gpt"); return m && !m.ghost && !m.hidden && m.rig?.group.userData.kind === "penguin" ? m : null; } catch { return null; } };
+    const pos = () => chick.group.position;
+    const gapTo = a => Math.hypot(a.group.position.x - pos().x, a.group.position.z - pos().z);
+    const kindOf = a => a.rig?.group.userData.kind || a.def?.kind || a.name;
+    const callName = a => {
+      const who = talk.persona(a), ko = ANIMAL_KO[kindOf(a)];
+      if (!ko) return talk.label(a);
+      if (who === "head") return `${ko} 할아버지`;
+      if (who === "duck") return `${ko} 아저씨`;
+      return `${ko} ${[...a.name].reduce((s, c) => s + c.charCodeAt(0), 0) % 2 ? "이모" : "삼촌"}`;
+    };
+    const momSay = (m, text) => { if (["stand", "talk", "coffee"].includes(m.mode)) m.face(pos()); talk.hush(() => m.say(text, 3200)); };
+    const ready = () => chick.group.visible && !talk.busy();
+    // 엄마에게 말 걸기 → 엄마 대답 → 가끔 이든이 한마디 더
+    function toMom() {
+      const m = mom(); if (!m) return false;
+      const busy = talk.working(m);
+      if (busy) { say(fresh(EDEN.momBusy)); if (Math.random() < .6) later(1600, () => ready() && momSay(m, fresh(EDEN.momRe.busy))); return true; }
+      const [line, kind] = fresh(EDEN.mom); say(line);
+      talk.hold(m, 5200);
+      later(1500 + Math.random() * 600, () => {
+        if (!ready()) return;
+        momSay(m, fresh(EDEN.momRe[kind] || EDEN.momRe.show));
+        if (Math.random() < .7) later(1900, () => ready() && say(fresh(EDEN.after), 2400));
+      });
+      return true;
+    }
+    // 근처 팀원·조연에게 말 걸기 → 그 캐릭터 말투로 대답
+    function toOthers() {
+      const m = mom();
+      const near = talk.everyone().filter(a => a !== m && gapTo(a) < 4.5 && !talk.engaged(a) && !a.presenting);
+      if (!near.length) return false;
+      const to = pick(near), who = talk.persona(to), busy = talk.working(to);
+      say(fresh(EDEN.to[who] || EDEN.to.team).replace("{n}", callName(to)));
+      talk.hold(to, 5000);
+      later(1500 + Math.random() * 700, () => {
+        if (!ready() || !to.group || to.ghost) return;
+        if (["stand", "talk", "coffee"].includes(to.mode)) to.face(pos());
+        talk.hush(() => to.say(fresh(busy ? EDEN.re.teamBusy : EDEN.re[who] || EDEN.re.team), 3200));
+        if (Math.random() < .7) later(1900, () => ready() && say(fresh(EDEN.after), 2400));
+      });
+      return true;
+    }
+    // 평소: 말이 많다 — 5~9초마다 말을 건다(엄마 6 : 다른 이 3 : 혼잣말 1)
+    let next = performance.now() + 3000;
+    setInterval(() => {
+      const now = performance.now();
+      if (now < next || !ready() || !mom()) return;
+      next = now + (5000 + Math.random() * 4000) / SP();
+      const r = Math.random();
+      if (r < .1) { say(fresh(EDEN.solo), 3400); return; }
+      if (r < .4 && toOthers()) return;
+      toMom();
+    }, 1000);
+    // 근처에서 누가 말하면 가끔 끼어든다(엄마가 가끔 타이른다)
+    talk.ear((sp, text) => {
+      if (!ready() || sp === undefined || performance.now() - lastSay < 3000 || talk.skipLine(text) || gapTo(sp) > 6 || Math.random() > .55) return;
+      later(1300 + Math.random() * 700, () => {
+        if (!ready()) return;
+        say(fresh(EDEN.hear[talk.topic(text)] || EDEN.hear.any), 2800);
+        const m = mom();
+        if (m && m !== sp && !talk.working(m) && gapTo(m) < 4 && Math.random() < .4) later(1700, () => ready() && momSay(m, fresh(EDEN.momRe.hush)));
+      });
+    });
+    return { say };
+  }
   if (!kit) return;
   const pick = list => list[Math.floor(Math.random() * list.length)];
   const won = () => `${(Math.round((3000 + Math.random() * 177000) / 100) * 100).toLocaleString("ko-KR")}원`;
@@ -139,7 +280,7 @@
     duck: { ...D_, place: D_.place },
     replies: RE,
     talks: TALKS,
-    ambient(scene, T) {
+    ambient(scene, T, talk) {
       const Z = window.ZooTheme;
       if (!Z) return null;
       const critters = new T.Group(); critters.name = "zoo-critters"; scene.add(critters);
@@ -186,7 +327,7 @@
       // 아기 펭귄 이름표 '이든'(팀원 이름표와 같은 모양, 작게). 클릭은 받지 않는다
       const chickTag = chick && document.getElementById?.("labels") ? Object.assign(document.createElement("div"), { className: "tagwrap chick-tag" }) : null;
       if (chickTag) {
-        chickTag.innerHTML = '<span class="nametag"><i class="dot"></i><b>이든</b></span>';
+        chickTag.innerHTML = '<div class="bubble"></div><span class="nametag"><i class="dot"></i><b>이든</b></span>';
         chickTag.style.setProperty("--c", "#7fb3d5"); chickTag.hidden = true;
         document.getElementById("labels").append(chickTag);
       }
@@ -227,6 +368,8 @@
         chick.legs.forEach((leg,i)=>leg.rotation.x=moving?Math.sin(t*12+i*Math.PI)*.45:0);
         chick.arms.forEach((arm,i)=>arm.rotation.z=(i?1:-1)*(.15+(moving?Math.sin(t*12)*.12:0)));
       }
+      // ── 이든(4살): 디자인과장(gpt 펭귄)을 '엄마'라 부르며 계속 말을 걸고, 근처 팀원·조연과도 이야기한다 ──
+      const eden = chickTag && talk ? chickEden(chick, chickTag, talk) : null;
       function animateCritters(t, dt) {
         followChick(t, dt); placeChickTag();
         for (const d of ducks) { d.a += d.w * dt; const x = L0.x + Math.cos(d.a) * d.r * .9, z = L0.z + Math.sin(d.a) * d.r; d.g.position.set(x, .05 + Math.sin(t * 2 + d.r) * .02, z); d.g.rotation.y = -d.a; }

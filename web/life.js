@@ -451,7 +451,20 @@ window.Life = (() => {
   }, 6000);
   // 말풍선을 듣는다
   { const base = Agent.prototype.say;
-    Agent.prototype.say = function (text, ms) { const r = base.call(this, text, ms); try { if (text) hear(this, String(text)); } catch (e) { console.warn("서로 대화:", e); } return r; }; }
+    Agent.prototype.say = function (text, ms) {
+      const r = base.call(this, text, ms), quiet = CV.depth >= 3;
+      try { if (text) hear(this, String(text)); } catch (e) { console.warn("서로 대화:", e); }
+      if (text && !quiet && !this.guest) for (const f of EARS) { try { f(this, String(text)); } catch (e) { console.warn("배경 생물 듣기:", e); } }
+      return r;
+    }; }
+  /** 배경 생물이 쓰는 대화 도구(동물원 아기 펭귄 '이든'): 말 듣기·끼어들지 않게 말하기·주제·주변 캐릭터 */
+  const EARS = [];
+  const TALK_KIT = {
+    ear: f => EARS.push(f),                                       // 누가 말하면 f(말한 캐릭터, 말)
+    hush: f => { const d = CV.depth; CV.depth = 3; try { return f(); } finally { CV.depth = d; } }, // 이 안의 말에는 다른 이가 대답하지 않는다
+    topic, persona, label, everyone, working, engaged, hold, presenting, skipLine,
+    busy: () => document.hidden || reduce() || presenting(),
+  };
 
   /* ───────── 산책 손님 3명(이름표 없음, 말 안 함): 쉼터·창가·산책로를 오간다. 모양은 테마(C.guests: kind 고정 또는 looks 후보) ───────── */
   const DEST = [...(Decor.LIFE?.walk || []), ...(Decor.LIFE?.chat || []), Decor.LIFE?.sofaApproach, Decor.LIFE?.window].filter(Boolean);
@@ -482,7 +495,7 @@ window.Life = (() => {
 
   /* ───────── 배경 생물(테마가 주는 함수: (scene, THREE) → (t, dt) 매 프레임) ───────── */
   let ambient = null;
-  try { ambient = C.ambient ? C.ambient(scene, THREE) : null; } catch (e) { console.warn("배경 생물:", e); }
+  try { ambient = C.ambient ? C.ambient(scene, THREE, TALK_KIT) : null; } catch (e) { console.warn("배경 생물:", e); }
 
   /* ───────── 매 프레임: 렌더 루프의 declutter() 직전에 움직이고, 조연 이름표만 겹침 정리에 끼워 넣는다 ───────── */
   let last = performance.now();
