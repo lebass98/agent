@@ -1,6 +1,6 @@
 "use strict";
 /* life-zoo.js — 동물원 테마의 조연 '내용'(움직임·대화 방식은 공통 엔진 life.js). theme-kit.js 규격의 조연 3·손님 3·배경 생물을 동물 모양으로 채운다.
-   - 조연: 공작새(디자인팀장) · 코끼리(본부장 — 동물원 원장) · 오리(경리팀장). 모양은 zoo-animals.js 의 extras
+   - 조연: 판다(디자인팀장) · 코끼리(본부장 — 동물원 원장) · 오리(경리팀장). 모양은 zoo-animals.js 의 extras
    - 손님: 치이카와 친구 3종(zoo-friends.js). 팀원이 같은 친구를 고르면 남는 친구로 바뀐다
    - 말투: '원장님'·'동물원', 구역(Decor.NPC.zones)별 경리팀장 잔소리, 동물원 잡담
    - 배경 생물: 호수 오리·하늘을 도는 새·미어캣·펭귄·나비 */
@@ -26,7 +26,7 @@
     listen: ["저는 뒤에서 듣기만 할게요 🙂", "편하게 진행해요. 구경만 할게요."],
     afterMeeting: ["좋은 계획이네요. 다들 화이팅! 💪", "깔끔한 발표였어요 👏", "이대로만 가면 되겠어요. 힘냅시다!"],
     reply: ["감사합니다, 원장님! 😊", "네, 힘낼게요!", "말씀만으로도 힘이 나요.", "좋은 말씀 감사합니다!"],
-    design: ["음… 저 연못 곡선, 레이아웃에 쓰고 싶다.", "이 노을 색감, 좋다 👀", "깃털 색 조합에서 영감이 오네요 🦚", "다음 시안은 이 초록 톤으로 가 볼까?",
+    design: ["음… 저 연못 곡선, 레이아웃에 쓰고 싶다.", "이 노을 색감, 좋다 👀", "흑백 대비에서 영감이 오네요 🐼", "다음 시안은 이 초록 톤으로 가 볼까?",
       "걷다 보면 레이아웃이 떠오르더라고요.", "표지판 글꼴, 조금만 더 둥글면 좋겠는데.", "한 바퀴만 더 돌고 갈게요."],
   };
 
@@ -130,7 +130,7 @@
   (kit.life ||= {}).zoo = {
     words: { head: "원장님", org: "동물원" },
     npcs: [
-      { key: "design", kind: "peacock", speed: 2.1, def: { label: "디자인팀장", initial: "🦚", color: "#2f8f9d", hair: "#2c2c3a", role: "공작새 · 디자인팀" } },
+      { key: "design", kind: "panda", speed: 2.1, def: { label: "디자인팀장", initial: "🐼", color: "#3c8781", hair: "#2c2c3a", role: "판다 · 디자인팀" } },
       { key: "head", kind: "elephant", speed: 1.8, def: { label: "본부장", initial: "🐘", color: "#8a8f99", hair: "#43302a", role: "코끼리 · 동물원 원장" } },
       { key: "duck", kind: "duck", speed: 2.3, def: { label: "경리팀장", initial: "🦆", color: "#e08a2a", hair: "#2c2c3a", role: "오리 · 경리팀" } },
     ],
@@ -175,7 +175,42 @@
         const w = s => { const m = new T.Mesh(new T.PlaneGeometry(.16, .12), new T.MeshStandardMaterial({ color: c, side: T.DoubleSide })); m.position.x = s * .08; g.add(m); return m; };
         return { g, wings: [w(1), w(-1)], cx: -10 + (i % 4) * 1.6 - 1, cz: 10 + Math.floor(i / 4) * 1.8, t: i * .9 };
       });
+      // 팀원 ID를 매번 조회해 재배치·외형 교체 이후에도 같은 에이전트를 따라간다.
+      const chick = mini("penguin", 0, 0, .32);
+      let chickReady = false, chickRoute = [], replan = 0;
+      if (chick) {
+        chick.group.name = "gpt-penguin-chick";
+        chick.group.visible = false;
+        chick.head.scale.setScalar(1.18);
+      }
+      function followChick(t, dt) {
+        if (!chick) return;
+        const parent = typeof A === "function" ? A("gpt") : null;
+        const active = parent && !parent.ghost && !parent.hidden && parent.rig?.group.userData.kind === "penguin";
+        chick.group.visible = !!active;
+        if (!active) { chickReady = false; chickRoute = []; return; }
+        const target = parent.group.position, p = chick.group.position;
+        const candidates = [1, -1, 2, -2, 0].map(i => ({x:target.x + Math.cos(parent.group.rotation.y + i) * 1.05, z:target.z - Math.sin(parent.group.rotation.y + i) * 1.05}));
+        const end = candidates.find(q => Decor.walkable(q.x,q.z));
+        if (!end) return;
+        if (!chickReady) { p.set(end.x,0,end.z); chickReady = true; }
+        replan -= dt;
+        if (replan <= 0) {
+          replan = .4;
+          const route = Decor.nav.route(p,end); let prev=p;
+          chickRoute = route.every(q=>{const ok=Decor.nav.los(prev,q);prev=q;return ok;}) ? route : [];
+        }
+        const q=chickRoute[0]; let moving=false;
+        if(q) { const dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz),step=Math.min(d,dt*2.8);
+          if(d>.08) {p.x+=dx/d*step;p.z+=dz/d*step;chick.group.rotation.y=Math.atan2(dx,dz);moving=true;}
+          if(d<=step+.08)chickRoute.shift();
+        }
+        chick.group.rotation.z=moving?Math.sin(t*12)*.09:0;
+        chick.legs.forEach((leg,i)=>leg.rotation.x=moving?Math.sin(t*12+i*Math.PI)*.45:0);
+        chick.arms.forEach((arm,i)=>arm.rotation.z=(i?1:-1)*(.15+(moving?Math.sin(t*12)*.12:0)));
+      }
       function animateCritters(t, dt) {
+        followChick(t, dt);
         for (const d of ducks) { d.a += d.w * dt; const x = L0.x + Math.cos(d.a) * d.r * .9, z = L0.z + Math.sin(d.a) * d.r; d.g.position.set(x, .05 + Math.sin(t * 2 + d.r) * .02, z); d.g.rotation.y = -d.a; }
         for (const b of birds) { b.a += b.w * dt * b.dir; b.g.position.set(Math.cos(b.a) * b.r, b.y + Math.sin(t + b.r) * .4, Math.sin(b.a) * b.r * .75); b.g.rotation.y = -b.a + (b.dir > 0 ? 0 : Math.PI); const f = Math.sin(t * 10 + b.r) * .7; b.wings[0].rotation.z = f; b.wings[1].rotation.z = -f; }
         for (const m of meerkats) { const up = Math.max(0, Math.sin(t * .8 + m.t)); m.rig.group.position.y = -1.1 * .38 * (1 - up); m.rig.group.rotation.y = Math.sin(t * .5 + m.t) * .8; }

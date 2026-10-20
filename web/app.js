@@ -87,7 +87,7 @@ class Lane {
 /* ───────────────────────── 설정 ───────────────────────── */
 const KNOWN = {
   claude: { label: "Claude", initial: "C", color: "#d97757" },
-  gpt: { label: "GPT", initial: "G", color: "#10a37f" },
+  gpt: { label: window.SpaceTheme?.isZoo ? "디자인과장" : "GPT", initial: "G", color: "#10a37f" },
   gemini: { label: "Gemini", initial: "Ge", color: "#4f7cf7" },
 };
 /** 알려진 팀원 프리셋. 이름이 constructor·toString 같은 Object.prototype 키여도 프로토타입을 타지 않게 hasOwn 으로만 찾는다. */

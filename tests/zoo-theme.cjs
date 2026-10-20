@@ -22,7 +22,7 @@ for(const name of ['claude','gpt','gemini']){
 }
 // 동물 배정: 기본(여우·판다·수달) → 남은 동물, 같은 동물은 한 명만
 const team=['claude','gpt','gemini','writer','coder'];
-const a=zoo.assign(team);assert.equal(a.claude,'fox');assert.equal(a.gpt,'panda');assert.equal(a.gemini,'otter');
+const a=zoo.assign(team);assert.equal(a.claude,'fox');assert.equal(a.gpt,'penguin');assert.equal(a.gemini,'otter');
 assert.equal(new Set(Object.values(a)).size,team.length,'동물 중복 없음');
 // 길 찾기
 decor.nav.build(decor.navRects(12));

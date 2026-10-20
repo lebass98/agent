@@ -55,7 +55,16 @@ window.ZooTheme = (() => {
 
   /* ── 팀원 동물(종류 선택은 이 브라우저에 저장) ── */
   const LOOK_KEY = 'agentOffice.zooLooks';
-  const DEFAULT = { claude: 'fox', gpt: 'panda', gemini: 'otter' };
+  const DEFAULT = { claude: 'fox', gpt: 'penguin', gemini: 'otter' };
+  // 기존 브라우저의 GPT 외형도 이번 역할 변경 때 한 번만 갱신한다.
+  try {
+    if (window.SpaceTheme?.isZoo && !localStorage.getItem('agentOffice.designPenguin.v1')) {
+      const looks = JSON.parse(localStorage.getItem(LOOK_KEY) || '{}');
+      for (const k of Object.keys(looks)) if (k !== 'gpt' && looks[k] === 'penguin') delete looks[k];
+      looks.gpt = 'penguin'; localStorage.setItem(LOOK_KEY, JSON.stringify(looks));
+      localStorage.setItem('agentOffice.designPenguin.v1', '1');
+    }
+  } catch { /* 저장 불가 시 새 기본 외형 사용 */ }
   const LEGACY = [{ id: 'fox', label: '여우', emoji: '🦊' }, { id: 'panda', label: '판다', emoji: '🐼' }, { id: 'otter', label: '수달', emoji: '🦦' }];
   const species = () => (window.ZooAnimals?.species?.length ? window.ZooAnimals.species : LEGACY);
   const validKind = k => species().some(s => s.id === k);
