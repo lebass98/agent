@@ -354,16 +354,44 @@
         moveLabel() { const x = this.ax - chickTag.offsetWidth / 2, y = this.ay - this.ly - chickTag.offsetHeight; chickTag.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`; },
       };
       if (chickLabel && talk?.addLabel) talk.addLabel(chickLabel);
+      // 이든이 의자: 엄마(디자인과장) 책상 옆 작은 나무 의자. 엄마가 자리에 앉아 있으면 이든이도 와서 앉는다
+      const kidChair = new T.Group(); kidChair.name = "eden-chair"; kidChair.visible = false; critters.add(kidChair);
+      { const wood = 0xc8955a, dark = 0x9c7048, seat = new T.Mesh(new T.BoxGeometry(.5, .07, .46), M(wood)); seat.position.y = .34; seat.castShadow = true; kidChair.add(seat);
+        for (const [x, z] of [[-.2, -.18], [.2, -.18], [-.2, .18], [.2, .18]]) { const l = new T.Mesh(new T.CylinderGeometry(.03, .03, .34, 6), M(dark)); l.position.set(x, .17, z); kidChair.add(l); }
+        const back = new T.Mesh(new T.BoxGeometry(.5, .36, .06), M(wood)); back.position.set(0, .56, -.22); back.castShadow = true; kidChair.add(back);
+        const heart = new T.Mesh(new T.SphereGeometry(.06, 8, 6), M(0xe58fa5)); heart.scale.set(1, 1, .4); heart.position.set(0, .6, -.18); kidChair.add(heart); } // 등받이의 분홍 하트
+      let chairSeat = null;
+      /** 엄마 자리 옆 의자 자리(책상 오른쪽, 막혔으면 왼쪽). 자리가 바뀌면 다시 고른다 */
+      function chairFor(parent) {
+        const s = parent.seat; if (!s) return null;
+        if (chairSeat && chairSeat.sx === s.x && chairSeat.sz === s.z) return chairSeat;
+        const side = [1, -1].find(d => Decor.walkable(s.x + d * .95, s.z + .05)) ?? 1;
+        chairSeat = { sx: s.x, sz: s.z, x: s.x + side * .95, z: s.z + .05 };
+        kidChair.position.set(chairSeat.x, 0, chairSeat.z); kidChair.rotation.y = Math.PI;
+        return chairSeat;
+      }
       function followChick(t, dt) {
         if (!chick) return;
         const parent = typeof A === "function" ? A("gpt") : null;
         const active = parent && !parent.ghost && !parent.hidden && parent.rig?.group.userData.kind === "penguin";
         chick.group.visible = !!active;
+        const seated = active && ["sit", "type"].includes(parent.mode) && parent.atDesk?.();
+        const chair = active ? chairFor(parent) : null;
+        kidChair.visible = !!chair;
         if (!active) { chickReady = false; chickRoute = []; return; }
         const target = parent.group.position, p = chick.group.position;
         const candidates = [1, -1, 2, -2, 0].map(i => ({x:target.x + Math.cos(parent.group.rotation.y + i) * 1.05, z:target.z - Math.sin(parent.group.rotation.y + i) * 1.05}));
-        const end = candidates.find(q => Decor.walkable(q.x,q.z));
+        const end = seated && chair ? chair : candidates.find(q => Decor.walkable(q.x,q.z));
         if (!end) return;
+        // 의자에 도착했으면 앉는다(다리를 앞으로, 엄마와 같은 쪽을 본다)
+        if (seated && chair && Math.hypot(p.x - chair.x, p.z - chair.z) < .2) {
+          p.set(chair.x, .3, chair.z); chickRoute = [];
+          chick.group.rotation.set(0, parent.group.rotation.y, 0);
+          chick.legs.forEach((leg, i) => leg.rotation.x = -1.35 + Math.sin(t * 3 + i * Math.PI) * .12); // 발을 달랑달랑
+          chick.arms.forEach((arm, i) => arm.rotation.z = (i ? 1 : -1) * .15);
+          return;
+        }
+        if (p.y) p.y = 0;
         if (!chickReady) { p.set(end.x,0,end.z); chickReady = true; }
         replan -= dt;
         if (replan <= 0) {
