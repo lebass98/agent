@@ -48,7 +48,7 @@
 ## 검증
 
 - `node tests/office-layout.cjs`: 사무실 40×40 · 공통 규격 · 0번 팀장실 · 11석 마주 보는 두 줄 · 발표 자리 · 조연 장소 포함 전 구역 이동 경로.
-- `node tests/zoo-theme.cjs`: 동물원 48×38 · 작업석 12 · 회의 12 · 2401개 이동 경로 · 공통 규격 · 조연 장소 통행 · 사무실 Decor 유지.
+- `node tests/zoo-theme.cjs`: 동물원 68×54(땅 넓이 배율 ZooTheme.S=1.4) · 작업석 12 · 회의 12 · 2401개 이동 경로 · 공통 규격 · 조연 장소 통행 · 사무실 Decor 유지.
 - `node tests/zoo-animals.cjs`: 동물 12종 · 조연 3종 rig 계약 · 입체 범위 · 표정 · 재질 분리.
 - `node tests/zoo-friends.cjs`: 친구 3종 입체·관절 · 49개 산책 경로 · 동물원 손님 등록.
 - `node tests/space-theme.cjs`: 선택값 · 처음 한 번만 묻기 · 저장소 차단 · 업무 중 전환 방지 · 미전송 문구 복원.

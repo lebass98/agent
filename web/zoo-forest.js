@@ -13,7 +13,8 @@ window.ZooForest = (() => {
   try { ok = !!(window.SpaceTheme?.isZoo && window.ZooTheme && HAS3D && scene && camera && controls); } catch { ok = false; }
   if (!ok) return null;
   const T = THREE, Z = window.ZooTheme, RX = Z.RX + 1.2, RZ = Z.RZ + 1.2;
-  const R = 150, VIEW_R = 62, Y0 = -.9;                    // 숲 땅 반지름, '숲' 버튼으로 볼 반지름, 숲 바닥 높이
+  const K = Z.S || 1;                                      // 동물원 땅 넓이 배율(zoo-theme.js): 숲 배치도 같이 넓힌다(나무·소품 크기는 그대로)
+  const R = Math.round(150 * K), VIEW_R = 62 * K, Y0 = -.9; // 숲 땅 반지름, '숲' 버튼으로 볼 반지름, 숲 바닥 높이
   const Z_HIDE = .72, Z_FULL = .4;
   const S = { k: -1, shown: false, saved: null };
   const group = new T.Group(), tall = new T.Group(); group.name = "zoo-forest"; group.add(tall); scene.add(group);
@@ -26,18 +27,18 @@ window.ZooForest = (() => {
   const noise = (x, z) => .5 + .22 * Math.sin(x * .061 + 1.3) * Math.cos(z * .073 - .4) + .17 * Math.sin((x - z) * .113 + 2) + .11 * Math.cos(x * .19 + z * .07);
 
   /* ── 지형: 언덕(나무·소품이 언덕 높이를 따른다) ── */
-  const HILLS = [[60, -20, 22, 16, 9], [-62, -58, 26, 20, 7], [26, -70, 30, 18, 6], [-90, 30, 24, 22, 6], [80, 60, 26, 20, 5], [-20, 80, 30, 18, 4]];
+  const HILLS = [[60, -20, 22, 16, 9], [-62, -58, 26, 20, 7], [26, -70, 30, 18, 6], [-90, 30, 24, 22, 6], [80, 60, 26, 20, 5], [-20, 80, 30, 18, 4]].map(([x, z, rx, rz, h]) => [x * K, z * K, rx * K, rz * K, h]);
   const height = (x, z) => { let h = 0; for (const [hx, hz, rx, rz, hh] of HILLS) { const d = 1 - ((x - hx) / rx) ** 2 - ((z - hz) / rz) ** 2; if (d > 0) h = Math.max(h, hh * Math.sqrt(d)); } return h; };
   const ground = add(new T.Mesh(new T.CircleGeometry(R, 96), mat(0x6f9758)), group); ground.rotation.x = -Math.PI / 2; ground.position.y = Y0;
   for (const [x, z, rx, rz, h] of HILLS) { const m = add(new T.Mesh(new T.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x6c9454))); m.scale.set(rx, h, rz); m.position.set(x, Y0, z); }
   const meadow = add(new T.Mesh(new T.CircleGeometry(1, 72), mat(0x86ad69)), group); meadow.rotation.x = -Math.PI / 2; meadow.scale.set(RX + 7, RZ + 7, 1); meadow.position.y = Y0 + .02;
   // 숲 바닥 얼룩(어두운 숲 그늘·밝은 빈터)
   { const g = new T.CircleGeometry(1, 20), dark = mat(0x5e844b), light = mat(0x93b872);
-    for (let i = 0; i < 46; i++) { const a = rng() * 6.28, r = 32 + rng() * 105, x = Math.cos(a) * r, z = Math.sin(a) * r; if (height(x, z) > .2) continue;
+    for (let i = 0; i < 46; i++) { const a = rng() * 6.28, r = (32 + rng() * 105) * K, x = Math.cos(a) * r, z = Math.sin(a) * r; if (height(x, z) > .2) continue;
       const m = add(new T.Mesh(g, noise(x, z) > .55 ? dark : light), group); m.rotation.x = -Math.PI / 2; m.scale.set(6 + rng() * 10, 4 + rng() * 8, 1); m.position.set(x, Y0 + .015, z); m.rotation.z = rng() * 3; } }
 
   /* ── 강: 북서쪽에서 내려와 동물원 서쪽·남쪽을 돌아 남동쪽으로 ── */
-  const curve = new T.CatmullRomCurve3([[-150, -70], [-95, -48], [-52, -34], [-36, -6], [-34, 22], [-12, 36], [18, 38], [52, 46], [95, 70], [150, 96]].map(([x, z]) => new T.Vector3(x, 0, z)));
+  const curve = new T.CatmullRomCurve3([[-150, -70], [-95, -48], [-52, -34], [-36, -6], [-34, 22], [-12, 36], [18, 38], [52, 46], [95, 70], [150, 96]].map(([x, z]) => new T.Vector3(x * K, 0, z * K)));
   const SAMPLES = 260, pts = curve.getSpacedPoints(SAMPLES);
   function ribbon(width, y) {
     const pos = [], uv = [], idx = [];
@@ -68,16 +69,16 @@ window.ZooForest = (() => {
     b.add(box(0x9c7851, 3.6, .3, 15)); for (const x of [-1.7, 1.7]) { const r = box(0x7d5c3d, .12, .7, 15); r.position.set(x, .45, 0); b.add(r); } }
 
   /* ── 볼거리 자리(나무를 비워 두는 빈터) ── */
-  const SPOTS = { falls: [60, -6, 12], cabin: [38, -42, 9], camp: [-56, 16, 9], tower: [-30, -52, 7], deer: [44, 20, 11], pond2: [-74, -16, 7] };
+  const SPOTS = Object.fromEntries(Object.entries({ falls: [60, -6, 12], cabin: [38, -42, 9], camp: [-56, 16, 9], tower: [-30, -52, 7], deer: [44, 20, 11], pond2: [-74, -16, 7] }).map(([k, [x, z, r]]) => [k, [x * K, z * K, r]]));
   const inSpot = (x, z, pad = 0) => Object.values(SPOTS).some(([sx, sz, r]) => Math.hypot(x - sx, z - sz) < r + pad);
   const on = (x, z) => Y0 + height(x, z);
 
   // 폭포: 언덕(60,-20)에서 남쪽 연못으로
   const fallTex = stripes("#7cc3d3"); fallTex.repeat.set(1, 2);
   const fall = add(new T.Mesh(new T.PlaneGeometry(3.2, 8.2), mat(0xffffff, { map: fallTex, roughness: .2, transparent: true, opacity: .92 })));
-  fall.position.set(60, Y0 + 4.2, -10.4); fall.rotation.x = -.18;
-  const pond = add(new T.Mesh(new T.CircleGeometry(6.5, 32), mat(0x5aa9b8, { roughness: .2 }))); pond.rotation.x = -Math.PI / 2; pond.position.set(60, Y0 + .05, -4);
-  const foam = add(new T.Mesh(new T.CircleGeometry(1.6, 16), mat(0xe8f6f8, { transparent: true, opacity: .8 }))); foam.rotation.x = -Math.PI / 2; foam.position.set(60, Y0 + .08, -8.6);
+  fall.position.set(60 * K, Y0 + 4.2, -10.4 * K); fall.rotation.x = -.18;
+  const pond = add(new T.Mesh(new T.CircleGeometry(6.5, 32), mat(0x5aa9b8, { roughness: .2 }))); pond.rotation.x = -Math.PI / 2; pond.position.set(60 * K, Y0 + .05, -4 * K);
+  const foam = add(new T.Mesh(new T.CircleGeometry(1.6, 16), mat(0xe8f6f8, { transparent: true, opacity: .8 }))); foam.rotation.x = -Math.PI / 2; foam.position.set(60 * K, Y0 + .08, -8.6 * K);
   // 통나무집(굴뚝 연기·밤에 창 불빛)
   const glowMat = new T.MeshStandardMaterial({ color: 0x40362a, emissive: 0xffb456, emissiveIntensity: 0 });
   { const [x, z] = SPOTS.cabin, c = new T.Group(); c.position.set(x, on(x, z), z); c.rotation.y = .5; add(c);
@@ -111,15 +112,15 @@ window.ZooForest = (() => {
     for (let i = 0; i < 6; i++) { const l = add(new T.Mesh(new T.CircleGeometry(.5, 10), mat(0x4f8a46))); l.rotation.x = -Math.PI / 2; l.position.set(x + Math.cos(i) * 3, Y0 + .08, z + Math.sin(i * 1.7) * 3); }
     const dock = add(box(0x9c7851, 1.4, .2, 4)); dock.position.set(x + 5, Y0 + .3, z); }
   // 먼 산
-  [[-110, -105, 34, 26, 0x6f8f86], [-55, -125, 26, 20, 0x7c9a8e], [20, -132, 38, 30, 0x6a8a80], [85, -110, 30, 22, 0x7b958c], [-138, -40, 24, 18, 0x7c9a8e]].forEach(([x, z, r, h, c]) => {
+  [[-110, -105, 34, 26, 0x6f8f86], [-55, -125, 26, 20, 0x7c9a8e], [20, -132, 38, 30, 0x6a8a80], [85, -110, 30, 22, 0x7b958c], [-138, -40, 24, 18, 0x7c9a8e]].map(([x, z, ...o]) => [x * K, z * K, ...o]).forEach(([x, z, r, h, c]) => {
     const m = add(new T.Mesh(new T.ConeGeometry(r, h, 9), mat(c))); m.position.set(x, h / 2 + Y0, z);
     const cap = add(new T.Mesh(new T.ConeGeometry(r * .3, h * .3, 9), mat(0xeef2f0))); cap.position.set(x, h - h * .15 + Y0, z);
   });
 
   /* ── 숲: 노이즈로 모인 숲·빈터, 나무 6종(InstancedMesh, 나무마다 크기·기울기·색이 다르다) ── */
   const kinds = { pine: [], oak: [], birch: [], maple: [], cypress: [], shrub: [] };
-  for (let i = 0, n = 0; i < 16000 && n < 1500; i++) {
-    const a = rng() * Math.PI * 2, r = 20 + Math.sqrt(rng()) * (R - 24), x = Math.cos(a) * r, z = Math.sin(a) * r;
+  for (let i = 0, n = 0; i < 22000 && n < 1900; i++) {
+    const a = rng() * Math.PI * 2, r = 20 * K + Math.sqrt(rng()) * (R - 24 * K), x = Math.cos(a) * r, z = Math.sin(a) * r;
     const e = ellipse(x, z), front = x > 0 && z > 0, dens = noise(x, z);
     if (e < (front ? 1.75 : 1.32) || nearRiver(x, z, 7.5) || inSpot(x, z) || (Math.abs(x) < 4 && z > RZ - 1 && z < RZ + roadLen + 2)) continue;
     if (rng() > (dens - .38) * 2.2) continue;                        // 빈터: 밀도가 낮은 곳은 비운다
@@ -159,7 +160,7 @@ window.ZooForest = (() => {
   /* ── 숲 바닥 소품: 바위·쓰러진 통나무·버섯·고사리·꽃(빈터) ── */
   const props = { rock: [], log: [], mush: [], fern: [], flower: [] };
   for (let i = 0; i < 5000; i++) {
-    const a = rng() * 6.28, r = 24 + Math.sqrt(rng()) * (R - 28), x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const a = rng() * 6.28, r = 24 * K + Math.sqrt(rng()) * (R - 28 * K), x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (ellipse(x, z) < 1.3 || nearRiver(x, z, 6) || inSpot(x, z, -2)) continue;
     const d = noise(x, z), it = { x, z, y: on(x, z), s: .6 + rng() * .9, ry: rng() * 6.28, lean: 0, c: rng() }, roll = rng();
     if (d < .45 && roll < .5) props.flower.push(it); else if (roll < .12) props.rock.push(it); else if (roll < .17) props.log.push(it); else if (d > .5 && roll < .32) props.mush.push(it); else if (d > .5 && roll < .5) props.fern.push(it);
@@ -185,7 +186,7 @@ window.ZooForest = (() => {
     return { neck, t: i * 2.3 };
   });
   // 토끼(동물원 둘레 풀밭에서 깡충)
-  const rabbits = [[30, 12], [-30, -26], [26, -22], [-24, 24]].map(([x, z], i) => {
+  const rabbits = [[30, 12], [-30, -26], [26, -22], [-24, 24]].map(([x, z]) => [x * K, z * K]).map(([x, z], i) => {
     const g = new T.Group(); live.add(g); const fur = mat(i % 2 ? 0xf2efe8 : 0xb89b7a);
     const b = new T.Mesh(new T.SphereGeometry(.45, 10, 8), fur); b.scale.set(.8, .8, 1.1); b.position.y = .45; g.add(b);
     const h = new T.Mesh(new T.SphereGeometry(.3, 10, 8), fur); h.position.set(0, .85, .35); g.add(h);
@@ -209,7 +210,7 @@ window.ZooForest = (() => {
     for (const [dx, dz] of [[-.6, -.6], [.6, -.6], [-.6, .6], [.6, .6]]) { const r = new T.Mesh(new T.CylinderGeometry(.03, .03, 3, 4), mat(0x3d3d3d)); r.position.set(dx, 2, dz); balloon.add(r); } }
   // 새 떼
   const birdMat = mat(0x34414d), wingMat = new T.MeshStandardMaterial({ color: 0x4b5b69, side: T.DoubleSide, roughness: .8 });
-  const flocks = [[0, 0, 58, 22, .05], [-40, -30, 32, 18, -.07], [35, 25, 40, 26, .06]].map(([cx, cz, r, y, w], f) => ({ cx, cz, r, y, w, a: f * 2, birds: Array.from({ length: 7 }, (_, i) => {
+  const flocks = [[0, 0, 58, 22, .05], [-40, -30, 32, 18, -.07], [35, 25, 40, 26, .06]].map(([cx, cz, r, y, w]) => [cx * K, cz * K, r * K, y, w / K]).map(([cx, cz, r, y, w], f) => ({ cx, cz, r, y, w, a: f * 2, birds: Array.from({ length: 7 }, (_, i) => {
     const g = new T.Group(), body = new T.Mesh(new T.SphereGeometry(.35, 8, 6), birdMat); body.scale.set(1, .7, 1.9); g.add(body);
     const wings = [1, -1].map(s => { const m = new T.Mesh(new T.PlaneGeometry(1.5, .5), wingMat); m.position.x = s * .8; g.add(m); return m; });
     live.add(g); return { g, wings, off: { a: (i % 2 ? -1 : 1) * Math.ceil(i / 2) * .045, r: Math.ceil(i / 2) * 1.4, y: (i % 3) * .6 }, ph: i * .7 };
@@ -229,7 +230,7 @@ window.ZooForest = (() => {
     const jt = t - jump.t0;
     fish.visible = jt > 0 && jt < 1 && !!jump.p;
     if (fish.visible) { fish.position.set(jump.p.x + jt * 2, Y0 + Math.sin(jt * Math.PI) * 2.2, jump.p.z); fish.rotation.x = -Math.cos(jt * Math.PI) * 1.2; }
-    const ba = t * .015; balloon.position.set(Math.cos(ba) * 55, 28 + Math.sin(t * .2) * 2, Math.sin(ba) * 42 - 10); balloon.rotation.y = t * .05;
+    const ba = t * .015; balloon.position.set(Math.cos(ba) * 55 * K, 28 + Math.sin(t * .2) * 2, (Math.sin(ba) * 42 - 10) * K); balloon.rotation.y = t * .05;
     for (const f of flocks) {
       f.a += f.w * dt;
       for (const b of f.birds) {

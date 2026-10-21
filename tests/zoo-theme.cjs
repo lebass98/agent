@@ -10,7 +10,7 @@ vm.createContext(sandbox);
 const files=['decor.js',...(fs.existsSync(path.join(__dirname,'../web/zoo-animals.js'))?['zoo-animals.js']:[]),'zoo-theme.js'];
 for(const file of files)vm.runInContext(fs.readFileSync(path.join(__dirname,'../web',file),'utf8'),sandbox);
 const zoo=sandbox.window.ZooTheme,decor=sandbox.window.Decor;
-assert.equal(decor.OW,48);assert.equal(decor.OD,38);
+assert.equal(decor.OW,68);assert.equal(decor.OD,54);
 assert.equal(decor.spots(12).length,12,'작업석 12');assert.equal(decor.spots(3).length,3);assert.equal(decor.spareDesks(3).length,9,'빈 마을 책상');
 assert.equal(new Set(decor.spots(12).map(p=>`${p.meet.x},${p.meet.z}`)).size,12,'회의실 의자 12');
 const scene=new THREE.Scene();const built=decor.build(scene);assert(built.strokes.length>=5);assert(built.strokes.every(x=>!x.visible));
@@ -35,9 +35,9 @@ for(const s of destinations)for(const e of destinations){
   for(const p of route){assert(decor.nav.los(prev,p),`장애물 통과: ${JSON.stringify([prev,p])}`);assert(decor.walkable(p.x,p.z));prev=p;}
   assert(Math.hypot(prev.x-e.x,prev.z-e.z)<.001);routes++;
 }
-assert(!decor.walkable(zoo.LAKE.x,zoo.LAKE.z),'호수는 통행 금지');assert(!decor.walkable(23,17),'섬 바깥은 통행 금지');assert(!decor.walkable(0,11.2),'분수는 통행 금지');
+assert(!decor.walkable(zoo.LAKE.x,zoo.LAKE.z),'호수는 통행 금지');assert(!decor.walkable(zoo.RX,zoo.RZ),"섬 바깥은 통행 금지");assert(!decor.walkable(zoo.FOUNTAIN.x,zoo.FOUNTAIN.z),"분수는 통행 금지");
 for(const r of Object.values(decor.rooms))assert(r.x1>r.x0&&r.z1>r.z0&&r.label);
-console.log(`넓은 동물원 48×38·작업석 12·회의실 의자 12·${routes}개 이동 경로·호수·분수·울타리 통행 금지 검증 통과`);
+console.log(`넓은 동물원 68×54·작업석 12·회의실 의자 12·${routes}개 이동 경로·호수·분수·울타리 통행 금지 검증 통과`);
 // 공간 테마 규격(theme-kit.js): 사무실과 같은 구조(12석·회의 12·커피 12·방 7·조연 장소)인지, 조연 장소가 모두 걸을 수 있는지
 const kit=require('../web/theme-kit.js');assert.deepEqual(kit.check(decor),[],'동물원 지도가 공통 규격을 지킨다');
 for(const p of [decor.PRESENT_SPOT,decor.REPORT_SPOT,decor.NPC.headSeat,...decor.NPC.back,...decor.NPC.wander,...decor.NPC.duckSpots,decor.NPC.meetingDoor])assert(decor.walkable(p.x,p.z),`조연 장소에 갈 수 없음: ${JSON.stringify(p)}`);

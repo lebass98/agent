@@ -290,34 +290,34 @@
       const mats = new Map(), M = c => mats.get(c) || (mats.set(c, new T.MeshStandardMaterial({ color: c, roughness: .8 })), mats.get(c));
       const sphere = new T.SphereGeometry(1, 12, 9), cone = new T.ConeGeometry(1, 1, 8);
       const part = (p, geo, c, x, y, z, sx, sy = sx, sz = sx) => { const m = new T.Mesh(geo, M(c)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; p.add(m); return m; };
-      const L0 = Z.LAKE;
+      const L0 = Z.LAKE, K = Z.S || 1; // K: 동물원 땅 넓이 배율(zoo-theme.js)
       // 오리: 호수 위를 천천히 돈다
       const ducks = Array.from({ length: 4 }, (_, i) => {
         const g = new T.Group(); critters.add(g);
         part(g, sphere, i ? 0xf5f1e6 : 0x4f7a54, 0, .22, 0, .26, .18, .34); const head = part(g, sphere, i ? 0xf5f1e6 : 0x2f6b4c, 0, .45, .24, .14);
         part(g, cone, 0xf0a63a, 0, .44, .4, .05, .14, .05).rotation.x = Math.PI / 2; part(g, sphere, 0x1d1d1d, .07, .5, .33, .025); part(g, sphere, 0x1d1d1d, -.07, .5, .33, .025);
         if (!i) head.scale.setScalar(.15);
-        return { g, r: 1.6 + i * .55, a: i * 1.6, w: .18 + i * .03 };
+        return { g, r: (1.6 + i * .55) * K, a: i * 1.6, w: (.18 + i * .03) / K };
       });
       // 새: 하늘을 크게 돈다(날갯짓)
       const birds = Array.from({ length: 6 }, (_, i) => {
         const g = new T.Group(); critters.add(g);
         part(g, sphere, 0x3b4a5a, 0, 0, 0, .14, .1, .28);
         const wing = s => { const w = new T.Mesh(new T.PlaneGeometry(.55, .2), new T.MeshStandardMaterial({ color: 0x506273, side: T.DoubleSide })); w.position.set(s * .3, 0, 0); g.add(w); return w; };
-        return { g, wings: [wing(1), wing(-1)], r: 9 + i * 2.2, a: i * 1.1, y: 7 + (i % 3) * 1.2, w: .12 + (i % 2) * .05, dir: i % 2 ? 1 : -1 };
+        return { g, wings: [wing(1), wing(-1)], r: (9 + i * 2.2) * K, a: i * 1.1, y: 7 + (i % 3) * 1.2, w: .12 + (i % 2) * .05, dir: i % 2 ? 1 : -1 };
       });
       // 미어캣·펭귄·나비: 팀원 동물 모델을 작게 줄여 쓴다(zoo-animals.js 가 있을 때)
       const mini = (kind, x, z, s) => {
         if (!window.ZooAnimals?.build) return null;
         try { const rig = window.ZooAnimals.build(kind, `mini-${kind}`); rig.group.scale.setScalar(s); rig.group.position.set(x, 0, z); critters.add(rig.group); return rig; } catch { return null; }
       };
-      const meerkats = [[14.6, 12.2], [15.4, 12.6], [16.2, 12.1], [14.9, 13]].map(([x, z], i) => ({ rig: mini("meerkat", x, z, .38), base: z, t: i * 1.7 })).filter(m => m.rig);
-      const penguins = [[-15.2, -6.6], [-14.2, -6.2], [-7.2, -6.4]].map(([x, z], i) => ({ rig: mini("penguin", x, z, .42), x0: x, z, t: i * 2.1, span: i === 2 ? .9 : 1.4 })).filter(p => p.rig);
+      const meerkats = [[14.6, 12.2], [15.4, 12.6], [16.2, 12.1], [14.9, 13]].map(([x, z]) => [x + 14.6 * (K - 1), z + 12.2 * (K - 1)]).map(([x, z], i) => ({ rig: mini("meerkat", x, z, .38), base: z, t: i * 1.7 })).filter(m => m.rig);
+      const penguins = [[-15.2, -6.6], [-14.2, -6.2], [-7.2, -6.4]].map(([x, z], i) => [i === 2 ? x * K : x + -15.2 * (K - 1), z * K]).map(([x, z], i) => ({ rig: mini("penguin", x, z, .42), x0: x, z, t: i * 2.1, span: i === 2 ? .9 : 1.4 })).filter(p => p.rig);
       const flyers = Array.from({ length: 8 }, (_, i) => {
         const g = new T.Group(); critters.add(g);
         const c = [0xf2b84b, 0xe58fa5, 0xb59ce0, 0xffffff][i % 4];
         const w = s => { const m = new T.Mesh(new T.PlaneGeometry(.16, .12), new T.MeshStandardMaterial({ color: c, side: T.DoubleSide })); m.position.x = s * .08; g.add(m); return m; };
-        return { g, wings: [w(1), w(-1)], cx: -10 + (i % 4) * 1.6 - 1, cz: 10 + Math.floor(i / 4) * 1.8, t: i * .9 };
+        return { g, wings: [w(1), w(-1)], cx: -11 * K + (i % 4) * 1.6, cz: 10 * K + Math.floor(i / 4) * 1.8, t: i * .9 };
       });
       // 팀원 ID를 매번 조회해 재배치·외형 교체 이후에도 같은 에이전트를 따라간다.
       const chick = mini("penguin", 0, 0, .32);

@@ -1,11 +1,13 @@
 'use strict';
 /* 선택한 동물원 공간: 사무실과 같은 Decor/Agent 계약(build·spots·deskSet·spareDesks·navRects·nav·rooms·LIFE·theme)을 쓴다.
-   넓은 동물원(타원 섬 45×35): 정문 광장 · 회의실(유리벽 회의 건물) · 팀장 전망대 · 서식지 마을 5곳(대나무 숲·호수·정글·극지·사바나, 작업석 12) ·
+   넓은 동물원(타원 섬 63×49, 예전 45×35의 1.4배): 정문 광장 · 회의실(유리벽 회의 건물) · 팀장 전망대 · 서식지 마을 5곳(대나무 숲·호수·정글·극지·사바나, 작업석 12) ·
    카페 · 피크닉 잔디밭 · 호수 데크. 모든 장식은 three.js 기본 도형이며 많은 것(나무·대나무·꽃·울타리)은 InstancedMesh 로 한 번에 그린다.
    팀원 동물은 zoo-animals.js(12종)에서 만들고, 팀원별 동물 선택은 이 브라우저에 저장한다(같은 동물은 한 팀원만). */
 window.ZooTheme = (() => {
   const office = window.Decor;
-  const RX = 22.5, RZ = 17.5, OW = 48, OD = 38;            // 섬 반지름(가로·세로), 길 찾기 격자 크기
+  // 땅 넓이 배율: 섬·길·호수·장소 사이 간격만 넓히고 캐릭터·책상·건물·나무 크기는 그대로 둔다(회의실 건물은 가운데 그대로)
+  const S = 1.4, k = v => +(v * S).toFixed(2), kk = ([x, z, ...r]) => [k(x), k(z), ...r];
+  const RX = k(22.5), RZ = k(17.5), OW = 68, OD = 54;      // 섬 반지름(가로·세로), 길 찾기 격자 크기
   const inIsland = (x, z, m = 0) => (x / (RX - m)) ** 2 + (z / (RZ - m)) ** 2 < 1;
 
   /* ── 자리 ── 0번은 팀장(전망대), 나머지는 마을 순서대로 채운다(처음 세 명: 팀장·대나무 숲·호수) */
@@ -15,7 +17,7 @@ window.ZooTheme = (() => {
     { x: -9, z: -10.2, w: 2.2, zone: 'polar' }, { x: 9.4, z: 9.2, w: 2.2, zone: 'savanna' }, { x: 13, z: -9.6, w: 2.2, zone: 'bamboo' },
     { x: 9.6, z: 3.3, w: 2.2, zone: 'lake' }, { x: -15, z: -1.4, w: 2.2, zone: 'jungle' }, { x: -13, z: -10.2, w: 2.2, zone: 'polar' },
     { x: 13.4, z: 9.2, w: 2.2, zone: 'savanna' }, { x: -13, z: 3.4, w: 2.2, zone: 'jungle' },
-  ];
+  ].map(d => ({ ...d, x: k(d.x), z: k(d.z) }));
   // 회의실: 섬 가운데의 유리벽 회의 건물(나무 아랫벽 + 유리 + 문 네 곳). 긴 회의 테이블 둘레 의자 12석, 북쪽 벽에 발표 화면.
   // 팀장은 화면 옆에서 발표하고 팀원은 의자에 앉아 듣는다. 위에서 보이도록 지붕은 두지 않는다(사무실 회의실과 같다)
   const ROOM = { x0: -5.6, x1: 5.6, z0: -4.6, z1: 3.6 };
@@ -24,12 +26,12 @@ window.ZooTheme = (() => {
   const SCREEN = { x: .4, w: 3.2 };                                                // 북쪽 벽 안쪽 발표 화면
   const STAGE = { ...MEET_TABLE };                                                  // (예전 이름 유지) 회의 테이블 가운데
   const meetings = [...[-2, -1, 0, 1, 2].map(x => ({ x, z: -1.05 })), ...[-2, -1, 0, 1, 2].map(x => ({ x, z: 1.45 })), { x: -3.3, z: .2 }, { x: 3.3, z: .2 }];
-  const CAFE = { x: 4.5, z: 10.4 };
+  const CAFE = { x: k(4.5), z: k(10.4) };
   const coffees = Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2 + .26; return { x: +(CAFE.x + Math.cos(a) * 2).toFixed(2), z: +(CAFE.z + Math.sin(a) * 2).toFixed(2) }; })
-    .filter(p => p.z < 12.2);
+    .filter(p => p.z < CAFE.z + 1.8);
   while (coffees.length < 12) coffees.push({ ...coffees[coffees.length % 8] });
-  const LAKE = { x: 16.5, z: 0, rx: 4, rz: 4.5 };
-  const FOUNTAIN = { x: 0, z: 11.2 };
+  const LAKE = { x: k(16.5), z: 0, rx: k(4), rz: k(4.5) };
+  const FOUNTAIN = { x: 0, z: k(11.2) };
 
   // 서식지 마을·주요 장소(표지판·나무 심지 않을 곳)
   const zones = [
@@ -43,7 +45,7 @@ window.ZooTheme = (() => {
     { id: 'jungle', x: -13, z: .8, r: 4.6, sign: '정글 마을', ground: 0x5f9150 },
     { id: 'lake', x: 13.5, z: .4, r: 5.6, sign: '호수 데크', ground: 0x8fb36d },
     { id: 'savanna', x: 11.4, z: 9.6, r: 4.2, sign: '사바나 마을', ground: 0xd8c27e },
-  ];
+  ].map(q => q.id === 'meeting' ? q : { ...q, x: k(q.x), z: k(q.z), r: k(q.r) });
   const R = (x, z, w, d, tag) => ({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, tag });
   /** 회의실 벽 조각(문 틈을 뺀 부분): {axis: 'x'(가로 벽)|'z'(세로 벽), at: 벽 위치, a~b: 벽 범위} */
   function wallSegments() {
@@ -181,27 +183,32 @@ window.ZooTheme = (() => {
   const nearZone = (x, z, pad = 0) => zones.some(q => Math.hypot(x - q.x, z - q.z) < q.r + pad);
   const nearDesk = (x, z, pad) => desks.some(d => Math.abs(x - d.x) < d.w / 2 + pad && z > d.z - .6 - pad && z < d.z + 1.6 + pad);
   // 길(광장 중심에서 각 장소로 뻗는 산책로)
-  const PATHS = [[0, -1, 0, -8], [0, -1, -9, -8], [0, -1, 9, -8], [0, -1, -10, -.4], [0, -1, 11.2, .4], [0, -1, 9, 8], [0, -1, 4.2, 9], [0, -1, -8, 9], [0, -1, 0, 14]];
+  const PATHS = [[0, -1, 0, -8], [0, -1, -9, -8], [0, -1, 9, -8], [0, -1, -10, -.4], [0, -1, 11.2, .4], [0, -1, 9, 8], [0, -1, 4.2, 9], [0, -1, -8, 9], [0, -1, 0, 14]]
+    .map(([ax, az, bx, bz]) => [ax, az, k(bx), k(bz)]);
   const onPath = (x, z, pad = 1) => PATHS.some(([ax, az, bx, bz]) => {
     const vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz)));
     return Math.hypot(x - (ax + vx * t), z - (az + vz * t)) < pad;
   });
   // 나무는 시야를 가리지 않게 최소로: 카메라 반대쪽(북서쪽 울타리 가)의 낮은 나무 몇 그루만
-  const TREES = [[-17.2, -8.6, .7], [-6, -15.4, .7], [-19.6, -2.6, .65]];
-  const BAMBOO = [[11.2, -13.6], [7.2, -12.8]];   // 대나무 덤불 중심
-  const PALMS = [[-17.4, -3.2], [-16.8, 4.2]];
-  const ACACIA = [[15.6, 12]];
-  const PINES = [[-7, -13.4], [-15.4, -12.4]];
-  const IGLOO = { x: -11, z: -13.8 };
+  const TREES = [[-17.2, -8.6, .7], [-6, -15.4, .7], [-19.6, -2.6, .65]].map(kk);
+  const BAMBOO = [[11.2, -13.6], [7.2, -12.8]].map(kk);   // 대나무 덤불 중심
+  const PALMS = [[-17.4, -3.2], [-16.8, 4.2]].map(kk);
+  const ACACIA = [[15.6, 12]].map(kk);
+  const PINES = [[-7, -13.4], [-15.4, -12.4]].map(kk);
+  const IGLOO = { x: k(-11), z: k(-13.8) };
+  // 여러 부품으로 된 소품은 기준점만 옮기고 부품 사이 간격은 그대로 둔다
+  const GATE = { x: 0, z: k(15.8) }, TICKET = { x: k(-4.4), z: k(14.5) }, STUMP = { x: k(-2.6), z: k(-12.2) }, SCOPE = { x: k(2.8), z: k(-12.8) };
+  const ICE = { x: k(-14.6), z: k(-11.4) }, DECK = { x: k(12.2), z: k(.4) }, VINE = { x: k(-13), z: k(-4.6) }, TERMITE = { x: k(15.4), z: k(9.4) };
+  const BENCHES = [[-9, 9.2], [-12.6, 8.4]].map(kk), HAMMOCK = { x: k(-14.2), z: k(13.4) }, ROCKS = [[16.8, 10.4, .9], [17.5, 9.2, .7], [7.4, 7.6, .55]].map(kk);
   // 표지판 자리(책상·길과 겹치지 않게 손으로 둔다). 정문은 아치 위
-  const SIGNS = { exec: [-3.4, -9], meeting: [6.6, -5.4], lobby: [0, 15.8], cafe: [7.4, 12.6], picnic: [-6.6, 12.8], polar: [-11, -6.8],
-    bamboo: [11, -6.6], jungle: [-17.6, 1.8], lake: [11, -3.2], savanna: [11.4, 6.6] };
+  const SIGNS = Object.fromEntries(Object.entries({ exec: [-3.4, -9], meeting: [6.6, -5.4], lobby: [0, 15.8], cafe: [7.4, 12.6], picnic: [-6.6, 12.8], polar: [-11, -6.8],
+    bamboo: [11, -6.6], jungle: [-17.6, 1.8], lake: [11, -3.2], savanna: [11.4, 6.6] }).map(([id, p]) => [id, id === 'meeting' ? p : kk(p)]));
   const EDGE = .6; // 울타리 안쪽으로 걸을 수 있는 여유
-  const TREEHOUSE = { x: 0, z: -14.9 };
+  const TREEHOUSE = { x: 0, z: k(-14.9) };
 
   function build(scene) {
     const { T, mesh, box, ball, cylinder, beam, many } = kit();
-    try { Object.assign(sun.shadow.camera, { left: -27, right: 27, top: 27, bottom: -27 }); sun.shadow.camera.updateProjectionMatrix(); } catch { /* 해(sun)는 app.js 가 만든다 */ }
+    try { Object.assign(sun.shadow.camera, { left: -38, right: 38, top: 38, bottom: -38 }); sun.shadow.camera.updateProjectionMatrix(); } catch { /* 해(sun)는 app.js 가 만든다 */ }
     // 섬 바닥·흙 테두리
     const ground = cylinder(scene, 0x7b9d66, 0, -.45, 0, RX + 1.2, .8, 72); ground.scale.z = (RZ + 1.2) / (RX + 1.2);
     const slab = cylinder(scene, 0xb89a74, 0, -.89, 0, RX + 1.15, .15, 72); slab.scale.z = ground.scale.z;
@@ -246,10 +253,10 @@ window.ZooTheme = (() => {
     const pendant = new T.Mesh(new T.ConeGeometry(.45, .35, 18, 1, true), pendantMat); pendant.position.set(0, 2.35, MEET_TABLE.z); pendant.material.side = T.DoubleSide; scene.add(pendant);
 
     // ── 정문 광장: 아치 문·매표소·분수 ──
-    for (const x of [-2.4, 2.4]) { cylinder(scene, 0x8a6a48, x, 1.6, 15.8, .22, 3.2); ball(scene, 0x6a9859, x, 3.3, 15.8, .42); }
-    const arch = mesh(scene, new T.TorusGeometry(2.4, .16, 10, 30, Math.PI), 0x9c7851, 0, 3.1, 15.8); arch.castShadow = true;
-    box(scene, 0x9c7851, 0, 3.75, 15.8, 3.2, .7, .14);
-    box(scene, 0xc49a68, -4.4, 1, 14.5, 1.8, 2, 1.3); box(scene, 0xd65c4a, -4.4, 2.15, 14.5, 2.1, .2, 1.6); box(scene, 0x30413a, -4.4, 1.2, 15.16, 1, .55, .02);
+    for (const x of [-2.4, 2.4]) { cylinder(scene, 0x8a6a48, GATE.x + x, 1.6, GATE.z, .22, 3.2); ball(scene, 0x6a9859, GATE.x + x, 3.3, GATE.z, .42); }
+    const arch = mesh(scene, new T.TorusGeometry(2.4, .16, 10, 30, Math.PI), 0x9c7851, GATE.x, 3.1, GATE.z); arch.castShadow = true;
+    box(scene, 0x9c7851, GATE.x, 3.75, GATE.z, 3.2, .7, .14);
+    box(scene, 0xc49a68, TICKET.x, 1, TICKET.z, 1.8, 2, 1.3); box(scene, 0xd65c4a, TICKET.x, 2.15, TICKET.z, 2.1, .2, 1.6); box(scene, 0x30413a, TICKET.x, 1.2, TICKET.z + .66, 1, .55, .02);
     cylinder(scene, 0xb7b2a6, FOUNTAIN.x, .25, FOUNTAIN.z, 1.25, .5, 32); const pool = cylinder(scene, 0x5fb6c4, FOUNTAIN.x, .48, FOUNTAIN.z, 1.08, .06, 32); pool.material.roughness = .25;
     cylinder(scene, 0xb7b2a6, FOUNTAIN.x, .95, FOUNTAIN.z, .2, 1); const spray = ball(scene, 0x9ad7e0, FOUNTAIN.x, 1.55, FOUNTAIN.z, .38, .3, .38); spray.material.transparent = true; spray.material.opacity = .7;
 
@@ -259,14 +266,14 @@ window.ZooTheme = (() => {
     mesh(scene, new T.ConeGeometry(1.75, 1.1, 4), 0xc0573f, TREEHOUSE.x, 5.15, TREEHOUSE.z).rotation.y = Math.PI / 4;
     ball(scene, 0x4b8051, TREEHOUSE.x + 1.1, 4.3, TREEHOUSE.z - .9, .7, .6, .6);
     for (const y of [.5, 1, 1.5, 2, 2.5]) box(scene, 0x8a6a48, TREEHOUSE.x + .9, y, TREEHOUSE.z + 1.25, .5, .06, .06);
-    cylinder(scene, 0x8a6a48, -2.6, .2, -13.2, .36, .4, 14); cylinder(scene, 0xa07b52, -2.6, .55, -12.2, .45, .08, 16); cylinder(scene, 0x7d5c3d, -2.6, .27, -12.2, .07, .5, 8); // 원장 자리
-    cylinder(scene, 0x5d6b73, 2.8, .55, -12.8, .06, 1.1); const scope = cylinder(scene, 0x34434c, 2.8, 1.2, -12.8, .1, .7); scope.rotation.x = 1.1;
+    cylinder(scene, 0x8a6a48, STUMP.x, .2, STUMP.z - 1, .36, .4, 14); cylinder(scene, 0xa07b52, STUMP.x, .55, STUMP.z, .45, .08, 16); cylinder(scene, 0x7d5c3d, STUMP.x, .27, STUMP.z, .07, .5, 8); // 원장 자리
+    cylinder(scene, 0x5d6b73, SCOPE.x, .55, SCOPE.z, .06, 1.1); const scope = cylinder(scene, 0x34434c, SCOPE.x, 1.2, SCOPE.z, .1, .7); scope.rotation.x = 1.1;
 
     // ── 극지 마을: 이글루·눈더미·얼음 연못·눈 덮인 침엽수 ──
     const igloo = mesh(scene, new T.SphereGeometry(1.5, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), 0xf4f8fa, IGLOO.x, 0, IGLOO.z);
     igloo.material.roughness = .6; box(scene, 0xe6eef2, IGLOO.x, .45, IGLOO.z + 1.45, .9, .9, .8);
-    many(scene, new T.SphereGeometry(1, 12, 8), 0xffffff, [[-7.6, -7.4], [-14.6, -7.6], [-8.4, -13.2], [-13.6, -14]].map(([x, z], i) => ({ x, y: .05, z, sx: .7 + i * .1, sy: .35, sz: .6 })));
-    const ice = cylinder(scene, 0xbfe3ef, -14.6, .01, -11.4, 1.2, .04, 28); ice.scale.z = .7; ice.material.roughness = .15;
+    many(scene, new T.SphereGeometry(1, 12, 8), 0xffffff, [[-7.6, -7.4], [-14.6, -7.6], [-8.4, -13.2], [-13.6, -14]].map(kk).map(([x, z], i) => ({ x, y: .05, z, sx: .7 + i * .1, sy: .35, sz: .6 })));
+    const ice = cylinder(scene, 0xbfe3ef, ICE.x, .01, ICE.z, 1.2, .04, 28); ice.scale.z = .7; ice.material.roughness = .15;
     for (const [x, z] of PINES) { cylinder(scene, 0x6b5139, x, .3, z, .1, .6); mesh(scene, new T.ConeGeometry(.6, 1.1, 10), 0x3e6b4f, x, 1.05, z); mesh(scene, new T.ConeGeometry(.38, .7, 10), 0xf2f6f8, x, 1.7, z); }
 
     // ── 대나무 숲 ──
@@ -284,11 +291,11 @@ window.ZooTheme = (() => {
     const lakeBed = cylinder(scene, 0x8fbaa7, LAKE.x, .01, LAKE.z, LAKE.rx + .35, .05, 40); lakeBed.scale.z = (LAKE.rz + .35) / (LAKE.rx + .35); lakeBed.castShadow = false;
     const water = cylinder(scene, 0x56aeb8, LAKE.x, .05, LAKE.z, LAKE.rx, .04, 40); water.scale.z = LAKE.rz / LAKE.rx; water.material.roughness = .22; water.castShadow = false;
     many(scene, new T.SphereGeometry(1, 10, 8), 0x939a8a, Array.from({ length: 26 }, (_, i) => { const a = i / 26 * Math.PI * 2; return { x: LAKE.x + (LAKE.rx + .3) * Math.cos(a), y: .18, z: LAKE.z + (LAKE.rz + .3) * Math.sin(a), sx: .45, sy: .28, sz: .36, ry: a }; }).filter(p => p.x > LAKE.x - LAKE.rx + .4 || Math.abs(p.z - LAKE.z) > 2.2));
-    many(scene, new T.CylinderGeometry(.26, .26, .03, 12), 0x538958, [[15.2, -1.8], [17.6, 2.4], [18.6, -2], [14.6, 2], [16.2, 3.2]].map(([x, z]) => ({ x, y: .085, z })), { cast: false });
-    cylinder(scene, 0x7b9d66, 17.6, .09, -.4, .9, .1, 20); cylinder(scene, 0x866444, 17.6, .6, -.4, .1, 1); ball(scene, 0x5a8c50, 17.6, 1.35, -.4, .55, .5, .5);
-    box(scene, 0xa98257, 12.2, .06, .4, 1.6, .08, 4.2).castShadow = false;
-    for (const z of [-1.6, 2.4]) for (const x of [11.5, 12.9]) cylinder(scene, 0x7d5c3d, x, .45, z, .06, .9);
-    beam(scene, 0x9c7851, [12.9, .8, -1.6], [12.9, .8, 2.4], .04);
+    many(scene, new T.CylinderGeometry(.26, .26, .03, 12), 0x538958, [[15.2, -1.8], [17.6, 2.4], [18.6, -2], [14.6, 2], [16.2, 3.2]].map(kk).map(([x, z]) => ({ x, y: .085, z })), { cast: false });
+    { const ix = k(17.6), iz = k(-.4); cylinder(scene, 0x7b9d66, ix, .09, iz, .9, .1, 20); cylinder(scene, 0x866444, ix, .6, iz, .1, 1); ball(scene, 0x5a8c50, ix, 1.35, iz, .55, .5, .5); }
+    box(scene, 0xa98257, DECK.x, .06, DECK.z, 1.6, .08, 4.2).castShadow = false;
+    for (const dz of [-2, 2]) for (const dx of [-.7, .7]) cylinder(scene, 0x7d5c3d, DECK.x + dx, .45, DECK.z + dz, .06, .9);
+    beam(scene, 0x9c7851, [DECK.x + .7, .8, DECK.z - 2], [DECK.x + .7, .8, DECK.z + 2], .04);
 
     // ── 정글 마을: 야자수·큰 잎 덤불·덩굴 아치 ──
     for (const [x, z] of PALMS) {
@@ -296,29 +303,28 @@ window.ZooTheme = (() => {
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, leaf = ball(scene, i % 2 ? 0x3f8a4a : 0x4f9a52, x + Math.cos(a) * .6, 2, z + Math.sin(a) * .6, .7, .1, .24); leaf.rotation.y = -a; leaf.rotation.z = -.3; }
       ball(scene, 0x6b4a2c, x + .1, 1.85, z, .1);
     }
-    many(scene, new T.SphereGeometry(1, 10, 8), 0x3f7f45, [[-17.6, 1], [-10, -4.2], [-15.6, 6.4], [-8.6, 5]].map(([x, z]) => ({ x, y: .45, z, sx: .9, sy: .6, sz: .8 })));
-    for (const x of [-14.4, -11.6]) cylinder(scene, 0x6b5139, x, 1.3, -4.6, .12, 2.6);
-    mesh(scene, new T.TorusGeometry(1.4, .09, 8, 20, Math.PI), 0x4f8a3f, -13, 2.6, -4.6);
+    many(scene, new T.SphereGeometry(1, 10, 8), 0x3f7f45, [[-17.6, 1], [-10, -4.2], [-15.6, 6.4], [-8.6, 5]].map(kk).map(([x, z]) => ({ x, y: .45, z, sx: .9, sy: .6, sz: .8 })));
+    for (const dx of [-1.4, 1.4]) cylinder(scene, 0x6b5139, VINE.x + dx, 1.3, VINE.z, .12, 2.6);
+    mesh(scene, new T.TorusGeometry(1.4, .09, 8, 20, Math.PI), 0x4f8a3f, VINE.x, 2.6, VINE.z);
 
     // ── 사바나 마을: 아카시아·개미탑·바위 언덕·마른 풀 ──
     for (const [x, z] of ACACIA) { cylinder(scene, 0x7a5a3a, x, .9, z, .12, 1.8); const crown = cylinder(scene, 0x6f8f3e, x, 1.9, z, 1.2, .25, 18); crown.scale.z = .75; }
-    mesh(scene, new T.ConeGeometry(.6, 1.6, 10), 0xb5895a, 15.4, .8, 9.4);
-    many(scene, new T.DodecahedronGeometry(1, 0), 0xa59a86, [[16.8, 10.4, .9], [17.5, 9.2, .7], [7.4, 7.6, .55]].map(([x, z, s]) => ({ x, y: s * .5, z, s, ry: x })));
+    mesh(scene, new T.ConeGeometry(.6, 1.6, 10), 0xb5895a, TERMITE.x, .8, TERMITE.z);
+    many(scene, new T.DodecahedronGeometry(1, 0), 0xa59a86, ROCKS.map(([x, z, s]) => ({ x, y: s * .5, z, s, ry: x })));
 
     // ── 카페·매점: 줄무늬 차양 매대·원탁·파라솔 ──
-    box(scene, 0xe9dcc2, CAFE.x, .55, 13.3, 2.8, 1.1, .9);
-    for (let i = 0; i < 6; i++) box(scene, i % 2 ? 0xf2efe8 : 0x3c8781, CAFE.x - 1.25 + i * .5, 2.05, 13.05, .5, .12, 1.3);
-    for (const x of [-1.3, 1.3]) cylinder(scene, 0x8a6a48, CAFE.x + x, 1, 13.6, .06, 2);
+    box(scene, 0xe9dcc2, CAFE.x, .55, CAFE.z + 2.9, 2.8, 1.1, .9);
+    for (let i = 0; i < 6; i++) box(scene, i % 2 ? 0xf2efe8 : 0x3c8781, CAFE.x - 1.25 + i * .5, 2.05, CAFE.z + 2.65, .5, .12, 1.3);
+    for (const x of [-1.3, 1.3]) cylinder(scene, 0x8a6a48, CAFE.x + x, 1, CAFE.z + 3.2, .06, 2);
     cylinder(scene, 0xd4b07c, CAFE.x, .8, CAFE.z, .9, .1, 24); cylinder(scene, 0x916d47, CAFE.x, .4, CAFE.z, .1, .8);
     cylinder(scene, 0x8a8a8a, CAFE.x, 1.5, CAFE.z, .04, 1.5); mesh(scene, new T.ConeGeometry(1.4, .55, 12), 0xd65c4a, CAFE.x, 2.35, CAFE.z);
 
     // ── 피크닉 잔디밭: 돗자리·벤치·바구니·해먹 ──
-    [[-11.6, 11.4, 0xd9534f], [-8, 12, 0x4f7cf7]].forEach(([x, z, c], i) => { const b = box(scene, c, x, .01, z, 1.8, .02, 1.4); b.rotation.y = .3 + i * .5; b.castShadow = false; });
-    box(scene, 0xba9364, -9, .4, 9.2, 1.8, .15, .65); for (const x of [-9.6, -8.4]) box(scene, 0x916d47, x, .18, 9.2, .13, .35, .5);
-    box(scene, 0xba9364, -12.6, .4, 8.4, 1.8, .15, .65); for (const x of [-13.2, -12]) box(scene, 0x916d47, x, .18, 8.4, .13, .35, .5);
-    box(scene, 0xb07a3c, -11.2, .18, 11.6, .5, .35, .38);
-    for (const x of [-15.4, -13]) cylinder(scene, 0x7d5c3d, x, .9, 13.4, .1, 1.8);
-    const hammock = mesh(scene, new T.CylinderGeometry(.5, .5, 2.3, 14, 1, true, 0, Math.PI), 0xe6c35c, -14.2, 1.05, 13.4); hammock.rotation.z = Math.PI / 2; hammock.material.side = T.DoubleSide;
+    [[-11.6, 11.4, 0xd9534f], [-8, 12, 0x4f7cf7]].map(kk).forEach(([x, z, c], i) => { const b = box(scene, c, x, .01, z, 1.8, .02, 1.4); b.rotation.y = .3 + i * .5; b.castShadow = false; });
+    for (const [bx, bz] of BENCHES) { box(scene, 0xba9364, bx, .4, bz, 1.8, .15, .65); for (const dx of [-.6, .6]) box(scene, 0x916d47, bx + dx, .18, bz, .13, .35, .5); }
+    box(scene, 0xb07a3c, k(-11.2), .18, k(11.6), .5, .35, .38);
+    for (const dx of [-1.2, 1.2]) cylinder(scene, 0x7d5c3d, HAMMOCK.x + dx, .9, HAMMOCK.z, .1, 1.8);
+    const hammock = mesh(scene, new T.CylinderGeometry(.5, .5, 2.3, 14, 1, true, 0, Math.PI), 0xe6c35c, HAMMOCK.x, 1.05, HAMMOCK.z); hammock.rotation.z = Math.PI / 2; hammock.material.side = T.DoubleSide;
 
     // ── 숲 나무(InstancedMesh: 줄기 1 + 잎 3) ──
     const trunks = [], leafA = [], leafB = [], leafC = [];
@@ -332,7 +338,7 @@ window.ZooTheme = (() => {
     many(scene, new T.SphereGeometry(1, 14, 10), 0x4b8051, leafA); many(scene, new T.SphereGeometry(1, 12, 8), 0x6a9859, leafB); many(scene, new T.SphereGeometry(1, 12, 8), 0x5a8c50, leafC);
     // 꽃·풀 덤불(빈 땅에 흩어 심기)
     const bushes = [], flowers = [], rf = rng(23);
-    for (let i = 0; bushes.length < 120 && i < 3000; i++) {
+    for (let i = 0; bushes.length < 230 && i < 6000; i++) {
       const x = (rf() * 2 - 1) * (RX - .8), z = (rf() * 2 - 1) * (RZ - .8);
       if (!inIsland(x, z, .9) || nearZone(x, z, -.3) || onPath(x, z, .9) || nearDesk(x, z, .6)) continue;
       bushes.push({ x, y: .14, z, sx: .3 + rf() * .15, sy: .18, sz: .28 });
@@ -341,9 +347,9 @@ window.ZooTheme = (() => {
     many(scene, new T.SphereGeometry(1, 8, 6), 0x689455, bushes, { cast: false }); many(scene, new T.SphereGeometry(1, 6, 5), 0xffffff, flowers, { cast: false });
 
     // ── 울타리(정문 자리는 비운다) ──
-    const posts = [], rails = [], N = 72;
+    const posts = [], rails = [], N = 100;
     for (let i = 0; i < N; i++) {
-      const a = i / N * Math.PI * 2, b = (i + 1) / N * Math.PI * 2, gate = t => t > 1.43 && t < 1.71;
+      const a = i / N * Math.PI * 2, b = (i + 1) / N * Math.PI * 2, gate = t => Math.abs(t - Math.PI / 2) < 2.4 / RZ;
       const x = (RX - .4) * Math.cos(a), z = (RZ - .4) * Math.sin(a);
       if (gate(a)) continue;
       posts.push({ x, y: .48, z });
@@ -368,8 +374,8 @@ window.ZooTheme = (() => {
     many(scene, new T.CylinderGeometry(.05, .06, 1.8, 8), 0x3b3f42, lampPts.map(p => ({ ...p, y: .9 })));
     const bulbs = new T.InstancedMesh(new T.SphereGeometry(.17, 12, 8), bulbMat, lampPts.length);
     { const o = new T.Object3D(); lampPts.forEach((p, i) => { o.position.set(p.x, 1.9, p.z); o.updateMatrix(); bulbs.setMatrixAt(i, o.matrix); }); scene.add(bulbs); }
-    const lights = [{ x: 0, z: MEET_TABLE.z }, { x: CAFE.x, z: CAFE.z }, { x: 0, z: 13 }].map(p => { const l = new T.PointLight(0xffc98a, 0, 14, 2); l.position.set(p.x, 3, p.z); scene.add(l); return l; });
-    const flyN = 90, flyPos = new Float32Array(flyN * 3), fr = rng(5);
+    const lights = [{ x: 0, z: MEET_TABLE.z }, { x: CAFE.x, z: CAFE.z }, { x: 0, z: k(13) }].map(p => { const l = new T.PointLight(0xffc98a, 0, 14, 2); l.position.set(p.x, 3, p.z); scene.add(l); return l; });
+    const flyN = 160, flyPos = new Float32Array(flyN * 3), fr = rng(5);
     for (let i = 0; i < flyN; i++) { let x, z; do { x = (fr() * 2 - 1) * RX; z = (fr() * 2 - 1) * RZ; } while (!inIsland(x, z, 1)); flyPos.set([x, .6 + fr() * 1.8, z], i * 3); }
     const flyGeo = new T.BufferGeometry(); flyGeo.setAttribute('position', new T.BufferAttribute(flyPos, 3));
     const flies = new T.Points(flyGeo, new T.PointsMaterial({ color: 0xfff3a0, size: .14, transparent: true, opacity: 0, depthWrite: false }));
@@ -425,24 +431,25 @@ window.ZooTheme = (() => {
     return [
       R(LAKE.x, LAKE.z, LAKE.rx * 2 + .6, LAKE.rz * 2 + .6, 'lake'), ...wallSegments().map(seg => seg.axis === 'x' ? R((seg.a + seg.b) / 2, seg.at, seg.b - seg.a + .18, .2, 'wall') : R(seg.at, (seg.a + seg.b) / 2, .2, seg.b - seg.a + .18, 'wall')),
       R(MEET_TABLE.x, MEET_TABLE.z, MEET_TABLE.w, MEET_TABLE.d, 'meeting-table'), R(SCREEN.x, ROOM.z0 + .2, SCREEN.w + .2, .3, 'screen'), R(FOUNTAIN.x, FOUNTAIN.z, 2.5, 2.5, 'fountain'),
-      R(-4.4, 14.5, 2, 1.5, 'ticket'), R(-2.4, 15.8, .5, .5, 'gate'), R(2.4, 15.8, .5, .5, 'gate'),
-      R(TREEHOUSE.x, TREEHOUSE.z, 2.9, 2.6, 'treehouse'), R(-2.6, -12.2, .9, .9, 'stump-table'), R(2.8, -12.8, .4, .4, 'scope'),
-      R(IGLOO.x, IGLOO.z + .3, 3.1, 3.4, 'igloo'), R(-14.6, -11.4, 2.3, 1.6, 'ice'),
-      R(CAFE.x, 13.3, 3, 1, 'kiosk'), R(CAFE.x, CAFE.z, 1.8, 1.8, 'cafe-table'), R(15.4, 9.4, 1.2, 1.2, 'termite'),
+      R(TICKET.x, TICKET.z, 2, 1.5, 'ticket'), R(GATE.x - 2.4, GATE.z, .5, .5, 'gate'), R(GATE.x + 2.4, GATE.z, .5, .5, 'gate'),
+      R(TREEHOUSE.x, TREEHOUSE.z, 2.9, 2.6, 'treehouse'), R(STUMP.x, STUMP.z, .9, .9, 'stump-table'), R(SCOPE.x, SCOPE.z, .4, .4, 'scope'),
+      R(IGLOO.x, IGLOO.z + .3, 3.1, 3.4, 'igloo'), R(ICE.x, ICE.z, 2.3, 1.6, 'ice'),
+      R(CAFE.x, CAFE.z + 2.9, 3, 1, 'kiosk'), R(CAFE.x, CAFE.z, 1.8, 1.8, 'cafe-table'), R(TERMITE.x, TERMITE.z, 1.2, 1.2, 'termite'),
       ...BAMBOO.map(([x, z]) => R(x, z, 2, 1.8, 'bamboo')), ...PALMS.map(([x, z]) => R(x, z, .6, .6, 'palm')), ...ACACIA.map(([x, z]) => R(x, z, .5, .5, 'acacia')),
       ...PINES.map(([x, z]) => R(x, z, .6, .6, 'pine')), ...TREES.map(([x, z]) => R(x, z, .55, .55, 'tree')),
-      R(16.8, 10.4, 1.6, 1.6, 'rock'), R(17.5, 9.2, 1.2, 1.2, 'rock'), R(7.4, 7.6, .9, .9, 'rock'),
+      ...ROCKS.map(([x, z, s]) => R(x, z, s * 1.75, s * 1.75, 'rock')),
       ...desks.map(d => R(d.x, d.z, d.w, .85, 'desk')),
     ];
   }
+  const rect = (x0, x1, z0, z1, label) => ({ x0: k(x0), x1: k(x1), z0: k(z0), z1: k(z1), label });
   const rooms = {
-    lobby: { x0: -5, x1: 5, z0: 10, z1: 17, label: '정문 광장' },
-    work: { x0: -17, x1: 15, z0: -12, z1: 11, label: '서식지 마을' },
+    lobby: rect(-5, 5, 10, 17, '정문 광장'),
+    work: rect(-17, 15, -12, 11, '서식지 마을'),
     meeting: { x0: ROOM.x0, x1: ROOM.x1, z0: ROOM.z0, z1: ROOM.z1, label: '회의실' },
-    exec: { x0: -4, x1: 4, z0: -16, z1: -8, label: '팀장 전망대' },
-    pantry: { x0: 1.5, x1: 7.5, z0: 8, z1: 14, label: '카페' },
-    lounge: { x0: -15, x1: -5, z0: 7, z1: 14.5, label: '피크닉 잔디밭' },
-    balcony: { x0: 11, x1: 21, z0: -5, z1: 5.5, label: '호수 데크' },
+    exec: rect(-4, 4, -16, -8, '팀장 전망대'),
+    pantry: rect(1.5, 7.5, 8, 14, '카페'),
+    lounge: rect(-15, -5, 7, 14.5, '피크닉 잔디밭'),
+    balcony: rect(11, 21, -5, 5.5, '호수 데크'),
   };
   for (const room of Object.values(rooms)) room.door = null;
 
@@ -460,20 +467,21 @@ window.ZooTheme = (() => {
     };
     window.Decor = { OW, OD, PART_H: 0, SEATS: desks.length, rooms, nav, sun: office.sun, spots, navRects, build, deskSet, spareDesks, walkable: (x, z) => nav.walkable(x, z),
       TABLE: { x: MEET_TABLE.x, z: MEET_TABLE.z }, PRESENT_SPOT: { x: SCREEN.x - SCREEN.w / 2 - .7, z: ROOM.z0 + 1.1 }, WHITEBOARD: { x: SCREEN.x, z: ROOM.z0 + 1.2 }, BOARD_FACE: { x: SCREEN.x, z: ROOM.z0 },
-      COUNTER: { x: CAFE.x, z: 13.3 }, PANTRY_TABLE: { ...CAFE }, COFFEE: coffees,
+      COUNTER: { x: CAFE.x, z: CAFE.z + 2.9 }, PANTRY_TABLE: { ...CAFE }, COFFEE: coffees,
       // 조연(life.js) 장소: 원장 그루터기 자리·발표 때 서서 듣는 회의실 뒤편·산책 지점·경리팀장 순찰 지점·회의실 문 앞·말투용 구역
       NPC: {
-        headSeat: { x: -2.6, z: -13.2 }, headFace: { x: -2.6, z: -10 },
+        headSeat: { x: STUMP.x, z: STUMP.z - 1 }, headFace: { x: STUMP.x, z: STUMP.z + 2.2 },
         back: [{ x: -4.4, z: 2.7 }, { x: 4.4, z: 2.7 }, { x: 4.4, z: -2.4 }],
         wander: [[0, -5.4], [-4.4, -5.4], [4.4, -5.4], [-6.6, -.7], [6.6, -.3], [4.4, 4.4], [2.1, 4.4], [-4, 4.4], [0, 6.6], [0, 9.2], [-11, -7.4], [11, -7], [-13.2, -3.2], [12, 5.8],
-          [-10, 12.6], [4.4, 8.2], [11, 12.6], [-6.8, 13.4], [-16, 7.4], [16.8, -6.4], [-6, -12.6], [6.4, -10.8]].map(([x, z]) => ({ x, z })),
-        duckSpots: [[CAFE.x - 2.4, CAFE.z - .8], [CAFE.x + 2.4, CAFE.z - .8], [0, 4.4], [-6.6, .3], [6.6, .3], [11.6, 1.4], [-9, 10.4], [0, 13.6]].map(([x, z]) => ({ x, z })),
+          [-10, 12.6], [4.4, 8.2], [11, 12.6], [-6.8, 13.4], [-16, 7.4], [16.8, -6.4], [-6, -12.6], [6.4, -10.8]].map(([x, z]) => ({ x: k(x), z: k(z) })),
+        duckSpots: [[CAFE.x - 2.4, CAFE.z - .8], [CAFE.x + 2.4, CAFE.z - .8], [0, 4.4], [-6.6, .3], [6.6, .3], [k(11.6), k(1.4)], [k(-9), k(10.4)], [0, k(13.6)]].map(([x, z]) => ({ x, z })),
         meetingDoor: { x: 0, z: 4.6 },
         zones,
       },
-      ENTRANCE: { x: 0, z: 14.2 }, LOBBY_DOOR: { axis: 'x', x: 0, z: 15.2 }, REPORT_SPOT: { x: 1.8, z: -9.3 },
-      LIFE: { walk: [{ x: -5.6, z: 6.2 }, { x: -7, z: -.6 }, { x: -6.3, z: -6 }], window: { x: 11.5, z: .9 }, windowFace: { x: LAKE.x, z: LAKE.z },
-        sofaApproach: { x: -9, z: 10.2 }, sofa: { x: -9, z: 9.55 }, sofaFace: { x: -9, z: 12 }, chat: [{ x: 2.2, z: 10.4 }, { x: 6.8, z: 10.4 }] },
+      ENTRANCE: { x: 0, z: k(14.2) }, LOBBY_DOOR: { axis: 'x', x: 0, z: GATE.z - .6 }, REPORT_SPOT: { x: desks[0].x + 1.8, z: desks[0].z + 1.3 },
+      LIFE: { walk: [{ x: k(-5.6), z: k(6.2) }, { x: k(-7), z: k(-.6) }, { x: k(-6.3), z: k(-6) }], window: { x: DECK.x - .7, z: DECK.z + .5 }, windowFace: { x: LAKE.x, z: LAKE.z },
+        sofaApproach: { x: BENCHES[0][0], z: BENCHES[0][1] + 1 }, sofa: { x: BENCHES[0][0], z: BENCHES[0][1] + .35 }, sofaFace: { x: BENCHES[0][0], z: BENCHES[0][1] + 2.8 },
+        chat: [{ x: CAFE.x - 2.3, z: CAFE.z }, { x: CAFE.x + 2.3, z: CAFE.z }] },
       theme(n) {
         n = Math.max(0, Math.min(1, +n || 0)); night.set(n);
         // 바깥 공간: 사무실용 하늘빛(실내 밝은 벽 기준)을 조금 줄이고 햇빛을 키워 그림자·색이 또렷하게
@@ -508,6 +516,6 @@ window.ZooTheme = (() => {
   }
 
   if (window.SpaceTheme?.isZoo) activate();
-  return { buildAnimal, faces, icon, isExtra, PATHS, FOUNTAIN, CAFE, STAGE, ROOM, kindOf, setKind, assign, species, openPicker, spots, navRects, desks, meetings, zones, LAKE, RX, RZ,
+  return { S, buildAnimal, faces, icon, isExtra, PATHS, FOUNTAIN, CAFE, STAGE, ROOM, kindOf, setKind, assign, species, openPicker, spots, navRects, desks, meetings, zones, LAKE, RX, RZ,
     get icons() { const o = {}; for (const n of teamNames()) o[n] = icon(n); return o; } };
 })();
