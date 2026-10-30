@@ -11,7 +11,7 @@ window.PixelTheme = (() => {
     if(!images.has(src)){const im=new Image();im.src=src;images.set(src,im);}
     const im=images.get(src);return im.complete&&im.naturalWidth?im:null;
   }
-  if(window.SpaceTheme?.isPixel)for(const a of [...Object.values(assets.characters),...Object.values(assets.furniture)])imageOf(a.src);
+  if(window.SpaceTheme?.isPixel)for(const a of [...Object.values(assets.characters),...Object.values(window.PIXEL_ASSETS_V3?.characters||{}),...Object.values(assets.furniture)])imageOf(a.src);
   const lookKey=name=>'agentOffice.pixel.appearance.'+name,lookOverrides=new Map();
   function lookOf(name){let saved=lookOverrides.get(name);try{saved||=localStorage.getItem(lookKey(name));}catch{}return assets.characters[saved]&&['claude','gpt','gemini'].includes(saved)?saved:name;}
   function setLook(name,id,names){
@@ -19,8 +19,9 @@ window.PixelTheme = (() => {
     lookOverrides.set(name,id);try{localStorage.setItem(lookKey(name),id);}catch{}return true;
   }
   function frameOf(key,pose,dir,step){
-    const a=assets.characters[key];if(!a)return null;
+    const a=window.PIXEL_ASSETS_V3?.characters[key]||assets.characters[key];if(!a)return null;
     const action=pose==='type'||pose==='seatedTea'?'sit':pose;
+    if(action==='walk'&&step===2)return {asset:a,frame:a.frames[`stand.${dir}`]||a.frames['stand.front']};
     let name=action==='walk'?`walk.${dir}.${step}`:action==='tea'?`tea.${dir==='side'?'side':'front'}`:action==='present'?'present.front':`${action}.${dir}`;
     return {asset:a,frame:a.frames[name]||a.frames['stand.front']};
   }
@@ -42,6 +43,7 @@ window.PixelTheme = (() => {
   const hash=s=>[...String(s)].reduce((n,c)=>(n*31+c.charCodeAt(0))>>>0,7);
   function styleOf(key){return people[key]||{hair:['#56413b','#303844','#795a43'][hash(key)%3],shirt:['#c98687','#8fae9c','#b7a0c3','#d2b872','#82a5bd'][hash(key)%5],pants:'#455764',long:hash(key)%3===0,bun:hash(key)%5===0,glasses:hash(key)%4===0};}
   function sprite(key,pose='stand',direction='front',frame=0){
+    if(pose==='walk'&&frame===2)pose='stand';
     const id=[key,pose,direction,frame].join(':');if(spriteCache.has(id))return spriteCache.get(id);
     const cv=document.createElement('canvas');cv.width=24;cv.height=36;
     const c=cv.getContext('2d'),p=styleOf(key),skin='#edbc92',back=direction==='back',side=direction==='side';
@@ -76,16 +78,28 @@ window.PixelTheme = (() => {
     spriteCache.set(id,cv);return cv;
   }
   function faces(key){
-    if(assets.characters[key])return {src:assets.characters[key].portrait,n:1,index:()=>0};
+    const art=window.PIXEL_ASSETS_V3?.characters[key]||assets.characters[key];
+    if(art)return {src:art.portrait,n:1,index:()=>0};
     if(faceCache.has(key))return faceCache.get(key);
     const cv=document.createElement('canvas');cv.width=cv.height=24;const c=cv.getContext('2d');
     c.fillStyle=styleOf(key).shirt;c.fillRect(0,0,24,24);c.imageSmoothingEnabled=false;c.drawImage(sprite(key),0,0,24,16,0,1,24,24);
     const face={src:cv.toDataURL(),n:1,index:()=>0};faceCache.set(key,face);return face;
   }
+  // Advance the gait by distance, not wall-clock time: blocked walkers keep both feet planted.
+  function updateMotion(rig,a,dt,seated){
+    const m=rig.pixel,p=rig.group.position;
+    const distance=m.last?Math.hypot(p.x-m.last.x,p.z-m.last.z):0;
+    m.moving=a.mode==='walk'&&distance>.0001&&distance<Math.max(2,dt*12);
+    if(m.moving)m.travel=(m.travel||0)+distance;
+    else m.travel=0;
+    m.last={x:p.x,z:p.z};m.agent=a;m.seated=seated;
+    rig.height=(seated?2.45:3)*(m.scale||1);
+  }
+  function motionFrame(rig,reduced){return reduced||!rig.pixel.moving?2:[0,2,1,2][Math.floor((rig.pixel.travel||0)/.32)%4];}
   function buildCharacter(def,key){
     const group=new T.Group(),bone=()=>new T.Group();
     const rig={group,body:bone(),legs:[bone(),bone()],arms:[bone(),bone()],head:bone(),cup:bone(),height:3,pixel:{key,agent:null,seated:false},setFace(){},dispose(){rigs.delete(rig);}};
-    rig.faceStrip=faces(key);rig.sprite={hold:()=>false,update(a,dt,seated){rig.pixel.agent=a;rig.pixel.seated=seated;rig.height=seated?2.45:3;}};
+    rig.faceStrip=faces(key);rig.sprite={hold:()=>false,update(a,dt,seated){updateMotion(rig,a,dt,seated);}};
     rigs.add(rig);return rig;
   }
   // Keep the office's tested routes, 12 desks, 12 meeting/coffee seats and 7 room roles.
@@ -145,13 +159,18 @@ window.PixelTheme = (() => {
     drawCharacter(rig,now){
       const a=rig.pixel.agent;if(!a||a.hidden||!rig.group.visible)return;
       const pos=rig.group.position,p=this.point(pos.x,0,pos.z);
-      const pose=a.presenting||a.mode==='write'?'present':a.lifePose==='seatedTea'?'seatedTea':a.lifePose==='tea'||a.mode==='coffee'?'tea':rig.pixel.seated?(a.mode==='type'?'type':'sit'):a.mode==='walk'?'walk':'stand';
-      const rel=Math.atan2(Math.sin(a.targetRot-Math.PI/4),Math.cos(a.targetRot-Math.PI/4));
-      const direction=Math.abs(rel)>2.2?'back':Math.abs(rel)>.7?'side':'front';
-      const still=window.SpaceTheme?.reduce||document.hidden,frame=still?0:Math.floor(now/(pose==='type'?180:180))%2;
+      const pose=a.presenting||a.mode==='write'?'present':a.lifePose==='seatedTea'?'seatedTea':a.lifePose==='tea'||a.mode==='coffee'?'tea':rig.pixel.seated?(a.mode==='type'?'type':'sit'):a.mode==='walk'&&rig.pixel.moving?'walk':'stand';
+      const forward=new T.Vector3();this.camera.getWorldDirection(forward);
+      const bearing=Math.atan2(-forward.x,-forward.z);
+      const rot=Number.isFinite(rig.group.rotation.y)?rig.group.rotation.y:a.targetRot;
+      const rel=Math.atan2(Math.sin(rot-bearing),Math.cos(rot-bearing)),angle=Math.abs(rel);
+      const old=rig.pixel.direction;
+      const direction=old==='front'&&angle<.85?'front':old==='back'&&angle>2.15?'back':old==='side'&&angle>.55&&angle<2.45?'side':angle>2.3?'back':angle>.7?'side':'front';
+      rig.pixel.direction=direction;
+      const still=window.SpaceTheme?.reduce||document.hidden,frame=pose==='walk'?motionFrame(rig,still):still?0:Math.floor(now/220)%2;
       const generated=frameOf(rig.pixel.key,pose,direction,frame),im=imageOf(generated?.asset.src),f=generated?.frame;
       const top=this.point(pos.x,3,pos.z),unitHeight=Math.max(12,p.y-top.y);
-      const h=Math.max(8,Math.round(unitHeight*(im?f.h/48:rig.pixel.seated?2.45/3:1)));
+      const h=Math.max(8,Math.round(unitHeight*(rig.pixel.scale||1)*(im?f.h/48:rig.pixel.seated?2.45/3:1)));
       const w=Math.max(5,Math.round(h*(im?f.w/f.h:24/36))),c=this.ctx;
       this.floor(pos.x,pos.z,1.15,.65,'#263c4320');
       if(rig.pixel.seated&&!['lounge','seatedTea'].includes(a.lifePose))this.chair(pos.x,pos.z);
@@ -159,30 +178,34 @@ window.PixelTheme = (() => {
       if(im)c.drawImage(im,f.x,f.y,f.w,f.h,Math.round(-w/2),-h,w,h);
       else c.drawImage(sprite(rig.pixel.key,pose,direction,frame),Math.round(-w/2),-h,w,h);
       c.restore();
+      rig.pixel.placeLabel?.(p,h);
       this.hits.push({a,x:p.x-w/2-2,y:p.y-h-2,w:w+4,h:h+4});
     }
     render(scene,camera){
       this.camera=camera;this.clear();this.hits=[];
       const origin=this.point(0,0,0),u=this.point(1,0,0);this.unit=Math.max(2,Math.hypot(u.x-origin.x,u.y-origin.y));
-      const c=this.ctx;
+      const c=this.ctx,compact=this.width<=760;
       // Sparse matte floor: long planks and flat room rugs, no reflected highlights.
-      this.block(0,0,40,40,.35,'#e8d9b9','#667779',-.35);
-      for(let z=-20;z<20;z+=2.5)this.floor(0,z+1.25,40,2.5,(z/2.5)%2===0?'#e5d4b2':'#e9dabc');
-      for(const [key,color]of Object.entries({balcony:'#acbf94',meeting:'#bdd0c1',exec:'#dbc9ba',pantry:'#e0d8bf',lounge:'#bdd0c1',lobby:'#e5dfcd'})){
+      this.block(0,0,decor.OW,decor.OD,.35,'#e8d9b9','#667779',-.35);
+      for(let z=-20;!compact&&z<20;z+=2.5)this.floor(0,z+1.25,40,2.5,(z/2.5)%2===0?'#e5d4b2':'#e9dabc');
+      for(const [key,color]of Object.entries(compact?{}:{balcony:'#acbf94',meeting:'#bdd0c1',exec:'#dbc9ba',pantry:'#e0d8bf',lounge:'#bdd0c1',lobby:'#e5dfcd'})){
         const r=decor.rooms[key];this.floor((r.x0+r.x1)/2,(r.z0+r.z1)/2,r.x1-r.x0,r.z1-r.z0,color);
       }
-      for(const [x,z]of [[-15,-2.5],[-8,-2.5],[-1,-2.5],[-15,-10.75],[-8,-10.75]])this.floor(x,z,4.5,4,'#c5d0bb');
-      const queue=[],add=(x,z,fn)=>queue.push({depth:x+z,fn});
+      for(const [x,z]of (compact?[]:[[-15,-2.5],[-8,-2.5],[-1,-2.5],[-15,-10.75],[-8,-10.75]]))this.floor(x,z,4.5,4,'#c5d0bb');
+      const queue=[],add=(x,z,fn)=>queue.push({depth:this.point(x,0,z).y,fn});
       // Low cutaway partitions retain the exact navigation openings of the common map.
       const wall=(x,z,w,d)=>add(x,z,()=>this.block(x,z,w,d,1.15,'#faf1d9','#a0b0a4'));
+      if(!compact){
       wall(0,-20,40,.35);wall(-20,0,.35,40);
       for(const r of Object.values(decor.rooms)){
         if(!r.door)continue;const door=r.door,vertical=door.axis==='z',start=vertical?r.z0:r.x0,end=vertical?r.z1:r.x1,at=vertical?door.z:door.x;
         for(const [a,b]of [[start,at-door.w/2],[at+door.w/2,end]])if(b>a)vertical?wall(door.x,(a+b)/2,.2,b-a):wall((a+b)/2,door.z,b-a,.2);
       }
+      }
       const now=window.SpaceTheme?.reduce?0:performance.now();
-      for(const d of office.slots(12))add(d.x,d.z,()=>this.desk(d,now));
-      for(const s of office.spots(12))add(s.seat.x,s.seat.z,()=>this.chair(s.seat.x,s.seat.z));
+      for(const d of decor.slots(12))add(d.x,d.z,()=>this.desk(d,now));
+      for(const s of decor.spots(12))add(s.seat.x,s.seat.z,()=>this.chair(s.seat.x,s.seat.z));
+      if(!compact){
       add(decor.TABLE.x,decor.TABLE.z,()=>this.asset('meetingTable',decor.TABLE.x,decor.TABLE.z,5,2));
       for(const s of office.MEET_SEATS||[])add(s.x,s.z,()=>this.chair(s.x,s.z));
       add(9,-9,()=>this.asset('display',9,-9,1.1,2.8));
@@ -196,10 +219,11 @@ window.PixelTheme = (() => {
       for(let x=-17;x<19;x+=4){add(x,-19,()=>{this.block(x,-19,2.9,.18,2.7,night>.5?'#6c88a1':'#a9d9da','#587b82');const p=this.point(x,2.1,-19);this.rect(p.x-1,p.y-4,2,10,'#e7d6b4');});}
       for(const [x,z]of [[-18,-12],[2,-12],[3,8],[-18,18],[17,18],[18,2],[17,-17],[-17,-17],[-11,-17],[18,-12]])add(x,z,()=>this.plant(x,z,true));
       add(18,5,()=>this.asset('bookcase',18,5,1,3));
+      }
       for(const rig of rigs){const a=rig.pixel.agent;if(a&&!a.hidden)add(rig.group.position.x,rig.group.position.z,()=>this.drawCharacter(rig,now));}
       queue.sort((a,b)=>a.depth-b.depth);for(const item of queue)item.fn();
-      for(let i=0;i<3;i++){const t=window.SpaceTheme?.reduce?0:ambientTime,p=this.point(-8+i*3+Math.sin(t*.2+i)*.35,.1,-17.4+Math.cos(t*.2+i)*.3);this.rect(p.x-2,p.y-1,4,2,'#e7e1cb');this.rect(p.x+2,p.y-2,1,2,'#637e80');this.rect(p.x-1,p.y+1,2,1,'#907b66');}
-      for(const key of Object.keys(decor.rooms))this.roomSign(key);
+      for(let i=0;!compact&&i<3;i++){const t=window.SpaceTheme?.reduce?0:ambientTime,p=this.point(-8+i*3+Math.sin(t*.2+i)*.35,.1,-17.4+Math.cos(t*.2+i)*.3);this.rect(p.x-2,p.y-1,4,2,'#e7e1cb');this.rect(p.x+2,p.y-2,1,2,'#637e80');this.rect(p.x-1,p.y+1,2,1,'#907b66');}
+      for(const key of compact?[]:Object.keys(decor.rooms))this.roomSign(key);
       // Evening uses a flat, restrained tint rather than bright reflections.
       if(night>.01){c.fillStyle=`rgba(27,42,68,${night*.22})`;c.fillRect(0,0,this.domElement.width,this.domElement.height);}
       // Quiet pixel stars in the surrounding void, kept away from room objects.
@@ -208,5 +232,5 @@ window.PixelTheme = (() => {
     pick(clientX,clientY){const r=this.domElement.getBoundingClientRect(),x=(clientX-r.left)/r.width*this.domElement.width,y=(clientY-r.top)/r.height*this.domElement.height;return [...this.hits].reverse().find(h=>x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h)?.a||null;}
   }
   if(window.SpaceTheme?.isPixel)window.Decor=decor;
-  return {Renderer,buildCharacter,faces,sprite,frameOf,snapCamera,lookOf,setLook,assets,styleOf,decor,palette,stepAmbient(t){ambientTime=t;}};
+  return {Renderer,buildCharacter,updateMotion,motionFrame,faces,sprite,frameOf,snapCamera,lookOf,setLook,assets,styleOf,decor,palette,stepAmbient(t){ambientTime=t;}};
 })();

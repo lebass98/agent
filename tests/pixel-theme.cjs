@@ -60,3 +60,36 @@ for(let i=0;i<10;i++){
  assert(before.distanceTo(camera.position)<1e-8,'snapping does not cause drift');
 }
 console.log('픽셀 테마: 공통 규격·전 구역 이동·9명 전용 144프레임·가구 12종·픽셀 격자 고정·2D 렌더·클릭·숨김·외형 해제·조연 구조 통과');
+
+// Gait phase follows distance and remains still while waiting/blocked, at every playback speed.
+const walker=pixel.buildCharacter({},'gpt'),walking={mode:'walk',targetRot:0};
+pixel.updateMotion(walker,walking,.016,false);
+assert.equal(pixel.motionFrame(walker,false),2,'no displacement means planted feet');
+walker.group.position.x=.33;pixel.updateMotion(walker,walking,.1,false);
+assert.equal(pixel.motionFrame(walker,false),2,'passing pose after first contact');
+walker.group.position.x=.65;pixel.updateMotion(walker,walking,.1,false);
+assert.equal(pixel.motionFrame(walker,false),1,'opposite contact after half stride');
+assert.equal(pixel.motionFrame(walker,true),2,'reduced motion plants both feet');
+pixel.updateMotion(walker,walking,.1,false);assert.equal(walker.pixel.moving,false,'blocked walker does not walk on the spot');
+walker.group.position.x=20;pixel.updateMotion(walker,walking,.016,false);assert.equal(walker.pixel.moving,false,'teleport does not animate a long stride');
+walker.dispose();
+
+const mobile={...s,window:{...s.window,Decor:{...pixel.decor},SpaceTheme:{isPixel:true}},matchMedia:()=>({matches:true})};
+vm.createContext(mobile);vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/pixel/mobile-layout.js'),'utf8'),mobile);
+const compact=mobile.window.Decor;
+assert(compact.OW<d.OW&&compact.OD<d.OD,'mobile floor is physically smaller');
+assert.equal(compact.slots(12).length,12,'all personal desks supported');
+assert.equal(new Set(compact.slots(12).map(p=>p.x+','+p.z)).size,12,'desks never overlap');
+compact.nav.build(compact.navRects(12));
+for(const p of [...compact.spots(12).flatMap(s=>[s.seat,s.meet,s.coffee]),...compact.NPC.wander]){
+ const from=compact.nav.nearest(compact.ENTRANCE),to=compact.nav.nearest(p);
+ assert(from&&to&&compact.nav.astar(from,to),'compact layout destinations remain reachable');
+}
+const v3=JSON.parse(fs.readFileSync(path.join(__dirname,'../web/pixel/v3/manifest.json')));
+assert.equal(Object.keys(v3.characters).length,10,'nine adults plus human Eden');
+for(const [id,a] of Object.entries(v3.characters)){
+ assert.equal(Object.keys(a.frames).length,16);
+ for(const f of Object.values(a.frames))assert(f.w>0&&f.h>0&&f.x+f.w<=256&&f.y+f.h<=256,id+' frame fits atlas');
+ for(const file of [a.src,a.portrait])assert(fs.existsSync(path.join(__dirname,'../web',file)));
+}
+console.log('이동 거리 기반 보행·멈춤·순간 이동·동작 줄이기·모바일 12석 길 찾기·신규 10명 행동 에셋 통과');

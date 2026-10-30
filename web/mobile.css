@@ -66,5 +66,17 @@
   .dashboard-v2 .run-strip { display:none; }
   .dashboard-v2 .office-frame { top:var(--mobile-top); }
   .dashboard-v2 .office-tools { display:flex;justify-content:center; }
-  .dashboard-v2 .office-tools .tool-group:has([data-pan]) { display:none; }
+}
+/* 카메라 조작은 한 줄 트레이로, 요청할 때만 위로 펼친다. */
+.camera-toggle { display:none; }
+@media(max-width:760px) {
+  .dashboard-v2 .camera-toggle { position:absolute;left:8px;bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);font:inherit;font-size:12px; }
+  .dashboard-v2 .office-tools { display:flex;left:8px;right:8px;bottom:60px;gap:6px;justify-content:flex-start;padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow-x:auto;visibility:hidden;opacity:0;transform:translateY(10px);transition:opacity .18s,transform .18s,visibility .18s;pointer-events:none; }
+  .dashboard-v2 .office-tools .tool-group { display:flex;flex:none;gap:4px; }
+  .dashboard-v2 .camera-tools-open .office-tools { visibility:visible;opacity:1;transform:none;pointer-events:auto; }
+  .dashboard-v2 .office-tools .outside-zoom { position:static;flex:none; }
+}
+@media(prefers-reduced-motion:reduce) { .dashboard-v2 .office-tools { transition:none; } }
+@media(max-width:760px) {
+  [data-space-theme=pixel] .room-switch button:not([data-room=all]):not([data-room=work]) { display:none; }
 }
