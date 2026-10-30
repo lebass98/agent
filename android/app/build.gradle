@@ -1,0 +1,35 @@
+plugins {
+    id "com.android.application"
+}
+
+def envFile = rootProject.file("../.env")
+def accessKey = envFile.exists() ? envFile.readLines().find { it.startsWith("ACCESS_KEY=") }?.substring(11)?.trim() : null
+// 컴퓨터의 Tailscale 이름: android/local.properties(Git 제외)의 serverHost=... 또는 -PserverHost=...
+def localProps = new Properties()
+def localFile = rootProject.file("local.properties")
+if (localFile.exists()) localFile.withInputStream { localProps.load(it) }
+def serverHost = project.findProperty("serverHost") ?: localProps.getProperty("serverHost", "127.0.0.1")
+
+android {
+    namespace "com.wordncode.agentoffice"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.wordncode.agentoffice"
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName "0.1"
+        // 기본 서버 주소: Tailscale 이름 + .env 의 ACCESS_KEY (키는 빌드 때만 읽고 저장소에는 넣지 않는다)
+        resValue "string", "default_url", "http://${serverHost}:8000/" + (accessKey ? "?key=${accessKey}" : "")
+    }
+
+    buildFeatures {
+        resValues true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

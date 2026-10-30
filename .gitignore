@@ -23,3 +23,7 @@ team.toml.bak
 team.toml.tmp
 mcp-servers.json
 mcp-servers.json.tmp
+
+# 안드로이드 앱 빌드 결과(접속 키가 들어 있으므로 Git 제외)
+dist/
+*.apk

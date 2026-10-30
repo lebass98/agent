@@ -19,6 +19,9 @@
   `server/outside.py`(주소 검색·지도 받기·사무실 좌표로 다듬기) → `/api/outside/*`(docs/events.md) → `web/outside.js`·`outside.css`.
   사무실을 확대해 보면 숨고(예전 모습), 축소하면 건물이 솟아오른다. outside.js 는 app.js 를 고치지 않고 전역 이름·`setOfficeLight`·`VIEWS.settings` 를 감싸 붙는다.
   지도 원본·사무실 위치(실제 주소)는 `cache/outside/`(Git 제외)에만 둔다. 실제 주소를 커밋·문서·테스트에 넣지 말 것
+- `android/` : 휴대폰 앱(APK) — 웹 UI 를 띄우는 WebView 껍데기. AI 는 컴퓨터의 `serve.py --lan` 이 구독 CLI 로 실행하고, 휴대폰은 Tailscale 이름(`android/local.properties` 의 `serverHost=`, Git 제외)으로 접속한다.
+  빌드 `cd android && JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home ./gradlew assembleDebug` → `dist/` 로 복사.
+  기본 주소의 접속 키는 빌드 때 `.env` 의 `ACCESS_KEY` 에서 읽으므로 APK·`dist/` 는 Git 제외(커밋 금지)
 - `scripts/launch.py` : 실행 메뉴(모든 OS 공용), `scripts/bootstrap.sh` : macOS·Linux 가상환경 준비
 - `docs/events.md` : 서버 ↔ 웹 UI 이벤트 프로토콜 (변경 시 서버·UI 함께 수정)
 - 팀 실행 보강(`agentteam/team.py`): 일시 오류 자동 재시도(`retry`), 팀장 중간 검수 → 보완 요청(`rework`, team.toml `[leader] rework`),

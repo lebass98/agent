@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "agent-local",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["serve.py", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "agent-lan",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["serve.py", "--lan", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}
