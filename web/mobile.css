@@ -19,7 +19,8 @@
   .dashboard-v2 #conn span { max-width:54px; }
   .dashboard-v2 .topbar .menu-btn { flex:none;padding:0;place-items:center; }
   .dashboard-v2 .run-strip { top:var(--mobile-top);height:64px;gap:8px; }
-  .dashboard-v2 #newTaskBtn { display:grid;place-items:center;flex:none;border-radius:12px; }
+  .dashboard-v2 #newTaskBtn { display:flex;align-items:center;justify-content:center;gap:0;padding:0;flex:none;border-radius:12px; }
+  .dashboard-v2 #newTaskBtn > span { display:none; }
   .dashboard-v2 .run-project { max-width:64px;padding:4px;gap:3px; }
   .dashboard-v2 .office-frame { top:calc(var(--mobile-top) + 74px);min-height:0; }
   .dashboard-v2 .room-switch { top:8px;left:8px;right:104px;max-width:none;box-sizing:border-box; }
@@ -48,6 +49,7 @@
   .dashboard-v2 .drawer-head { gap:8px; }
   .dashboard-v2 .drawer-head .brand { min-width:0;font-size:16px; }
   .dashboard-v2 #drawerClose { flex:none; }
+  .dashboard-v2 .rail-profile { min-height:44px;padding:0 12px;gap:12px;justify-content:flex-start; }
   .dashboard-v2 .view { inset:var(--mobile-top) var(--dash-right) calc(128px + var(--mobile-bottom)) var(--dash-left); }
   .dashboard-v2 .dock.open .right { inset:calc(var(--mobile-top) + 8px) var(--dash-right) var(--mobile-bottom) var(--dash-left);border-radius:20px; }
   .dashboard-v2 .view-head { gap:8px;padding:10px; }
