@@ -74,6 +74,9 @@
 | `GET` | `/api/notify` | 결과 알림 설정 `{url, enabled, has_secret, last}` (비밀 키는 내보내지 않음) |
 | `PUT` | `/api/notify` | `{url, enabled, secret?}` 저장(`cache/notify.json`, Git 제외). `secret` 생략=그대로, `""`=지움. http(s) 주소만 |
 | `POST` | `/api/notify/test` | 시험 알림 1건 보내기 → `{ok, status, error}` |
+| `GET` | `/api/notion` | 노션 업무 기록 상태 `{enabled, last: {at, run_id, ok, url, error}}`. `.env` 의 `NOTION_TOKEN`·`NOTION_DATABASE_ID` 가 둘 다 있으면 켜지고, 업무가 끝날 때마다(끊김 제외, 성공·실패 모두) 데이터베이스에 한 쪽(지시·계획·업무 분담·팀원별 결과·최종 보고서·사용량)을 쌓는다(`server/notion.py`) |
+| `GET` | `/api/app/latest` | 휴대폰 앱 최신 릴리즈 `{versionCode, versionName, notes, size, sha256, released_at}`(`dist/latest.json`, `scripts/release.py` 가 만든다). 없으면 `404` |
+| `GET` | `/api/app/apk` | 최신 APK(`dist/agent-office.apk`, `application/vnd.android.package-archive`). 앱이 새 버전이면 받아 설치 창을 띄운다. 없으면 `404` |
 | `GET` | `/api/tools` | 외부 도구(MCP 서버) 목록 `{servers: [{name, description, kind(stdio·http·sse), target}], members: [도구를 쓸 수 있는 팀원]}` — env·headers 는 내보내지 않음 |
 | `PUT` | `/api/tools/{name}` | `{config, description}` 등록·수정(`mcp-servers.json`, Git 제외, Claude Code mcpServers 형식). **서버가 켜진 컴퓨터에서만**(아니면 `403`) |
 | `DELETE` | `/api/tools/{name}` | 삭제(같은 컴퓨터에서만). 없으면 `404` |

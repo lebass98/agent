@@ -12,7 +12,7 @@
   --chip: #eef1f7; --track: #e8ecf5; --idle-dot: #b9c1d1; --code: #f3f5fa;
   --shadow: 0 8px 28px rgba(28, 39, 66, .08); --shadow-up: 0 -8px 28px rgba(28, 39, 66, .12); --backdrop: rgba(20, 28, 48, .42);
   --radius: 16px; --t: .2s;
-  --font: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", system-ui, -apple-system, "Malgun Gothic", sans-serif;
+  --font: "Pretendard GOV Variable", "Pretendard GOV", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, -apple-system, "Malgun Gothic", sans-serif;
   --safe-t: env(safe-area-inset-top, 0px); --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px); --safe-l: env(safe-area-inset-left, 0px);
   /* 레이아웃 치수 (app.js 의 카메라 맞춤은 실제 요소 크기를 읽는다) */

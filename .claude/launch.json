@@ -8,6 +8,12 @@
       "port": 8000
     },
     {
+      "name": "web-demo",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8010", "--bind", "127.0.0.1", "--directory", "web"],
+      "port": 8010
+    },
+    {
       "name": "agent-lan",
       "runtimeExecutable": ".venv/bin/python",
       "runtimeArgs": ["serve.py", "--lan", "--port", "8000"],

@@ -152,7 +152,7 @@ window.PixelTheme = (() => {
     desk(d){if(!this.asset(d.exec?'leaderDesk':'desk',d.x,d.z,d.w,1.3*(decor.mobileUnit||1),!!d.facing))this.block(d.x,d.z,d.w,1.3*(decor.mobileUnit||1),.83,palette.woodLight);}
     roomSign(key){
       const r=decor.rooms[key],p=this.point(r.x0+1.3,0,r.z0+1.2),c=this.ctx;
-      c.font='bold 6px monospace';const labels={pantry:'COFFEE',work:'STUDIO',exec:'LEAD',meeting:'IDEAS',lounge:'LOUNGE',lobby:'WELCOME',balcony:'GARDEN'};
+      c.font='bold 6px "Pretendard GOV Variable", sans-serif';const labels={pantry:'COFFEE',work:'STUDIO',exec:'LEAD',meeting:'IDEAS',lounge:'LOUNGE',lobby:'WELCOME',balcony:'GARDEN'};
       const label=labels[key],w=c.measureText(label).width+8;
       this.rect(p.x-w/2,p.y-3,w,10,palette.ink);c.fillStyle='#e9d6ac';c.fillText(label,p.x-w/2+4,p.y+4);
     }

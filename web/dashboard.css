@@ -279,3 +279,11 @@ progress::-webkit-progress-bar { background:var(--track);border-radius:4px; }pro
 .space-crumb:hover { background:var(--panel-3);color:var(--text); }
 .space-crumb:focus-visible { outline:2px solid var(--accent);outline-offset:1px; }
 @media(max-width:760px) { .space-crumb::before { content:"";position:absolute;inset:-14px -6px; } } /* 휴대폰: 글자는 작게, 누르는 영역은 44px 가까이 */
+
+/* 폴드 펼친 화면·태블릿 세로(761~1100px): style.css 의 예전 '오른쪽 열을 아래로 눕히기' 규칙이 대시보드 오른쪽 패널을
+   사무실 위로 끌어올리지 않게, 데스크톱과 같은 오른쪽 세로 열로 되돌린다(사무실·입력창은 --dash-right 만큼 비켜 있다) */
+@media (max-width:1100px) and (min-width:761px) and (orientation:portrait) {
+  .dashboard-v2 .right { top:88px;left:auto;right:16px;bottom:16px;height:auto;width:290px;flex-direction:column; }
+  body.dashboard-v2.team-collapsed .right { width:56px; }
+  .dashboard-v2 .pane[data-pane="board"], .dashboard-v2 .pane[data-pane="log"] { flex:initial;min-width:auto; }
+}

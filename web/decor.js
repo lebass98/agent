@@ -325,7 +325,7 @@
     attr.needsUpdate = true;
   }
   const canvas = (w, h) => Object.assign(document.createElement("canvas"), { width: w, height: h });
-  const FONT = '"Noto Sans KR", system-ui, sans-serif';
+  const FONT = '"Pretendard GOV Variable", system-ui, sans-serif';
   const redraws = []; // 글꼴이 늦게 오면 다시 그릴 캔버스들
   function texture(cv) { const t = new T.CanvasTexture(cv); t.encoding = T.sRGBEncoding; t.minFilter = T.LinearFilter; t.anisotropy = 4; return t; }
   /** 캔버스 표지판 평면. draw(ctx,w,h) 를 지금 그리고 글꼴 로드 뒤 한 번 더 그린다. 없앨 때는 m.userData.release() 로 redraws 에서도 뺀다. */

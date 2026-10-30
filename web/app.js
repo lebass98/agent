@@ -747,7 +747,7 @@ const SCREENS = {
   desktop(c, W, H, t, col, a) {
     const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, col); g.addColorStop(1, "#1d2433");
     c.fillStyle = g; c.fillRect(0, 0, W, H);
-    c.fillStyle = "rgba(255,255,255,.9)"; c.font = `600 ${H * .16}px "Noto Sans KR", system-ui, sans-serif`; c.textAlign = "right";
+    c.fillStyle = "rgba(255,255,255,.9)"; c.font = `600 ${H * .16}px "Pretendard GOV Variable", system-ui, sans-serif`; c.textAlign = "right";
     c.fillText(hhmm(), W * .95, H * .24);
     c.fillStyle = "rgba(255,255,255,.22)"; rr(c, W * .2, H * .82, W * .6, H * .13, 10);
     for (let i = 0; i < 5; i++) { c.fillStyle = ["#fff", "#ffd166", "#06d6a0", "#7aa2f7", "#ff8fab"][i]; rr(c, W * (.24 + i * .11), H * .845, W * .07, H * .085, 6); }
@@ -761,8 +761,8 @@ const SCREENS = {
     c.fillStyle = col; c.globalAlpha = .55;
     c.beginPath(); c.arc(W * (.5 + .35 * Math.sin(t * .3)), H * (.5 + .3 * Math.cos(t * .23)), H * .05, 0, 7); c.fill();
     c.globalAlpha = 1; c.textAlign = "center"; c.fillStyle = "#e8ecf7";
-    c.font = `600 ${H * .2}px "Noto Sans KR", system-ui, sans-serif`; c.fillText(hhmm(), W / 2, H * .52);
-    c.font = `500 ${H * .075}px "Noto Sans KR", system-ui, sans-serif`; c.fillStyle = "#9aa6c2"; c.fillText(`${a.def.label} · 자리 비움`, W / 2, H * .68);
+    c.font = `600 ${H * .2}px "Pretendard GOV Variable", system-ui, sans-serif`; c.fillText(hhmm(), W / 2, H * .52);
+    c.font = `500 ${H * .075}px "Pretendard GOV Variable", system-ui, sans-serif`; c.fillStyle = "#9aa6c2"; c.fillText(`${a.def.label} · 자리 비움`, W / 2, H * .68);
   },
 };
 /** 업무 중 오른쪽 모니터: 개발자는 참고 문서, 분석가는 메신저, 퍼블리셔는 코드 */

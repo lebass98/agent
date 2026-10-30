@@ -15,13 +15,13 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, WebSocket
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import mcptools, notify, outside, projects, teamcfg
+from . import mcptools, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -410,20 +410,29 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     dev_hub = DevReload() if dev else None
     notifier = notify.Notify(Path(notify_file) if notify_file else runs_dir.parent / "cache" / "notify.json")
     tools_store = mcptools.Store(Path(tools_file) if tools_file else runs_dir.parent / "mcp-servers.json")
+    recorder = notion.Notion()
+    dist_dir = runs_dir.parent / "dist"  # 휴대폰 앱 릴리즈(scripts/release.py, Git 제외)
     _mark_interrupted(runs_dir)
     background: set[asyncio.Task] = set()
 
+    def later(fn, *args) -> None:
+        task = asyncio.get_running_loop().create_task(asyncio.to_thread(fn, *args))
+        background.add(task)
+        task.add_done_callback(background.discard)
+
     def publish(event: dict) -> None:
-        """Team.run 의 emit: 화면에 중계하고, 업무가 끝나면(끊긴 경우 제외) 결과 알림을 보낸다."""
+        """Team.run 의 emit: 화면에 중계하고, 업무가 끝나면(끊긴 경우 제외) 결과 알림을 보내고 노션에 기록한다."""
         hub.publish(event)
-        if event.get("type") == "run_end" and notifier.load()["enabled"]:
-            rid = str(event.get("run_id", ""))
-            d = runs_dir / rid
-            if RUN_ID.fullmatch(rid) and _state(d).get("status") != "interrupted":
-                payload = notify.run_payload(d, rid, bool(event.get("ok")), event.get("usage"))
-                task = asyncio.get_running_loop().create_task(asyncio.to_thread(notifier.send, payload))
-                background.add(task)
-                task.add_done_callback(background.discard)
+        if event.get("type") != "run_end":
+            return
+        rid = str(event.get("run_id", ""))
+        d = runs_dir / rid
+        if not RUN_ID.fullmatch(rid) or _state(d).get("status") == "interrupted":
+            return
+        if notifier.load()["enabled"]:
+            later(notifier.send, notify.run_payload(d, rid, bool(event.get("ok")), event.get("usage")))
+        if recorder.enabled():
+            later(recorder.record, d, rid, bool(event.get("ok")), event.get("usage"))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -616,6 +625,26 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         if not notifier.load()["url"]:
             raise HTTPException(400, "받을 주소(URL)를 먼저 저장하세요.")
         return await asyncio.to_thread(notifier.send, notify.sample_payload(), True)
+
+    # ── 노션 업무 기록 ──
+    @api.get("/notion")
+    def get_notion():
+        return recorder.public()
+
+    # ── 휴대폰 앱 업데이트(scripts/release.py 가 dist/ 에 만든 최신 릴리즈) ──
+    @api.get("/app/latest")
+    def app_latest():
+        try:
+            return json.loads((dist_dir / "latest.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise HTTPException(404, "릴리즈가 없습니다. 컴퓨터에서 scripts/release.py 를 실행하세요.")
+
+    @api.get("/app/apk")
+    def app_apk():
+        f = dist_dir / "agent-office.apk"
+        if not f.is_file():
+            raise HTTPException(404, "릴리즈가 없습니다.")
+        return FileResponse(f, media_type="application/vnd.android.package-archive", filename="agent-office.apk")
 
     # ── 외부 도구(MCP) ──
     def local_only(request: Request) -> None:

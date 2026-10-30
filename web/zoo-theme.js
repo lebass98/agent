@@ -402,7 +402,7 @@ window.ZooTheme = (() => {
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#fff9e9'; ctx.strokeStyle = '#8a6a48'; ctx.lineWidth = 8;
     if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(6, 6, 500, 116, 26); ctx.fill(); ctx.stroke(); } else { ctx.fillRect(6, 6, 500, 116); }
-    ctx.fillStyle = '#294632'; ctx.font = '600 50px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 256, 68);
+    ctx.fillStyle = '#294632'; ctx.font = '600 50px "Pretendard GOV Variable", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 256, 68);
     const tx = new T.CanvasTexture(c); tx.encoding = T.sRGBEncoding; tx.anisotropy = 4;
     const s = new T.Sprite(new T.SpriteMaterial({ map: tx, depthTest: true })); s.position.set(x, y, z); s.scale.set(2.7 * scale, .68 * scale, 1); s.renderOrder = 2;
     scene.add(s); return s;

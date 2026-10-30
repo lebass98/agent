@@ -24,11 +24,14 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private SharedPreferences prefs;
+    private Updater updater;
+    private long lastCheck;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        updater = new Updater(this);
         DEFAULT_URL = getString(R.string.default_url);
 
         web = new WebView(this);
@@ -46,7 +49,7 @@ public class MainActivity extends Activity {
         setContentView(web);
 
         if (state != null) web.restoreState(state);
-        else web.loadUrl(prefs.getString(KEY_URL, DEFAULT_URL));
+        else web.loadUrl(url());
     }
 
     @Override
@@ -56,9 +59,38 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // 앱을 열 때(1시간에 한 번) 새 버전을 조용히 확인한다
+        long now = System.currentTimeMillis();
+        if (now - lastCheck > 3_600_000L) {
+            lastCheck = now;
+            updater.check(url(), true);
+        }
+    }
+
+    @Override
     public void onBackPressed() {
         if (web.canGoBack()) web.goBack();
-        else super.onBackPressed();
+        else menu();
+    }
+
+    private String url() {
+        return prefs.getString(KEY_URL, DEFAULT_URL);
+    }
+
+    /** 첫 화면에서 뒤로 가기: 업데이트 확인·서버 주소 바꾸기·닫기 */
+    private void menu() {
+        String[] items = {"업데이트 확인 (지금 " + updater.currentVersionName() + ")", "서버 주소 바꾸기", "새로고침", "앱 닫기"};
+        new AlertDialog.Builder(this)
+                .setTitle("에이전트 오피스")
+                .setItems(items, (d, which) -> {
+                    if (which == 0) updater.check(url(), false);
+                    else if (which == 1) askUrl(null);
+                    else if (which == 2) web.reload();
+                    else finish();
+                })
+                .show();
     }
 
     /** 서버 주소 입력 창. 컴퓨터 터미널에 나온 '휴대폰 주소'(?key=… 포함)를 붙여 넣는다. */

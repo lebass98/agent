@@ -1,6 +1,6 @@
 /* Pixel styling is scoped; existing office/zoo preferences are preserved. */
 .space-options{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.pixel-picture{position:relative;background:repeating-conic-gradient(#c0d2bb 0% 25%,#b0c5a6 0% 50%) 50%/16px 16px;color:#294647;font:bold 17px ui-monospace,monospace;letter-spacing:1px;text-shadow:2px 2px #e9ddbb;border:4px solid #42666a;box-shadow:inset 0 0 0 4px #e0ccaa;image-rendering:pixelated}
+.pixel-picture{position:relative;background:repeating-conic-gradient(#c0d2bb 0% 25%,#b0c5a6 0% 50%) 50%/16px 16px;color:#294647;font:bold 17px var(--font);letter-spacing:1px;text-shadow:2px 2px #e9ddbb;border:4px solid #42666a;box-shadow:inset 0 0 0 4px #e0ccaa;image-rendering:pixelated}
 .pixel-picture::before{content:'▣ ▣ ▣';position:absolute;top:20px;letter-spacing:12px;color:#497b78;font-size:24px;text-shadow:2px 3px #264b51}
 .pixel-picture::after{content:'2D · 12 SEATS · LIVE';position:absolute;bottom:15px;font-size:9px;letter-spacing:1px;color:#42666a;text-shadow:none}
 [data-space-theme=pixel] .pixel-canvas{image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:grab}
@@ -23,7 +23,7 @@
 .pixel-picture::before{content:none}.pixel-picture::after{content:'PIXEL STUDIO';right:12px;bottom:18px;color:#466c62}
 :root[data-space-theme=pixel]{--accent:#81a99b;--accent-btn:#477a6d;--accent-text:#a9ceba;--grad:linear-gradient(#668f7e,#477a6d);--line:#465d60;--accent-weak:#304b46}
 :root[data-space-theme=pixel][data-theme=light]{--bg:#eee8dc;--panel:#fbf6e9;--panel-2:#eae4d4;--panel-3:#ddd9c7;--line:#c9c6b3;--text:#293c42;--text-2:#4c6263;--muted:#6b7d78;--accent-text:#3f7163;--accent-weak:#d6e3d2}
-[data-space-theme=pixel] .brand{font-family:ui-monospace,monospace;letter-spacing:-1px}
+[data-space-theme=pixel] .brand{font-family:var(--font);letter-spacing:-1px}
 [data-space-theme=pixel] #officeFrame{border-color:#657e76;border-radius:3px;box-shadow:0 0 0 2px #d6dcc8}
 [data-space-theme=pixel] .run-strip,[data-space-theme=pixel] .right,[data-space-theme=pixel] .commandbar,[data-space-theme=pixel] .card{border-radius:4px}
 [data-space-theme=pixel] .activity-agents{display:grid;grid-template-columns:1fr;gap:8px;padding:0;background:none;border:0;border-radius:0}
@@ -31,7 +31,7 @@
 [data-space-theme=pixel] .face-ring{flex:none;width:44px;height:44px;border-radius:3px;padding:2px}
 [data-space-theme=pixel] .activity-avatar{border-radius:2px;background-color:#d7ddc9}
 [data-space-theme=pixel] .pixel-member-copy{display:grid;gap:4px;min-width:0;color:var(--text)}
-[data-space-theme=pixel] .pixel-member-copy strong{font-size:13px;font-family:ui-monospace,monospace}
+[data-space-theme=pixel] .pixel-member-copy strong{font-size:13px;font-family:var(--font)}
 [data-space-theme=pixel] .pixel-member-copy small{color:var(--muted);font-size:10px;max-width:205px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 [data-space-theme=pixel] .office-tools button{border-radius:2px}
 @media(min-width:761px){

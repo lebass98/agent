@@ -484,3 +484,8 @@ pytest -v
 - 개인석·대화 목적지 도달과 중앙 통행, 모바일 크기별 화면 및 모의 업무 실행 검증
 - android/ WebView 앱 추가(기본 주소·접속 키는 빌드 때 local.properties·.env 에서 읽음)
 - launch.json 에 Tailscale 접속용(--lan) 실행 설정 추가, APK·dist/ Git 제외
+- 휴대폰 앱 0.2: 열 때 새 버전 확인·설치, 뒤로 가기 메뉴(업데이트 확인·서버 주소)
+- scripts/release.py 릴리즈(버전 올림·빌드·dist/latest.json·CHANGELOG·Drive) + /api/app/latest·/api/app/apk
+- 전체 글꼴 Pretendard GOV(web/vendor 고정 사본, 캔버스 글자 포함)
+- 폴드7 펼친 화면(761~1100px 세로)에서 팀 활동 패널이 사무실을 가리던 문제 수정
+- 업무 완료 시 노션 DB 기록(server/notion.py, NOTION_TOKEN 넣으면 켜짐)
