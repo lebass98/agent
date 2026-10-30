@@ -150,6 +150,14 @@ window.PixelTheme = (() => {
     plant(x,z,large=false){if(!this.asset('plant',x,z,large?1.2:.65,.6))this.block(x,z,.5,.5,1.3,palette.green);}
     chair(x,z){if(!this.asset('chair',x,z,.85,.75))this.block(x,z,.8,.7,.55,'#6f9c98');}
     desk(d){if(!this.asset(d.exec?'leaderDesk':'desk',d.x,d.z,d.w,1.3,!!d.facing))this.block(d.x,d.z,d.w,1.3,.83,palette.woodLight);}
+    roundTable(table){
+      const {x,z,radius:r}=table;
+      const ring=y=>Array.from({length:32},(_,i)=>{const a=i*Math.PI/16;return this.point(x+Math.cos(a)*r,y,z+Math.sin(a)*r);});
+      this.poly(ring(0),'#263c4315');
+      this.block(x,z,.7,.7,.85,'#b38a64','#846647');
+      this.poly(ring(.82),'#a77954',palette.ink);
+      this.poly(ring(1.02),'#e3b781',palette.ink);
+    }
     roomSign(key){
       const r=decor.rooms[key],p=this.point(r.x0+1.3,0,r.z0+1.2),c=this.ctx;
       c.font='bold 6px monospace';const labels={pantry:'COFFEE',work:'STUDIO',exec:'LEAD',meeting:'IDEAS',lounge:'LOUNGE',lobby:'WELCOME',balcony:'GARDEN'};
@@ -205,6 +213,10 @@ window.PixelTheme = (() => {
       const now=window.SpaceTheme?.reduce?0:performance.now();
       for(const d of decor.slots(12))add(d.x,d.z,()=>this.desk(d,now));
       for(const s of decor.spots(12))add(s.seat.x,s.seat.z,()=>this.chair(s.seat.x,s.seat.z));
+      if(compact&&decor.mobileCompact){
+        add(decor.TABLE.x,decor.TABLE.z,()=>this.roundTable(decor.TABLE));
+        for(const s of decor.MEET_SEATS)add(s.x,s.z,()=>this.chair(s.x,s.z));
+      }
       if(!compact){
       add(decor.TABLE.x,decor.TABLE.z,()=>this.asset('meetingTable',decor.TABLE.x,decor.TABLE.z,5,2));
       for(const s of office.MEET_SEATS||[])add(s.x,s.z,()=>this.chair(s.x,s.z));

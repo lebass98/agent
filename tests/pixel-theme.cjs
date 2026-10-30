@@ -79,9 +79,13 @@ vm.createContext(mobile);vm.runInContext(fs.readFileSync(path.join(__dirname,'..
 const compact=mobile.window.Decor;
 assert(compact.OW<d.OW&&compact.OD<d.OD,'mobile floor is physically smaller');
 assert.equal(compact.slots(12).length,12,'all personal desks supported');
+assert.equal(new Set(compact.slots(12).map(p=>p.z)).size,2,'desks form exactly two rows');
+for(const desk of compact.slots(12))assert(Math.abs(desk.z)>compact.OD/2-1.3,'desks sit at top and bottom edges');
+assert.equal(compact.TABLE.x,0);assert.equal(compact.TABLE.z,0);assert(compact.TABLE.radius>0,'round table in the centre');
 assert.equal(new Set(compact.slots(12).map(p=>p.x+','+p.z)).size,12,'desks never overlap');
 compact.nav.build(compact.navRects(12));
-for(const p of [...compact.spots(12).flatMap(s=>[s.seat,s.meet,s.coffee]),...compact.NPC.wander]){
+assert.equal(compact.nav.walkable(0,0),false,'characters cannot walk through the round table');
+for(const p of [...compact.spots(12).flatMap(s=>[s.seat,s.meet,s.coffee]),...compact.NPC.wander,compact.LIFE.window,compact.LIFE.sofa,...compact.LIFE.chat,compact.PRESENT_SPOT,compact.REPORT_SPOT]){
  const from=compact.nav.nearest(compact.ENTRANCE),to=compact.nav.nearest(p);
  assert(from&&to&&compact.nav.astar(from,to),'compact layout destinations remain reachable');
 }
