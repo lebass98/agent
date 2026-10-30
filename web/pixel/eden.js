@@ -19,7 +19,12 @@ window.PixelEden = {
     const dialogue=PixelEdenDialogue(rig,tag,talk,label,parent);
     tag.querySelector('.nametag').addEventListener('click',()=>dialogue.say('안녕하세요! 나 이든이야! 같이 기차놀이 할래요? 🚂'));
     let ready=false,path=[],replan=0,lastEnd=null;
-    rig.pixel.placeLabel=(p,h)=>{label.ax=p.x*2;label.ay=(p.y-h)*2;label.az=0;tag.hidden=a.hidden;label.moveLabel();};
+    const placeLabel=()=>{
+      const p=rig.group.position.clone();p.y+=rig.height;p.project(camera);
+      label.ax=Math.round((p.x*.5+.5)*innerWidth/2)*2;
+      label.ay=Math.round((.5-p.y*.5)*innerHeight/2)*2;
+      label.az=p.z;label.ly=0;tag.hidden=a.hidden;label.moveLabel();
+    };
     const tick=(t,raw)=>{
       const mom=parent();a.hidden=!mom;rig.group.visible=!!mom;tag.hidden=!mom;
       if(!mom){ready=false;path=[];return;}
@@ -42,7 +47,7 @@ window.PixelEden = {
       }
       const sitting=seated&&Math.hypot(p.x-end.x,p.z-end.z)<.18;
       if(sitting){a.mode='sit';a.targetRot=mom.targetRot;}
-      rig.group.rotation.y=a.targetRot;rig.sprite.update(a,dt,sitting);
+      rig.group.rotation.y=a.targetRot;rig.sprite.update(a,dt,sitting);placeLabel();
     };
     return tick;
   }

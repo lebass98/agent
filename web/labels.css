@@ -54,3 +54,15 @@
 /* 아기 펭귄 '이든'(life-zoo.js): 팀원 이름표보다 작게 */
 .chick-tag .nametag { font-size: 11px; padding: 1px 7px; }
 .chick-tag .nametag .dot { width: 6px; height: 6px; }
+
+/* 긴 대화도 UI 안쪽에서 읽는다. 넘치는 내용은 말풍선 안에서 스크롤한다. */
+#labels .bubble { box-sizing:border-box;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin; }
+#labels .bubble.show:not(.covered) { pointer-events:auto; }
+#labels .bubble::after { left:var(--bubble-tail-x,50%); }
+body.drawer-open #labels .bubble,
+body:has(#view:not([hidden])) #labels .bubble,
+body:has(#modal:not([hidden])) #labels .bubble { visibility:hidden; }
+@media(max-width:760px) { body:has(#dock.open) #labels .bubble { visibility:hidden; } }
+/* 대화 길이가 바뀌어도 이름표의 크기·기준점을 바꾸지 않는다. */
+#labels .tagwrap > .bubble { position:absolute;left:50%;bottom:calc(100% + 6px);margin:0;transform:translate(-50%,4px); }
+#labels .tagwrap > .bubble.show { transform:translateX(-50%); }
