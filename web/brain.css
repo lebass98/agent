@@ -40,8 +40,8 @@ body.brain-mode #stage, body.brain-mode #labels { display: none; }
 .bn-rt { grid-column: 1 / 5; }
 .bn-mail { grid-column: 9 / 13; }
 .bn-meet { grid-column: 1 / 5; }
-.bn-apps { grid-column: 5 / 9; }
-.bn-skills { grid-column: 9 / 13; }
+.bn-apps { grid-column: 5 / 8; }
+.bn-skills { grid-column: 8 / 13; }   /* 스킬 카드 2×2 가 이름을 다 보여 줄 만큼 넓게 */
 .bn-grid > :nth-child(2) { animation-delay: .04s; } .bn-grid > :nth-child(3) { animation-delay: .08s; } .bn-grid > :nth-child(4) { animation-delay: .12s; }
 .bn-grid > :nth-child(5) { animation-delay: .16s; } .bn-grid > :nth-child(6) { animation-delay: .2s; } .bn-grid > :nth-child(7) { animation-delay: .24s; } .bn-grid > :nth-child(8) { animation-delay: .28s; }
 @keyframes bn-rise { from { opacity: 0; transform: translateY(10px); } }
@@ -158,18 +158,47 @@ body.brain-mode #stage, body.brain-mode #labels { display: none; }
 .bn-tile.add { background: var(--chip); color: var(--muted); box-shadow: none; border: 1.5px dashed var(--line-strong); }
 .bn-tile.add::after { display: none; }
 
-/* ── 스킬 (Moxie hallazgo) ── */
-.bn-sktools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
-.bn-find { flex: 1; min-width: 100px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); padding: 0 9px; font-size: 12px; outline: 0; color: var(--text); }
-.bn-find:focus { border-color: var(--accent); }
-#bnSkills { max-height: 260px; overflow: auto; scrollbar-width: thin; }
-.bn-sk { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 0 9px; align-items: center; padding: 6px 4px; border-radius: 9px; }
-.bn-sk:hover { background: var(--panel-2); }
-.bn-ai { grid-column: 1; grid-row: 1 / 3; width: 28px; height: 28px; border-radius: 8px; background: var(--c); color: #fff; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; }
-.bn-sk b { grid-column: 2; grid-row: 1; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bn-sk small { grid-column: 2; grid-row: 2; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bn-sk em { grid-column: 3; grid-row: 1 / 3; font-style: normal; font-size: 10px; color: var(--muted); background: var(--chip); border-radius: 5px; padding: 1px 6px; }
-.bn-sk mark { background: color-mix(in srgb, var(--accent) 26%, transparent); color: inherit; border-radius: 3px; }
+/* ── 스킬 (Moxie hallazgo · puntos): 2×2 카드 + 페이지 점 ── */
+.bn-skills > header { flex-wrap: nowrap; }
+.bn-skills > header small { font-weight: 700; color: var(--text-2); }
+.bn-sksearch { flex: 1; min-width: 0; margin-left: 6px; display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); }
+.bn-sksearch .ic { width: 14px; height: 14px; flex: none; }
+.bn-sksearch input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 12.5px; color: var(--text); }
+.bn-sksearch:focus-within { border-color: var(--accent); }
+.bn-skpages { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.bn-skpages::-webkit-scrollbar { display: none; }
+.bn-skpage { flex: 0 0 100%; scroll-snap-align: start; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 8px; padding: 1px; }
+.bn-skc { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); cursor: pointer; transition: border-color .2s, transform .35s var(--bn-spring); }
+.bn-skc:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.bn-skc:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bn-skt { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-skt span { color: var(--muted); font-weight: 600; }
+.bn-skt b { font-weight: 800; }
+.bn-skd { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-skr { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.bn-play { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--text); color: var(--panel); transition: transform .3s var(--bn-spring); }
+.bn-play svg { width: 14px; height: 14px; fill: currentColor; margin-left: 2px; }
+.bn-play:hover:not(:disabled) { transform: scale(1.12); }
+.bn-play:disabled { opacity: .35; cursor: default; }
+.bn-play.run { background: var(--accent-weak); opacity: 1; }
+.bn-play.done { background: var(--ok-dot); color: #fff; }
+.bn-play.err { background: var(--err); color: #fff; }
+.bn-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: bn-spin .8s linear infinite; }
+.bn-skst { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-skst.run { color: var(--accent-text); }
+.bn-skst.done { color: var(--ok); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.bn-skst.err { color: var(--err); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.bn-skst.off { color: var(--faint); }
+.bn-skc mark { background: color-mix(in srgb, var(--accent) 26%, transparent); color: inherit; border-radius: 3px; }
+.bn-dots { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 10px; min-height: 8px; }
+.bn-dots button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 999px; background: var(--line-strong); transition: width .35s var(--bn-spring), background .2s; }
+.bn-dots button.on { width: 20px; background: var(--text-2); }
+.bn-dots small { font-size: 10.5px; color: var(--muted); }
+.bn-runin, .bn-skmd { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); padding: 10px 12px; font: inherit; font-size: 13px; resize: vertical; }
+.bn-skmd { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; min-height: 280px; }
+.bn-skmd[readonly] { background: var(--panel-2); color: var(--text-2); }
+.bn-files { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin-top: 8px; }
+.bn-file { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 10px; font-size: 12.5px; color: var(--accent-text); text-align: left; }
 
 /* ── 메일 요약 (Moxie bandeja) ── */
 .bn-mails { display: flex; flex-direction: column; max-height: 330px; overflow: auto; scrollbar-width: thin; }

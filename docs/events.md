@@ -125,7 +125,10 @@
 | `GET /api/brain/meetings?refresh=0` | Notion 회의록(server/meetings.py): `claude` CLI 의 Notion 커넥터로 읽기만(검색·페이지 읽기·회의록·DB 조회). 지정(`meetings` 목록 [{name, ref: 노션 주소·검색어}])이 없으면 '회의'로 찾는다. `{enabled, items:[{id,source,title,url,date,attendees,points[],actions[{text,owner,done}]}], loading, custom, error, at}` — 30분 재사용, 지정이 바뀌면 다시 읽음 |
 | `POST /api/brain/meetings/check` `{key: "<페이지ID>:<번호>", done}` | 회의록 할 일 체크(이 앱에만 저장, 노션은 바꾸지 않음) |
 | `POST /api/brain/shortcuts/vercel` | Vercel 프로젝트(개인+팀)를 바로가기로 더한다(같은 주소는 건너뜀). `{…설정, added, found}`. 토큰: `.env` 의 `VERCEL_TOKEN` → 없으면 Vercel CLI 로그인. 실패 400 + 안내 |
-| `GET /api/brain/skills` | `{skills: [{ai: claude|gpt|gemini, name, desc, mine, path}]}` — 직접 만든 것(mine)이 먼저 |
+| `GET /api/brain/skills/file?ai=&name=` · `PUT /api/brain/skills/file` `{ai,name,content?,label?,input?}` | SKILL.md 읽기·저장(직접 만든 스킬만 저장, 설치한 것은 400) · 카드 이름·입력 받기(`skillnotes`) |
+| `POST /api/brain/skills/run` `{ai,name,input}` · `GET /api/brain/skills/runs` · `GET /api/brain/skills/runs/{id}/file?path=` | 스킬 실행(server/skills.py): 전용 폴더 `runs/skills/<id>/` 에서 claude(`/스킬 입력`) 또는 codex. 허용: 그 폴더 읽기·쓰기·스킬 폴더 읽기·웹·메일/노션/캘린더 읽기(셸 없음). 동시 2개, 기록 30개(`cache/brain-skill-runs.json`), 결과 파일 받기 |
+| `GET /api/brain/vercel?sync=0` | Vercel 연결 상태 `{connected,user,via: cli|env,error,synced,added}`. `sync=1` 이면 6시간마다 새 프로젝트를 바로가기로 자동 추가 |
+| `GET /api/brain/skills` | `{skills: [{ai: claude|gpt|gemini, name, desc, mine, path, hint, label, input}], labeling}` — 직접 만든 것(mine)이 먼저. 카드 이름(label)이 없는 스킬은 뒤에서 한국어 짧은 이름을 지어 저장(labeling) |
 
 - 항목 모양: 바로가기 `{name,url,abbr,color}` · 루틴 `{name,kind: check|auto,at:"HH:MM",days:[mon..sun],on,goal(auto 일 때 필수),checks}` ·
   중요 일정 `{title,when(ISO),note}` · 캘린더 `{name,kind: google|phone|notion|other,url,on}`(이미 있는 캘린더는 `url` 을 빼고 보내면 기존 주소 유지) ·

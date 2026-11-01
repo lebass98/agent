@@ -20,6 +20,7 @@ window.Brain = (() => {
   let CFG = { shortcuts: [], routines: [], pins: [], calendars: [], events: [] }, CAL = { events: [], status: [] }, SKILLS = null;
   let loaded = false, offline = false;
   let MAIL = null, mailT = 0, MEET = null, meetT = 0, meetOpen = 0; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
+  let RUNS = [], runsT = 0, VERCEL = null; // Vercel CLI 연결 상태 // 스킬 실행 기록(/api/brain/skills/runs)
   const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), skAi: "all", skMine: "mine", skQ: "", edit: false };
   let hiddenFloats = new Set();
   try { hiddenFloats = new Set(JSON.parse(sessionStorage.getItem("agentOffice.brain.hide") || "[]")); } catch {}
@@ -42,9 +43,8 @@ window.Brain = (() => {
         <button type="button" class="bn-more" data-act="meetings">회의 지정</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
       <article class="bn-card bn-apps"><header><h3>${ico("grid")}바로가기</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
       <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬</h3><small id="bnSkSub"></small>
-        <span class="bn-seg" id="bnSkMine"><button type="button" data-v="mine">내 스킬</button><button type="button" data-v="all">전체</button></span></header>
-        <div class="bn-body"><div class="bn-sktools"><span class="bn-seg" id="bnSkAi"><button type="button" data-v="all">전체</button><button type="button" data-v="claude">Claude</button><button type="button" data-v="gpt">GPT</button><button type="button" data-v="gemini">Gemini</button></span>
-        <input class="bn-find" id="bnSkQ" placeholder="스킬 찾기" aria-label="스킬 찾기"></div><div id="bnSkills"></div></div></article>
+        <label class="bn-sksearch">${ico("search")}<input id="bnSkQ" placeholder="스킬 검색" aria-label="스킬 검색"></label></header>
+        <div class="bn-body"><div class="bn-skpages" id="bnSkills"></div><div class="bn-dots" id="bnSkDots"></div></div></article>
     </div></section>`);
   document.body.append(ui);
   const $b = id => ui.querySelector("#" + id);
@@ -100,7 +100,7 @@ window.Brain = (() => {
     } catch { offline = true; }
     loaded = true;
     render();
-    if (!SKILLS && !offline) getJSON("/api/brain/skills").then(r => { SKILLS = r.skills || []; drawSkills(); }, () => {});
+    if (!SKILLS && !offline) { loadSkills(); loadRuns(); }
   }
   async function save(kind, items) {
     const r = await api(`/api/brain/${kind}`, { method: "PUT", body: JSON.stringify({ items }) });
@@ -300,7 +300,8 @@ window.Brain = (() => {
     const box = $b("bnApps");
     if (!loaded) { box.innerHTML = loadingNote; return; }
     if (offline) { box.innerHTML = offlineNote("바로가기"); return; }
-    $b("bnAppsSub").textContent = CFG.shortcuts.length ? `${CFG.shortcuts.length}개` : "";
+    $b("bnAppsSub").textContent = [CFG.shortcuts.length ? `${CFG.shortcuts.length}개` : "", VERCEL ? (VERCEL.connected ? `▲ ${VERCEL.user || "Vercel"} 연결` : "▲ Vercel 연결 안 됨") : ""].filter(Boolean).join(" · ");
+    $b("bnAppsSub").title = VERCEL ? (VERCEL.connected ? `Vercel ${VERCEL.via === "env" ? "토큰(.env)" : "CLI 로그인"}으로 연결됨${VERCEL.synced ? ` · ${VERCEL.synced.slice(11)} 동기화` : ""} — 새 프로젝트는 6시간마다 자동으로 더해요` : VERCEL.error) : "";
     box.innerHTML = CFG.shortcuts.map(s => `<a class="bn-app" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.name)} — ${esc(s.url)}" style="--c:${esc(s.color)}"><span class="bn-tile">${esc(s.abbr)}</span><span>${esc(s.name)}</span></a>`).join("") +
       `<button type="button" class="bn-app" data-act="shortcuts" title="바로가기 추가"><span class="bn-tile add">${ico("plus")}</span><span>추가</span></button>`;
     if (reduce()) return;
@@ -389,19 +390,140 @@ window.Brain = (() => {
     };
   }
 
-  // 스킬 (Moxie hallazgo: 찾기 하이라이트)
+  // 스킬 (Moxie hallazgo 찾기 · puntos 페이지 점): 2×2 카드, ▶ 실행(입력이 필요하면 입력 창), 카드를 누르면 편집
+  const skKey = sk => `${sk.ai}:${sk.name}`;
+  const lastRun = sk => RUNS.find(r => r.ai === sk.ai && r.name === sk.name);
+  const shortDesc = sk => sk.label || (sk.desc || "").split(/(?<=[.。!?])\s|;|\(| — | - /)[0].slice(0, 40) || "설명 없음";
+  function skState(sk) {
+    const r = lastRun(sk);
+    if (sk.ai === "gemini") return ["실행 미지원", "off"];
+    if (r?.status === "running") return ["실행 중…", "run"];
+    if (r?.status === "done") return ["완료 · 결과 보기", "done"];
+    if (r?.status === "error") return ["오류 · 보기", "err"];
+    return [sk.input ? "입력 화면" : "준비됨", ""];
+  }
   function drawSkills() {
-    seg($b("bnSkMine"), V.skMine, v => { V.skMine = v; drawSkills(); });
-    seg($b("bnSkAi"), V.skAi, v => { V.skAi = v; drawSkills(); });
-    const box = $b("bnSkills");
-    if (offline) { box.innerHTML = offlineNote("스킬"); return; }
+    const box = $b("bnSkills"), dots = $b("bnSkDots");
+    if (!loaded && !SKILLS) { box.innerHTML = loadingNote; dots.innerHTML = ""; return; }
+    if (offline) { box.innerHTML = offlineNote("스킬"); dots.innerHTML = ""; return; }
     if (!SKILLS) { box.innerHTML = `<p class="bn-empty">스킬을 찾는 중…</p>`; return; }
     const q = V.skQ.trim().toLowerCase();
-    const list = SKILLS.filter(s => (V.skMine === "all" || s.mine) && (V.skAi === "all" || s.ai === V.skAi) && (!q || `${s.name} ${s.desc}`.toLowerCase().includes(q)));
-    $b("bnSkSub").textContent = `${SKILLS.filter(s => s.mine).length}개 직접 · ${SKILLS.length}개 전체`;
+    const list = SKILLS.filter(s => !q || `${s.name} ${s.label} ${s.desc}`.toLowerCase().includes(q));
+    $b("bnSkSub").textContent = `${SKILLS.length}`;
     const mark = t => { const at = q ? t.toLowerCase().indexOf(q) : -1; return at < 0 ? esc(t) : `${esc(t.slice(0, at))}<mark>${esc(t.slice(at, at + q.length))}</mark>${esc(t.slice(at + q.length))}`; };
-    box.innerHTML = list.length ? list.slice(0, 80).map(s => `<div class="bn-sk" title="${esc(s.path)}"><span class="bn-ai" style="--c:${AI[s.ai][1]}">${AI[s.ai][2]}</span><b>${mark(s.name)}</b><small>${mark(s.desc || "설명 없음")}</small><em>${s.mine ? "직접" : "설치"}</em></div>`).join("")
-      : `<p class="bn-empty">${q ? "찾는 스킬이 없어요." : V.skMine === "mine" ? "직접 만든 스킬이 없어요. '전체'에서 설치한 스킬을 볼 수 있어요." : "스킬이 없어요."}</p>`;
+    if (!list.length) { box.innerHTML = `<p class="bn-empty">찾는 스킬이 없어요.</p>`; dots.innerHTML = ""; return; }
+    const pages = [];
+    for (let i = 0; i < list.length; i += 4) pages.push(list.slice(i, i + 4));
+    const keep = box.scrollLeft;
+    box.innerHTML = pages.map(pg => `<div class="bn-skpage">${pg.map(sk => {
+      const [st, cls] = skState(sk);
+      return `<div class="bn-skc${sk.mine ? " mine" : ""}" data-k="${esc(skKey(sk))}" tabindex="0" role="button" aria-label="${esc(sk.name)} 편집">
+        <div class="bn-skt"><span>${AI[sk.ai][0]} ·</span> <b>${mark(sk.name)}</b></div><div class="bn-skd">${mark(shortDesc(sk))}</div>
+        <div class="bn-skr"><button type="button" class="bn-play ${cls}" data-run aria-label="${esc(sk.name)} 실행"${sk.ai === "gemini" || cls === "run" ? " disabled" : ""}>${cls === "run" ? '<i class="bn-spin"></i>' : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>`}</button>
+        <span class="bn-skst ${cls}"${cls === "done" || cls === "err" ? " data-result" : ""}>${st}</span></div></div>`;
+    }).join("")}</div>`).join("");
+    box.scrollLeft = Math.min(keep, box.scrollWidth);
+    const n = pages.length, show = Math.min(n, 9);
+    dots.innerHTML = n > 1 ? Array.from({ length: show }, (_, i) => `<button type="button" aria-label="${i + 1}쪽"></button>`).join("") + (n > show ? `<small>${n}쪽</small>` : "") : "";
+    syncDots();
+  }
+  const syncDots = () => {
+    const box = $b("bnSkills"), w = box.clientWidth || 1, cur = Math.round(box.scrollLeft / w);
+    [...$b("bnSkDots").querySelectorAll("button")].forEach((d, i) => d.classList.toggle("on", i === Math.min(cur, 8)));
+  };
+  $b("bnSkills").addEventListener("scroll", () => requestAnimationFrame(syncDots), { passive: true });
+  $b("bnSkDots").addEventListener("click", e => { const d = e.target.closest("button"); if (!d) return; const i = [...$b("bnSkDots").querySelectorAll("button")].indexOf(d); $b("bnSkills").scrollTo({ left: i * $b("bnSkills").clientWidth, behavior: reduce() ? "auto" : "smooth" }); });
+  $b("bnSkills").addEventListener("click", e => {
+    const card = e.target.closest(".bn-skc"); if (!card) return;
+    const sk = SKILLS.find(x => skKey(x) === card.dataset.k); if (!sk) return;
+    if (e.target.closest("[data-run]")) return sk.input ? runDialog(sk) : runSkill(sk, "");
+    if (e.target.closest("[data-result]")) return resultDialog(lastRun(sk));
+    skillEditor(sk);
+  });
+  $b("bnSkills").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList.contains("bn-skc")) e.target.click(); });
+
+  let skT = 0;
+  async function loadSkills() { // 한국어 짧은 이름을 짓는 동안(labeling) 가끔 다시 받는다
+    clearTimeout(skT);
+    try { const r = await getJSON("/api/brain/skills"); SKILLS = r.skills || []; drawSkills(); if (r.labeling) skT = setTimeout(loadSkills, 20_000); } catch {}
+  }
+  async function loadRuns() {
+    clearTimeout(runsT);
+    try { RUNS = (await getJSON("/api/brain/skills/runs")).runs || []; } catch { return; }
+    drawSkills();
+    if (RUNS.some(r => r.status === "running")) runsT = setTimeout(loadRuns, 5000);
+  }
+  async function runSkill(sk, input) {
+    try {
+      const r = await api("/api/brain/skills/run", { method: "POST", body: JSON.stringify({ ai: sk.ai, name: sk.name, input }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : `실행하지 못했어요 (${r.status})`);
+      RUNS = [j, ...RUNS]; drawSkills(); closeModal();
+      toast(`'${sk.name}' 실행을 시작했어요. 끝나면 카드에 '완료'가 떠요.`, "info", 3500);
+      clearTimeout(runsT); runsT = setTimeout(loadRuns, 5000);
+      watchRun(j.id, sk.name);
+    } catch (e) { toast(e.message, "error", 6000); }
+  }
+  const watching = new Set();
+  function watchRun(id, name) { // 끝나면 알림
+    if (watching.has(id)) return; watching.add(id);
+    const tick = async () => {
+      await loadRuns();
+      const r = RUNS.find(x => x.id === id);
+      if (r && r.status !== "running") { watching.delete(id); toast(r.status === "done" ? `스킬 '${name}' 완료 — 카드의 '결과 보기'를 눌러 보세요` : `스킬 '${name}' 실행 오류`, r.status === "done" ? "info" : "error", 6000); return; }
+      setTimeout(tick, 6000);
+    };
+    setTimeout(tick, 6000);
+  }
+  function runDialog(sk) {
+    const input = el("textarea", { class: "bn-runin", rows: 5, placeholder: sk.hint || "스킬에 넘길 내용을 적어 주세요" });
+    const go = el("button", { class: "btn primary", type: "button", text: "실행", onclick: () => runSkill(sk, input.value.trim()) });
+    openModal([sheetHead(`${sk.name} 실행`, shortDesc(sk)), el("div", { class: "sheet-body bn-editor" },
+      h(`<p class="bn-help">결과는 이 스킬 전용 폴더에 만들어져요. 메일·노션·캘린더는 <b>읽기만</b> 하고, 셸 명령은 쓰지 않아요.</p>`), input),
+      el("footer", { class: "sheet-foot" }, el("button", { class: "btn", type: "button", text: "닫기", onclick: closeModal }), go)]);
+    input.focus();
+  }
+  async function download(run, path) {
+    try {
+      const r = await api(`/api/brain/skills/runs/${encodeURIComponent(run.id)}/file?path=${encodeURIComponent(path)}`);
+      if (!r.ok) throw new Error();
+      const url = URL.createObjectURL(await r.blob()), a = el("a", { href: url, download: path.split("/").pop() });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch { toast("파일을 받지 못했어요", "error"); }
+  }
+  function resultDialog(run) {
+    if (!run) return;
+    const files = run.files?.length ? el("div", { class: "bn-files" }, el("h3", { class: "sec", text: `만든 파일 · ${run.files.length}개` }),
+      ...run.files.map(f => el("button", { type: "button", class: "bn-file", text: f, onclick: () => download(run, f) }))) : null;
+    openModal([sheetHead(`${run.name} — ${run.status === "done" ? "결과" : "오류"}`, `${run.started.replace("T", " ")}${run.secs ? ` · ${run.secs}초` : ""}${run.input ? ` · 입력: ${clip(run.input, 40)}` : ""}`),
+      el("div", { class: "sheet-body" }, run.status === "error" ? el("div", { class: "err-box", text: run.result }) : md(run.result || "(결과 텍스트 없음)"), files),
+      el("footer", { class: "sheet-foot" }, el("button", { class: "btn primary", type: "button", text: "닫기", onclick: closeModal }))]);
+  }
+  async function skillEditor(sk) {
+    let file = { content: "", editable: false };
+    try { file = await getJSON(`/api/brain/skills/file?ai=${sk.ai}&name=${encodeURIComponent(sk.name)}`); } catch (e) { toast(e.message, "error"); }
+    const label = el("input", { value: sk.label || "", placeholder: shortDesc(sk), maxlength: 30 });
+    const needs = el("input", { type: "checkbox", checked: !!sk.input });
+    const body = el("textarea", { class: "bn-skmd", rows: 16, spellcheck: "false", readonly: !file.editable }, );
+    body.value = file.content;
+    const runs = RUNS.filter(r => r.ai === sk.ai && r.name === sk.name).slice(0, 5);
+    const save = el("button", { class: "btn primary", type: "button", text: "저장", onclick: async () => {
+      save.disabled = true;
+      try {
+        const r = await api("/api/brain/skills/file", { method: "PUT", body: JSON.stringify({ ai: sk.ai, name: sk.name, label: label.value.trim(), input: needs.checked, ...(file.editable && body.value !== file.content ? { content: body.value } : {}) }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : "저장하지 못했어요");
+        SKILLS = (await getJSON("/api/brain/skills")).skills || SKILLS; drawSkills(); closeModal(); toast("스킬을 저장했어요", "info", 2500);
+      } catch (e) { toast(e.message, "error"); }
+      save.disabled = false;
+    } });
+    openModal([sheetHead(sk.name, `${AI[sk.ai][0]} · ${sk.mine ? "직접 만든 스킬" : "설치한 스킬(읽기 전용)"} · ${file.path || sk.path}`), el("div", { class: "sheet-body bn-editor" },
+      el("div", { class: "bn-form" }, el("label", { class: "bn-field", "data-k": "name" }, el("span", { text: "카드에 보일 짧은 이름" }), label),
+        el("label", { class: "bn-field row" }, el("span", { text: "실행 전에 입력 받기(입력 화면)" }), needs)),
+      el("h3", { class: "sec", text: file.editable ? "SKILL.md 편집" : "SKILL.md (설치한 스킬은 고칠 수 없어요)" }), body,
+      runs.length ? el("div", { class: "bn-files" }, el("h3", { class: "sec", text: "최근 실행" }), ...runs.map(r => el("button", { type: "button", class: "bn-file", text: `${r.started.replace("T", " ").slice(5, 16)} · ${{ running: "실행 중", done: "완료", error: "오류" }[r.status]}`, onclick: () => r.status !== "running" && resultDialog(r) }))) : null),
+      el("footer", { class: "sheet-foot" }, el("button", { class: "btn", type: "button", text: "닫기", onclick: closeModal }),
+        sk.ai !== "gemini" ? el("button", { class: "btn", type: "button", text: "▶ 실행", onclick: () => (needs.checked ? runDialog(sk) : runSkill(sk, "")) }) : null, save)]);
   }
   $b("bnSkQ").addEventListener("input", e => { V.skQ = e.target.value; drawSkills(); });
 
@@ -517,7 +639,7 @@ window.Brain = (() => {
       const r = await api("/api/brain/shortcuts/vercel", { method: "POST" });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : `가져오지 못했어요 (${r.status})`);
-      CFG = j; drawApps();
+      CFG = j; VERCEL = { ...(VERCEL || {}), connected: true }; drawApps();
       toast(j.added ? `Vercel 프로젝트 ${j.added}개를 바로가기로 더했어요` : `새로 더할 프로젝트가 없어요 (Vercel ${j.found}개)`, "info", 3500);
     } catch (e) { toast(e.message, "error", 7000); }
     btn.disabled = false; btn.textContent = label;
@@ -543,7 +665,9 @@ window.Brain = (() => {
   setInterval(() => { if (!document.hidden && !offline) loadCal(); }, 600_000);
   getJSON("/api/notion").then(n => { document.body.dataset.notion = n.enabled ? "on" : "off"; drawMeet(); }, () => {});
   render();
-  if (NET.mode === "live") { load(); loadMail(); loadMeet(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); loadMeet(); } }, 2500);
+  const loadVercel = () => getJSON("/api/brain/vercel?sync=1").then(v => { const added = v.added && (!VERCEL || VERCEL.added !== v.added); VERCEL = v; if (added) load(); else drawApps(); }, () => {});
+  if (NET.mode === "live") { load(); loadMail(); loadMeet(); loadVercel(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); loadMeet(); loadVercel(); } }, 2500);
+  setInterval(() => { if (!document.hidden && VERCEL?.connected) loadVercel(); }, 3_600_000);
   setInterval(() => { if (!document.hidden && MEET?.enabled) loadMeet(); }, 1_800_000);
   $b("bnMeetRefresh").onclick = () => { $b("bnMeetRefresh").classList.add("spin"); MEET = { ...MEET, loading: true }; drawMeet(); loadMeet(true).finally(() => $b("bnMeetRefresh").classList.remove("spin")); };
   setInterval(() => { if (!document.hidden && MAIL?.enabled) loadMail(); }, 600_000);

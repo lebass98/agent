@@ -79,3 +79,15 @@ def test_import_api(make_client, monkeypatch):
     monkeypatch.setattr(vercel, "projects", lambda: (_ for _ in ()).throw(vercel.VercelError("Vercel 로그인이 만료됐어요.")))
     bad = c.post("/api/brain/shortcuts/vercel")
     assert bad.status_code == 400 and "만료" in bad.json()["detail"]
+
+
+def test_status_and_auto_sync(make_client, monkeypatch, tmp_path):
+    monkeypatch.setattr(gmail, "ENV_FILE", tmp_path / "none.env")
+    monkeypatch.setenv("VERCEL_TOKEN", "tok")
+    monkeypatch.setattr(vercel, "_get", lambda path, tok: {"user": {"username": "me"}} if path == "/v2/user" else {})
+    assert vercel.status() == {"connected": True, "user": "me", "via": "env", "error": ""}
+    monkeypatch.setattr(vercel, "projects", lambda: [{"name": "a", "url": "https://a.vercel.app", "abbr": "A", "color": "#5558e6", "team": ""}])
+    c = make_client()
+    first = c.get("/api/brain/vercel?sync=1").json()
+    assert first["connected"] and first["added"] == 1 and len(c.get("/api/brain").json()["shortcuts"]) == 1
+    assert c.get("/api/brain/vercel?sync=1").json()["added"] == 1      # 6시간 안에는 다시 가져오지 않는다

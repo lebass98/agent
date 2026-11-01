@@ -24,6 +24,7 @@ NOTE_LIMIT = 300
 GOAL_LIMIT = 2000
 URL_LIMIT = 2000
 MAX_ITEMS = 60
+MAX_SKILLNOTES = 300  # 스킬 카드 이름은 스킬 수만큼
 ICS_LIMIT = 5_000_000      # 받는 .ics 최대 크기
 ICS_TTL = 600              # 캘린더 받아 둔 것을 쓰는 시간(초)
 TIMEOUT = 15
@@ -59,7 +60,7 @@ def _url(v, what: str = "주소") -> str:
     return s
 
 
-EMPTY = {"shortcuts": [], "routines": [], "pins": [], "calendars": [], "events": [], "meetings": []}
+EMPTY = {"shortcuts": [], "routines": [], "pins": [], "calendars": [], "events": [], "meetings": [], "skillnotes": []}
 
 
 class Store:
@@ -90,8 +91,9 @@ class Store:
     def put(self, kind: str, items: list) -> dict:
         if kind not in EMPTY:
             raise BrainError("알 수 없는 목록이에요.")
-        if not isinstance(items, list) or len(items) > MAX_ITEMS:
-            raise BrainError(f"한 목록에 {MAX_ITEMS}개까지 넣을 수 있어요.")
+        limit = MAX_SKILLNOTES if kind == "skillnotes" else MAX_ITEMS
+        if not isinstance(items, list) or len(items) > limit:
+            raise BrainError(f"한 목록에 {limit}개까지 넣을 수 있어요.")
         with self.lock:
             data = self.load()
             old = {x.get("id"): x for x in data[kind]}
@@ -159,6 +161,16 @@ class Store:
         if ref.startswith(("http://", "https://")) and not re.match(r"https://([a-z0-9-]+\.)?notion\.(so|site)/", ref):
             raise BrainError("노션 주소(notion.so)나 검색어를 넣어 주세요.")
         return {"id": x.get("id") if x.get("id") in old else _id(), "name": _text(x.get("name"), 40, "이름"), "ref": ref}
+
+    @staticmethod
+    def _skillnotes(x: dict, old: dict) -> dict:
+        """스킬 카드에 보일 짧은 한국어 이름·입력 받기 여부(스킬 파일은 그대로)"""
+        key = str(x.get("key") or "")
+        if not re.fullmatch(r"(claude|gpt|gemini):[^\s]{1,80}", key):
+            raise BrainError("스킬을 알 수 없어요.")
+        inp = x.get("input")
+        return {"id": x.get("id") if x.get("id") in old else _id(), "key": key, "label": _text(x.get("label"), 30, "이름", required=False),
+                "input": None if inp is None else bool(inp)}
 
     def check(self, rid: str, day: str, done: bool) -> dict:
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day or ""):
@@ -292,7 +304,7 @@ def _short(p: Path) -> str:
     return "~" + s[len(home):] if s.startswith(home) else s
 
 
-def skills(project_root: Path | None = None, home: Path | None = None) -> list[dict]:
+def skills(project_root: Path | None = None, home: Path | None = None, internal: bool = False) -> list[dict]:
     home = Path(home or Path.home())
     places = [  # (ai, 직접 만든 것인지, 찾을 곳)
         ("claude", True, home / ".claude" / "skills"),
@@ -321,7 +333,10 @@ def skills(project_root: Path | None = None, home: Path | None = None) -> list[d
             if key in seen:
                 continue
             seen.add(key)
-            out.append({"ai": ai, "name": name, "desc": " ".join(str(meta.get("description", "")).split())[:240],
-                        "mine": not installed, "path": _short(f.parent)})
+            item = {"ai": ai, "name": name, "desc": " ".join(str(meta.get("description", "")).split())[:240],
+                    "mine": not installed, "path": _short(f.parent), "hint": " ".join(str(meta.get("argument-hint", "")).split())[:120]}
+            if internal:
+                item["dir"] = str(f.parent)   # 서버 안에서만(실행·편집). 화면에는 보내지 않는다
+            out.append(item)
     out.sort(key=lambda s: (not s["mine"], s["ai"], s["name"].lower()))
     return out

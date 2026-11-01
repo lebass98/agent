@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import brain, calconn, connectors, gmail, mcptools, meetings, vercel, notify, notion, outside, projects, teamcfg
+from . import brain, calconn, connectors, gmail, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -345,7 +345,22 @@ class ResumeIn(BaseModel):
 
 
 class BrainListIn(BaseModel):
-    items: list[dict] = Field(default_factory=list, max_length=brain.MAX_ITEMS)
+    items: list[dict] = Field(default_factory=list, max_length=brain.MAX_SKILLNOTES)
+
+
+class SkillIn(BaseModel):
+    ai: Literal["claude", "gpt", "gemini"]
+    name: str = Field(min_length=1, max_length=80)
+
+
+class SkillRunIn(SkillIn):
+    input: str = Field("", max_length=2000)
+
+
+class SkillEditIn(SkillIn):
+    content: str | None = Field(None, max_length=skills.FILE_LIMIT)
+    label: str | None = Field(None, max_length=30)
+    input: bool | None = None
 
 
 class MeetCheckIn(BaseModel):
@@ -650,7 +665,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         return brain_store.public()
 
     @api.put("/brain/{kind}")
-    def put_brain(kind: Literal["shortcuts", "routines", "pins", "calendars", "events", "meetings"], body: BrainListIn):
+    def put_brain(kind: Literal["shortcuts", "routines", "pins", "calendars", "events", "meetings", "skillnotes"], body: BrainListIn):
         try:
             return brain_store.put(kind, body.items)
         except brain.BrainError as e:
@@ -663,6 +678,18 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         except brain.BrainError as e:
             raise HTTPException(400, str(e))
 
+    vsync = {"at": 0.0, "added": 0}
+
+    @api.get("/brain/vercel")
+    async def vercel_status(sync: bool = False):
+        """Vercel CLI 연결 상태. sync=1 이면 6시간마다 새 프로젝트를 바로가기로 자동으로 더한다."""
+        st = await asyncio.to_thread(vercel.status)
+        if st["connected"] and sync and time.time() - vsync["at"] > 6 * 3600:
+            vsync["at"] = time.time()
+            with contextlib.suppress(HTTPException):
+                vsync["added"] = (await import_vercel())["added"]
+        return st | {"synced": datetime.fromtimestamp(vsync["at"]).isoformat(timespec="minutes") if vsync["at"] else "", "added": vsync["added"]}
+
     @api.post("/brain/shortcuts/vercel")
     async def import_vercel():
         """Vercel 프로젝트를 바로가기로 더한다(이미 있는 주소는 건너뛴다)."""
@@ -670,6 +697,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             found = await asyncio.to_thread(vercel.projects)
         except vercel.VercelError as e:
             raise HTTPException(400, str(e))
+        vsync["at"] = time.time()
         cur = brain_store.load()["shortcuts"]
         have = {x["url"].rstrip("/") for x in cur}
         new = [{k: v for k, v in p.items() if k != "team"} for p in found if p["url"].rstrip("/") not in have]
@@ -711,9 +739,87 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         return out | {"conn": {"enabled": on, "loading": busy, "error": cal["error"], "count": len(cal["items"]),
                                "at": datetime.fromtimestamp(cal["at"]).isoformat(timespec="minutes") if cal["at"] else ""}}
 
+    skill_runs = skills.Runs(mail_sums.file.with_name("brain-skill-runs.json"), runs_dir / "skills")
+
+    def find_skill(ai: str, name: str) -> dict:
+        try:
+            return skills.find(ai, name, runs_dir.parent)
+        except skills.SkillError as e:
+            raise HTTPException(404, str(e))
+
+    labeling = {"task": None, "at": 0.0}
+
+    async def label_job(todo: list[dict]) -> None:
+        """이름 없는 스킬에 한국어 짧은 이름을 붙인다(40개씩, 도구 없이 글만)."""
+        for i in range(0, len(todo), 40):
+            part = todo[i:i + 40]
+            try:
+                found = skills.parse_labels(await connectors.ask(skills.label_prompt(part), "", "haiku", "이름 짓기"), {x["key"] for x in part})
+            except Exception as e:
+                log.warning("스킬 이름 짓기 실패: %s", e)
+                return
+            notes = brain_store.load()["skillnotes"]
+            have = {n["key"] for n in notes}
+            notes = [n | ({"label": found[n["key"]]} if n["key"] in found and not n.get("label") else {}) for n in notes]
+            notes += [{"key": k, "label": v, "input": None} for k, v in found.items() if k not in have]
+            with contextlib.suppress(brain.BrainError):
+                brain_store.put("skillnotes", notes[-brain.MAX_SKILLNOTES:])
+
     @api.get("/brain/skills")
     async def brain_skills():
-        return {"skills": await asyncio.to_thread(brain.skills, runs_dir.parent)}
+        notes = {n["key"]: n for n in brain_store.load()["skillnotes"]}
+        out = []
+        for sk in await asyncio.to_thread(brain.skills, runs_dir.parent):
+            n = notes.get(f"{sk['ai']}:{sk['name']}", {})
+            out.append(sk | {"label": n.get("label", ""), "input": bool(sk["hint"]) if n.get("input") is None else n["input"]})
+        todo = [{"key": f"{x['ai']}:{x['name']}", "desc": x["desc"] or x["name"]} for x in out if not x["label"]]
+        busy = labeling["task"] is not None and not labeling["task"].done()
+        if todo and not busy and connectors.claude_exe() and time.time() - labeling["at"] > 3600:
+            labeling.update(task=asyncio.create_task(label_job(todo)), at=time.time())
+            busy = True
+        return {"skills": out, "labeling": busy}
+
+    @api.get("/brain/skills/file")
+    def skill_file(ai: Literal["claude", "gpt", "gemini"], name: str):
+        sk = find_skill(ai, name)
+        try:
+            return {"content": skills.read(sk), "editable": sk["mine"], "path": sk["path"]}
+        except skills.SkillError as e:
+            raise HTTPException(400, str(e))
+
+    @api.put("/brain/skills/file")
+    def save_skill(body: SkillEditIn):
+        sk = find_skill(body.ai, body.name)
+        try:
+            if body.content is not None:
+                skills.write(sk, body.content)
+            if body.label is not None or body.input is not None:
+                key = f"{body.ai}:{body.name}"
+                notes = [n for n in brain_store.load()["skillnotes"] if n["key"] != key]
+                brain_store.put("skillnotes", notes + [{"key": key, "label": body.label or "", "input": body.input}])
+        except (skills.SkillError, brain.BrainError) as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @api.post("/brain/skills/run")
+    async def run_skill(body: SkillRunIn):
+        sk = find_skill(body.ai, body.name)
+        try:
+            run = skill_runs.start(sk, body.input.strip())
+        except skills.SkillError as e:
+            raise HTTPException(400, str(e))
+        return {k: v for k, v in run.items() if k != "folder"}
+
+    @api.get("/brain/skills/runs")
+    def skill_runs_list():
+        return {"runs": skill_runs.public()}
+
+    @api.get("/brain/skills/runs/{rid}/file")
+    def skill_run_file(rid: str, path: str):
+        try:
+            return FileResponse(skill_runs.path_of(rid, path))
+        except skills.SkillError as e:
+            raise HTTPException(404, str(e))
 
     async def summarize_mail(todo: list[dict], cfg: dict) -> None:
         """요약이 없는 메일을 팀원 한 명에게 한 번에 맡긴다(실패하면 10분 뒤 다시)."""

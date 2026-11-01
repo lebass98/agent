@@ -126,3 +126,22 @@ def _projects(tok: str) -> list[dict]:
             seen.add(url)
             out.append({"name": name[:40], "url": url, "abbr": _abbr(name), "color": PALETTE[sum(map(ord, name)) % len(PALETTE)], "team": team})
     return sorted(out, key=lambda x: (x["team"], x["name"].lower()))
+
+
+def status() -> dict:
+    """연결 상태 {connected, user, via: env|cli, error} — 로그인이 만료됐으면 CLI 로 한 번 갱신해 본다"""
+    got = token()
+    if not got:
+        return {"connected": False, "user": "", "via": "", "error": "Vercel 로그인 정보가 없어요. 터미널에서 `npx vercel login` 을 한 번 해 주세요."}
+    def who(tok: str) -> str:
+        u = _get("/v2/user", tok).get("user") or {}
+        return str(u.get("username") or u.get("name") or "")[:40]
+    try:
+        return {"connected": True, "user": who(got[0]), "via": got[1], "error": ""}
+    except VercelError as e:
+        if got[1] == "cli" and "만료" in str(e) and refresh_cli_login() and (again := token()):
+            try:
+                return {"connected": True, "user": who(again[0]), "via": "cli", "error": ""}
+            except VercelError as e2:
+                e = e2
+        return {"connected": False, "user": "", "via": got[1], "error": str(e)}

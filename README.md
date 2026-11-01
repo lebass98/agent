@@ -508,3 +508,5 @@ pytest -v
 - Vercel 가져오기: CLI 로그인이 만료되면 vercel whoami 로 갱신한 뒤 한 번 더 시도(테스트 추가)
 - 통합 캘린더에 Claude 의 Notion 캘린더 연결 추가(server/calconn.py): Notion 캘린더에 연결된 Google 캘린더·Notion 일정을 읽기 전용으로 가져와 iCal·직접 입력과 합침
 - 테스트가 실제 claude CLI 를 부르지 않도록 기본 차단(conftest)
+- 스킬을 2×2 카드+페이지 점으로 바꾸고 한국어 짧은 이름 자동 생성, ▶ 실행(입력 화면/준비됨, 전용 폴더·셸 없음)·결과와 만든 파일 보기·SKILL.md 편집(직접 만든 스킬만)
+- Vercel CLI 로그인 연결 상태 표시와 6시간마다 새 프로젝트 자동 추가, 테스트 추가
