@@ -501,3 +501,5 @@ pytest -v
 - 서버 /api/brain*: 설정 저장(cache/brain.json)·iCal 캘린더 구독(반복 일정)·스킬 목록, 테스트 추가. Gmail·Notion 회의록·루틴 예약 실행은 다음 단계
 - Gmail 메일 요약(server/gmail.py, /api/brain/mail): .env 의 GMAIL_USER·GMAIL_APP_PASSWORD 로 읽기 전용 접속, 팀원(기본 Gemini)이 한 번에 요약·분류(답장·중요·참고·광고)
 - 브레인 메일 카드(할 일·중요/전체, Gmail 에서 열기)·브리핑·마감 메일 플로팅 반영, .env.example 안내와 테스트 추가
+- 메일 요약에 claude CLI 의 claude.ai Gmail 커넥터 방식 추가(읽기 도구 2개만 허용, 읽기·요약 한 번에), 앱 비밀번호 로그인 실패 시 자동 전환
+- 브레인 메일 카드 가져오는 중·안내 표시, 마지막 목록 보관, 테스트·문서 보강

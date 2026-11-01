@@ -304,7 +304,7 @@ window.Brain = (() => {
     try { MAIL = await getJSON(`/api/brain/mail${refresh ? "?refresh=1" : ""}`); }
     catch { MAIL = MAIL || { enabled: false, offline: true }; }
     drawMail(); drawBrief(); drawFloats();
-    if (MAIL?.pending) mailT = setTimeout(() => loadMail(), 15_000); // 요약이 끝날 때까지 가끔 다시 본다
+    if (MAIL?.pending || MAIL?.loading) mailT = setTimeout(() => loadMail(), 10_000); // 가져오기·요약이 끝날 때까지 가끔 다시 본다
   }
   const ago = iso => { if (!iso) return ""; const d = new Date(iso), t = new Date(); return ymd(d) === ymd(t) ? hm(d) : `${d.getMonth() + 1}/${d.getDate()}`; };
   function drawMail() {
@@ -315,18 +315,20 @@ window.Brain = (() => {
     if (MAIL.offline) { box.innerHTML = offlineNote("메일"); return; }
     if (!MAIL.enabled) {
       $b("bnMailSub").textContent = "연결 안 됨";
-      box.innerHTML = `<div class="bn-setup">${ico("mail")}<b>Gmail 을 연결하세요</b><p>컴퓨터의 <code>.env</code> 파일에 Gmail 주소와 <b>앱 비밀번호</b>를 넣으면 받은 메일을 AI 가 요약해서 답장할 메일·중요 메일을 골라 줘요. 메일함은 읽기만 해요.</p>
+      box.innerHTML = `<div class="bn-setup">${ico("mail")}<b>Gmail 을 연결하세요</b><p>두 가지 방법이 있어요. ① 서버 컴퓨터의 <code>claude</code> CLI 에 claude.ai Gmail 커넥터가 연결돼 있으면 자동으로 써요(앱 비밀번호 불필요). ② <code>.env</code> 에 Gmail 주소와 <b>앱 비밀번호</b>를 넣어요. 어느 쪽이든 메일함은 읽기만 해요.</p>
         <pre class="bn-code">GMAIL_USER=내주소@gmail.com\nGMAIL_APP_PASSWORD=abcd efgh ijkl mnop</pre><p class="bn-need">앱 비밀번호: Google 계정 → 보안 → 2단계 인증 켜기 → '앱 비밀번호'에서 만들기. 저장하면 서버를 다시 켜지 않아도 돼요.</p>
         <div><button type="button" class="bn-btn pri" id="bnMailRetry">연결 확인</button></div></div>`;
       box.querySelector("#bnMailRetry").onclick = () => { MAIL = null; drawMail(); loadMail(true); };
       return;
     }
     const items = MAIL.items || [], key = items.filter(m => m.tag === "reply" || m.tag === "important" || m.starred || (!m.tag && m.unread));
-    $b("bnMailSub").textContent = `${MAIL.user} · ${MAIL.at ? MAIL.at.slice(11) + " 받음" : ""}${MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : ""}`;
-    if (MAIL.error) { box.innerHTML = `<p class="bn-empty bn-err">${ico("alert")}${esc(MAIL.error)}</p>`; return; }
+    $b("bnMailSub").textContent = `${MAIL.user}${MAIL.at ? ` · ${MAIL.at.slice(11)} 받음` : ""}${MAIL.loading ? " · 가져오는 중…" : MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : ""}`;
+    const note = MAIL.note ? `<p class="bn-note">${ico("info")}${esc(MAIL.note)}</p>` : "";
+    if (MAIL.error && !items.length) { box.innerHTML = `${note}<p class="bn-empty bn-err">${ico("alert")}${esc(MAIL.error)}</p>`; return; }
+    if (MAIL.loading && !items.length) { box.innerHTML = `${note}<p class="bn-empty"><span class="bn-think2">Claude 가 Gmail 을 읽고 요약하는 중… (30초쯤)</span></p>`; return; }
     const list = V.mail === "key" ? key : items;
-    if (!list.length) { box.innerHTML = `<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : "최근 받은 메일이 없어요."}</p>`; return; }
-    box.innerHTML = `<div class="bn-mails">${list.map((m, i) => {
+    if (!list.length) { box.innerHTML = `${note}<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : "최근 받은 메일이 없어요."}</p>`; return; }
+    box.innerHTML = `${note}<div class="bn-mails">${list.map((m, i) => {
       const t = TAG[m.tag];
       return `<a class="bn-mrow${m.unread ? " unread" : ""}" href="https://mail.google.com/mail/u/0/#all/${esc(m.thread)}" target="_blank" rel="noopener noreferrer" style="animation-delay:${i * 40}ms" title="Gmail 에서 열기">
         <span class="bn-mav" style="--h:${[...m.from].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}">${esc(m.from.slice(0, 1))}</span>

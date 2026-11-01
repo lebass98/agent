@@ -128,7 +128,7 @@
   중요 일정 `{title,when(ISO),note}` · 캘린더 `{name,kind: google|phone|notion|other,url,on}`(이미 있는 캘린더는 `url` 을 빼고 보내면 기존 주소 유지) ·
   일정 `{title,start,end,where,star}`. `id` 를 그대로 보내면 같은 항목으로 본다.
 - 캘린더 주소는 `http(s)`·`webcal`(→https)만, 받은 것은 10분 동안 재사용. 같은 제목·같은 시작 시각 일정은 하나로 합친다.
-- Gmail: `.env` 의 `GMAIL_USER`·`GMAIL_APP_PASSWORD`(앱 비밀번호)로 IMAP 읽기 전용 접속. `.env` 는 요청마다 다시 읽는다. 요약은 `cache/brain-mail.json` 에 메일 ID 별로 남긴다.
+- Gmail: ① `claude` CLI 의 claude.ai Gmail 커넥터(읽기 도구 `search_threads`·`get_thread` 만 허용, 읽기+요약 한 번에, 응답 `source: "claude"`·`loading`) 또는 ② `.env` 의 `GMAIL_USER`·`GMAIL_APP_PASSWORD`(앱 비밀번호)로 IMAP 읽기 전용(`source: "imap"`, 요약은 팀원·`cache/brain-mail.json`). `GMAIL_SOURCE=auto` 면 ② 가 로그인에 실패할 때 ① 로 넘어가고 `note` 로 알린다. `.env` 는 요청마다 다시 읽는다. ① 의 마지막 목록은 `cache/brain-mail-last.json`.
 - 자동 실행 루틴(`kind: auto`)의 예약 실행, Notion 회의록은 다음 단계(아직 API 없음).
 
 ## WebSocket 종료 코드

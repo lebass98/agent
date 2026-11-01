@@ -681,26 +681,67 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             log.warning("메일 요약 실패: %s", e)
             mail["fail"] = time.time()
 
+    mail_last = mail_sums.file.with_name("brain-mail-last.json")  # Claude 연결로 받은 마지막 목록(서버를 다시 켜도 바로 보이게)
+    with contextlib.suppress(OSError, ValueError):
+        last = json.loads(mail_last.read_text(encoding="utf-8"))
+        mail["items"], mail["at"], mail["via"] = list(last["items"]), float(last["at"]), "claude"
+
+    async def claude_mail(cfg: dict) -> None:
+        try:
+            items = await gmail.claude_fetch(cfg)
+            mail.update(items=items, error="", via="claude")
+            with contextlib.suppress(OSError):
+                mail_last.parent.mkdir(parents=True, exist_ok=True)
+                mail_last.write_text(json.dumps({"items": items, "at": time.time()}, ensure_ascii=False), encoding="utf-8")
+        except gmail.MailError as e:
+            mail.update(error=str(e))
+        except Exception as e:
+            log.warning("Claude Gmail 연결 실패: %s", e)
+            mail.update(error="Claude 의 Gmail 연결로 메일을 가져오지 못했어요.")
+        mail["at"] = time.time()
+
     @api.get("/brain/mail")
     async def brain_mail(refresh: bool = False):
         cfg = gmail.config()
         if not cfg:
             return {"enabled": False}
         now = time.time()
-        if refresh or now - mail["at"] > 600:
-            try:
-                mail["items"], mail["error"] = await asyncio.to_thread(gmail.fetch, cfg), ""
-            except gmail.MailError as e:
-                mail["items"], mail["error"] = [], str(e)
-            mail["at"] = now
-        cached = mail_sums.load()
-        todo = [m for m in mail["items"] if m["id"] not in cached]
         busy = mail["task"] is not None and not mail["task"].done()
-        if todo and not busy and (refresh or now - mail["fail"] > 600):
-            mail["task"] = asyncio.create_task(summarize_mail(todo, cfg))
-            busy = True
-        return {"enabled": True, "user": gmail.masked(cfg["user"]), "items": gmail.public(mail["items"], cached), "error": mail["error"],
-                "pending": len(todo) if busy else 0, "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes")}
+        stale = refresh or now - mail["at"] > 600
+        mode, note = cfg["mode"], ""
+        # 앱 비밀번호 로그인이 실패하면(같은 값인 동안) Claude 의 Gmail 연결로 대신 가져온다
+        failed = mail.get("imap_bad") == (cfg["user"], cfg["pw"])
+        if mode == "imap" and failed and cfg["claude"]:
+            mode, note = "claude", "앱 비밀번호 로그인에 실패해 Claude 의 Gmail 연결로 가져왔어요. .env 의 GMAIL_APP_PASSWORD 를 지우거나 고치세요."
+        if mode == "imap" and stale and not busy:
+            try:
+                mail.update(items=await asyncio.to_thread(gmail.fetch, cfg), error="", via="imap")
+                mail.pop("imap_bad", None)
+            except gmail.MailError as e:
+                if "로그인" in str(e) and cfg["claude"]:   # Claude 연결로 대신 가져온다(마지막 목록은 그대로 둔다)
+                    mail["imap_bad"] = (cfg["user"], cfg["pw"])
+                    mode, note, stale = "claude", "앱 비밀번호 로그인에 실패해 Claude 의 Gmail 연결로 가져와요. .env 의 GMAIL_APP_PASSWORD 를 지우거나 고치세요.", mail.get("via") != "claude" or refresh
+                else:
+                    mail.update(items=[], error=str(e), via="imap")
+            mail["at"] = now
+        loading = False
+        if mode == "claude":
+            if (stale or mail.get("via") != "claude") and not busy:
+                mail["task"] = asyncio.create_task(claude_mail(cfg))
+                busy = True
+            loading = busy
+            cached = {}
+        else:
+            cached = mail_sums.load()
+            todo = [m for m in mail["items"] if m["id"] not in cached]
+            if todo and not busy and (refresh or now - mail["fail"] > 600):
+                mail["task"] = asyncio.create_task(summarize_mail(todo, cfg))
+                busy = True
+        items = mail["items"] if mail.get("via") == mode or mode == "imap" else []
+        pending = 0 if mode == "claude" else len([m for m in items if m["id"] not in cached]) if busy else 0
+        return {"enabled": True, "source": mode, "user": gmail.masked(cfg["user"]) if mode == "imap" else "Claude 의 Gmail 연결",
+                "items": items if mode == "claude" else gmail.public(items, cached), "error": mail["error"], "note": note,
+                "pending": pending, "loading": loading, "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes") if mail["at"] else ""}
 
     # ── 노션 업무 기록 ──
     @api.get("/notion")
