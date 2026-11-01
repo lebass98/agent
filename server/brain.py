@@ -160,7 +160,11 @@ class Store:
         ref = _text(x.get("ref"), 300, "노션 주소 또는 검색어")
         if ref.startswith(("http://", "https://")) and not re.match(r"https://([a-z0-9-]+\.)?notion\.(so|site)/", ref):
             raise BrainError("노션 주소(notion.so)나 검색어를 넣어 주세요.")
-        return {"id": x.get("id") if x.get("id") in old else _id(), "name": _text(x.get("name"), 40, "이름"), "ref": ref}
+        try:
+            count = max(1, min(5, int(x.get("count") or 2)))
+        except (TypeError, ValueError):
+            raise BrainError("보여 줄 개수는 1~5 사이 숫자로 넣어 주세요.")
+        return {"id": x.get("id") if x.get("id") in old else _id(), "name": _text(x.get("name"), 40, "이름"), "ref": ref, "count": count}
 
     @staticmethod
     def _skillnotes(x: dict, old: dict) -> dict:

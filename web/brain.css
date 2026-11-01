@@ -389,3 +389,18 @@ body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-when small { font-size: 9.
 body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-flt b { font-size: 14px; font-weight: 700; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
 body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-flt span { font-size: 11px; margin-top: 3px; }
 @media (prefers-reduced-motion: reduce) { body.brain-mode .brain .bn-imp .bn-fl.urgent .bn-when { animation: none; } body.brain-mode .brain .bn-brief .bn-orb { animation: none; } }
+
+/* 회의 노트: 출처별 묶음(주간회의 · 팀 회의) — 머리줄에 최근 n건 + ✎ 쓰기, 회의록마다 한 줄 요약 */
+body.brain-mode .brain .bn-mg + .bn-mg { margin-top: 14px; }
+body.brain-mode .brain .bn-mgh { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+body.brain-mode .brain .bn-mgh b { font-size: 12.5px; font-weight: 700; color: var(--text); }
+body.brain-mode .brain .bn-mgh small { font-size: 10.5px; color: var(--accent-text); background: var(--accent-weak); border-radius: 999px; padding: 1px 7px; }
+body.brain-mode .brain .bn-mwrite { margin-left: auto; width: auto; padding: 0 9px; gap: 4px; display: inline-flex; align-items: center; text-decoration: none; font-size: 11px; font-weight: 600; color: var(--accent-text); }
+body.brain-mode .brain .bn-mwrite .ic { width: 12px; height: 12px; }
+body.brain-mode .brain .bn-mg .bn-meets { max-height: none; overflow: visible; }
+body.brain-mode .brain .bn-mg .bn-mth { padding: 10px 0; }
+body.brain-mode .brain .bn-msum { grid-column: 1; grid-row: 3; font-style: normal; font-size: 11.5px; line-height: 1.5; color: var(--text-2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.brain-mode .brain .bn-mth em { grid-row: 1 / 4; }
+body.brain-mode .brain .bn-mg .bn-empty { margin: 2px 0 0; font-size: 11px; }
+body.brain-mode .brain .bn-meet .bn-note { display: block; line-height: 1.6; }
+body.brain-mode .brain .bn-meet .bn-note .ic { vertical-align: -2px; margin-right: 4px; }

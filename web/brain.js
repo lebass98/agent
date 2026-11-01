@@ -19,7 +19,7 @@ window.Brain = (() => {
 
   let CFG = { shortcuts: [], routines: [], pins: [], calendars: [], events: [] }, CAL = { events: [], status: [] }, SKILLS = null;
   let loaded = false, offline = false;
-  let MAIL = null, mailT = 0, MEET = null, meetT = 0, meetOpen = 0; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
+  let MAIL = null, mailT = 0, MEET = null, meetT = 0, meetOpen = -1; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
   let RUNS = [], runsT = 0, VERCEL = null; // Vercel CLI 연결 상태 // 스킬 실행 기록(/api/brain/skills/runs)
   const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), date: ymd(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1), skAi: "all", skMine: "mine", skQ: "", edit: false };
   let hiddenFloats = new Set();
@@ -475,16 +475,27 @@ window.Brain = (() => {
     if (!MEET.enabled) { box.innerHTML = `<div class="bn-setup">${ico("file")}<b>Notion 회의록</b><p>서버 컴퓨터의 <code>claude</code> CLI 에 claude.ai Notion 커넥터가 연결돼 있으면 회의록을 가져와요.</p></div>`; return; }
     const items = MEET.items || [];
     $b("bnMeetSub").textContent = `Notion${MEET.at ? ` · ${MEET.at.slice(11)} 읽음` : ""}${MEET.loading ? " · 읽는 중…" : ""}`;
-    const hint = MEET.custom ? "" : `<p class="bn-note">${ico("info")}'회의'로 찾은 최근 회의록이에요. <button type="button" class="bn-link" data-act="meetings">회의 지정</button>에서 주간회의·팀별 미팅 페이지를 정해 주세요.</p>`;
+    const hint = MEET.custom ? "" : `<p class="bn-note">${ico("info")}노션 검색으로 찾은 주간회의·팀 회의예요. <button type="button" class="bn-link" data-act="meetings">회의 지정</button>에서 페이지 주소와 보여 줄 개수를 정할 수 있어요.</p>`;
+    // 출처별 묶음: 이름 · 최근 n건 · ✎ 쓰기(노션의 회의록 모음으로) — 각 회의록은 제목 + 한 줄 요약
+    const groups = MEET.sources?.length ? MEET.sources : [...new Set(items.map(m => m.source))].map(name => ({ name, count: 0, write: "" }));
+    const known = new Set(groups.map(g => g.name));
+    const byGroup = groups.map(g => ({ ...g, list: items.filter(m => m.source === g.name).slice(0, g.count || 5) }));
+    const rest = items.filter(m => !known.has(m.source));
+    if (rest.length) byGroup.push({ name: "기타", count: 0, write: "", list: rest });
+    const writeBtn = g => `<a class="bn-mini bn-mwrite" href="${esc(g.write || "https://www.notion.so/")}" target="_blank" rel="noopener noreferrer" title="${esc(g.name)} 쓰기 — 노션에서 새 회의록" aria-label="${esc(g.name)} 쓰기">${ico("edit")}<span>쓰기</span></a>`;
     if (MEET.error && !items.length) { box.innerHTML = `${hint}<p class="bn-empty bn-err">${ico("alert")}${esc(MEET.error)}</p>`; return; }
-    if (!items.length) { box.innerHTML = hint + (MEET.loading ? `<p class="bn-empty"><span class="bn-think2">Claude 가 Notion 회의록을 읽고 정리하는 중… (1분쯤)</span></p>` : `<p class="bn-empty">최근 ${14}일 안의 회의록이 없어요.</p>`); return; }
-    meetOpen = Math.min(meetOpen, items.length - 1); // -1 = 모두 접음
-    box.innerHTML = hint + `<div class="bn-meets">${items.map((m, i) => `<section class="bn-mt${i === meetOpen ? " open" : ""}" data-i="${i}">
-      <button type="button" class="bn-mth"><b>${esc(m.title)}</b><span>${[m.source, m.date && m.date.slice(5).replace("-", "/"), m.attendees].filter(Boolean).map(esc).join(" · ")}</span>
+    if (!items.length && MEET.loading) { box.innerHTML = hint + `<p class="bn-empty"><span class="bn-think2">Claude 가 Notion 회의록을 읽고 정리하는 중… (1분쯤)</span></p>`; return; }
+    let n = 0;
+    box.innerHTML = hint + byGroup.map(g => `<div class="bn-mg"><div class="bn-mgh"><b>${esc(g.name)}</b><small>최근 ${g.list.length}건</small>${g.name !== "기타" ? writeBtn(g) : ""}</div>
+      ${g.list.length ? `<div class="bn-meets">${g.list.map(m => { const i = n++; return `<section class="bn-mt${i === meetOpen ? " open" : ""}" data-i="${i}">
+      <button type="button" class="bn-mth"><b>${esc(m.title)}</b><span>${[m.date && m.date.slice(5).replace("-", "/"), m.attendees].filter(Boolean).map(esc).join(" · ")}</span>
+        ${m.summary ? `<i class="bn-msum">${esc(m.summary)}</i>` : ""}
         ${m.actions.length ? `<em>${m.actions.filter(a => !a.done).length}/${m.actions.length}</em>` : ""}</button>
       <div class="bn-mtb">${m.points.length ? `<ul>${m.points.map(p => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
         ${m.actions.map((a, j) => `<label class="bn-act${a.done ? " done" : ""}"><input type="checkbox" data-key="${m.id}:${j}"${a.done ? " checked" : ""}><span>${esc(a.text)}${a.owner ? ` <small>· ${esc(a.owner)}</small>` : ""}</span></label>`).join("")}
-        <a class="bn-link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">노션에서 열기 ↗</a></div></section>`).join("")}</div>`;
+        <a class="bn-link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">노션에서 열기 ↗</a></div></section>`; }).join("")}</div>`
+        : `<p class="bn-empty">최근 30일 안의 ${esc(g.name)} 회의록이 없어요.</p>`}</div>`).join("");
+    meetOpen = Math.min(meetOpen, n - 1); // -1 = 모두 접음
     for (const sec of box.querySelectorAll(".bn-mt")) sec.querySelector(".bn-mth").onclick = () => { // 하나만 펼친다
       const open = !sec.classList.contains("open");
       for (const x of box.querySelectorAll(".bn-mt")) x.classList.toggle("open", open && x === sec);
@@ -654,9 +665,9 @@ window.Brain = (() => {
     events: { title: "일정 직접 넣기", sub: "연결한 캘린더에 없는 일정", row: x => `${x.title} · ${x.start.replace("T", " ")}`, fields: [
       { k: "title", label: "제목", req: true }, { k: "start", label: "시작", type: "datetime-local", req: true }, { k: "end", label: "끝", type: "datetime-local" },
       { k: "where", label: "장소" }, { k: "star", label: "중요(위에 띄우기)", type: "check" }] },
-    meetings: { title: "회의 지정", sub: "브레인에 보여 줄 노션 회의(주간회의·팀별 미팅)", row: x => `${x.name} · ${x.ref}`, fields: [
-      { k: "name", label: "이름", ph: "예: 주간회의", req: true }, { k: "ref", label: "노션 페이지·데이터베이스 주소 또는 검색어", ph: "https://www.notion.so/… 또는 '디자인팀 미팅'", req: true }],
-      help: `회의록이 모이는 <b>노션 페이지나 데이터베이스 주소</b>(공유 → 링크 복사)를 넣으면 그 안에서, <b>검색어</b>를 넣으면 노션 검색으로 최근 2주 회의록을 찾아요. 이 컴퓨터의 Claude 에 연결된 Notion 으로 <b>읽기만</b> 해요.` },
+    meetings: { title: "회의 지정", sub: "브레인에 보여 줄 노션 회의(주간회의·팀별 미팅)", row: x => `${x.name} · ${x.ref} · ${x.count || 2}건`, fields: [
+      { k: "name", label: "이름", ph: "예: 주간회의", req: true }, { k: "ref", label: "노션 페이지·데이터베이스 주소 또는 검색어", ph: "https://www.notion.so/… 또는 '디자인팀 미팅'", req: true }, { k: "count", label: "보여 줄 최근 회의록", type: "select", def: "2", opts: [["1", "1건"], ["2", "2건"], ["3", "3건"], ["4", "4건"], ["5", "5건"]] }],
+      help: `회의록이 모이는 <b>노션 페이지나 데이터베이스 주소</b>(공유 → 링크 복사)를 넣으면 그 안에서, <b>검색어</b>를 넣으면 노션 검색으로 최근 30일 회의록을 찾아요. 주소를 넣으면 '쓰기' 단추가 그 페이지를 열어요. 이 컴퓨터의 Claude 에 연결된 Notion 으로 <b>읽기만</b> 해요.` },
     calendars: { title: "캘린더 연결", sub: "iCal 주소로 구독 — 주소는 서버에만 저장되고 화면에 다시 보이지 않아요", row: x => `${x.name} · ${SRC[x.kind]?.[0]} · ${x.host || ""}`, fields: [
       { k: "name", label: "이름", ph: "예: 회사 캘린더", req: true }, { k: "kind", label: "어디 캘린더", type: "select", opts: [["google", "Google 캘린더"], ["phone", "휴대폰(iCloud)"], ["notion", "Notion"], ["other", "기타 .ics"]] },
       { k: "url", label: "iCal 주소", type: "url", ph: "https://calendar.google.com/calendar/ical/…/basic.ics", req: "new" }],

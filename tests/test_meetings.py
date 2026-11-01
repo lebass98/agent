@@ -41,12 +41,13 @@ def test_meetings_api(make_client, monkeypatch):
     with make_client() as c:
         first = c.get("/api/brain/meetings").json()
         assert first["enabled"] and first["loading"] and not first["custom"]
+        assert [(g["name"], g["count"]) for g in first["sources"]] == [("주간회의", 1), ("팀 회의", 3)]   # 기본: 주간회의 1건 · 팀 회의 3건
         for _ in range(200):
             got = c.get("/api/brain/meetings").json()
             if got["items"]:
                 break
             time.sleep(.05)
-        assert seen == [["최근 회의록"]] and got["items"][0]["actions"][0]["done"] is False
+        assert seen == [["주간회의", "팀 회의"]] and got["items"][0]["actions"][0]["done"] is False
         assert c.post("/api/brain/meetings/check", json={"key": f"{PID}:0", "done": True}).json() == {"ok": True}
         assert c.get("/api/brain/meetings").json()["items"][0]["actions"][0]["done"] is True     # 체크는 이 앱에 남는다
         assert c.post("/api/brain/meetings/check", json={"key": "../x", "done": True}).status_code == 400
@@ -61,3 +62,21 @@ def test_meetings_api(make_client, monkeypatch):
     monkeypatch.setattr(connectors, "claude_exe", lambda: None)
     with make_client() as c:
         assert c.get("/api/brain/meetings").json() == {"enabled": False}
+
+
+def test_summary_parent_and_groups():
+    text = ('[{"id":"' + PID + '","source":"팀 회의","title":"디자인 싱크","summary":"랜딩 시안 확정, 다음 주 배포",'
+            '"parent":"https://www.notion.so/team/meetings-db","date":"2026-11-02"}]')
+    items = meetings.parse(text)
+    assert items[0]["summary"] == "랜딩 시안 확정, 다음 주 배포" and items[0]["parent"] == "https://www.notion.so/team/meetings-db"
+    assert meetings.parse(text.replace("https://www.notion.so/team/meetings-db", "https://evil.example/x"))[0]["parent"] == ""
+    g = meetings.groups([{"name": "주간회의", "ref": "https://www.notion.so/weekly", "count": 1}, {"name": "팀 회의", "ref": "팀 회의", "count": 9}], items)
+    assert g == [{"name": "주간회의", "count": 1, "write": "https://www.notion.so/weekly"},      # 지정 주소가 쓰는 곳
+                 {"name": "팀 회의", "count": 5, "write": "https://www.notion.so/team/meetings-db"}]  # 검색어면 회의록의 상위, 개수는 최대 5
+    assert "최대 1개" in meetings.prompt(meetings.DEFAULT) and "summary" in meetings.prompt(meetings.DEFAULT)
+
+
+def test_meeting_count_validated(tmp_path):
+    s = brain.Store(tmp_path / "brain.json")
+    assert s.put("meetings", [{"name": "팀 회의", "ref": "팀 회의", "count": "3"}])["meetings"][0]["count"] == 3
+    assert s.put("meetings", [{"name": "주간회의", "ref": "주간회의"}])["meetings"][0]["count"] == 2

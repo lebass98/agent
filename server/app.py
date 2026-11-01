@@ -997,7 +997,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         done = read_done()
         items = [m | {"actions": [a | {"done": a["done"] or bool(done.get(f"{m['id']}:{i}"))} for i, a in enumerate(m["actions"])]}
                  for m in (meet["items"] if meet["key"] == key else [])]
-        return {"enabled": True, "items": items, "error": meet["error"], "loading": busy, "custom": bool(chosen),
+        return {"enabled": True, "items": items, "error": meet["error"], "loading": busy, "custom": bool(chosen), "sources": meetings.groups(sources, items),
                 "at": datetime.fromtimestamp(meet["at"]).isoformat(timespec="minutes") if meet["at"] else ""}
 
     @api.post("/brain/meetings/check")
