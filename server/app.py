@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import assistant, brain, calconn, connectors, gmail, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
+from . import assistant, brain, calconn, connectors, firebase, gmail, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -452,6 +452,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     tools_store = mcptools.Store(Path(tools_file) if tools_file else runs_dir.parent / "mcp-servers.json")
     recorder = notion.Notion()
     brain_store = brain.Store(Path(brain_file) if brain_file else runs_dir.parent / "cache" / "brain.json")
+    fb_sync = firebase.Sync(brain_store.file.parent)  # 브레인 자료 Firestore 백업(.env FIREBASE_PROJECT 가 있을 때만)
     mail_sums = gmail.Summaries((Path(brain_file).parent if brain_file else runs_dir.parent / "cache") / "brain-mail.json")
     mail = {"items": [], "at": 0.0, "error": "", "task": None, "fail": 0.0}  # 받은 메일(10분 재사용)·요약 작업
     dist_dir = runs_dir.parent / "dist"  # 휴대폰 앱 릴리즈(scripts/release.py, Git 제외)
@@ -477,10 +478,31 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         if recorder.enabled():
             later(recorder.record, d, rid, bool(event.get("ok")), event.get("usage"))
 
+    async def fb_loop() -> None:
+        """켤 때 없는 브레인 파일을 Firestore 에서 되살리고, 1분마다 바뀐 파일을 올린다"""
+        first = True
+        while True:
+            if firebase.project():
+                try:
+                    if first:
+                        got = await asyncio.to_thread(fb_sync.restore)
+                        if got:
+                            log.info("Firebase 에서 브레인 자료 %d개를 되살렸어요", len(got))
+                    await asyncio.to_thread(fb_sync.push)
+                    first = False
+                except firebase.FirebaseError as e:
+                    fb_sync.error = str(e)
+                except Exception as e:
+                    log.warning("Firebase 동기화 실패: %s", e)
+                    fb_sync.error = "Firebase 동기화에 실패했어요."
+            await asyncio.sleep(60)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         watcher = asyncio.create_task(dev_hub.watch(web_dir)) if dev_hub else None
+        fb_task = asyncio.create_task(fb_loop())
         yield
+        fb_task.cancel()
         if watcher:
             watcher.cancel()
         if (task := app.state.task) and not task.done():  # 서버 종료 시 진행 중 업무 취소
@@ -982,6 +1004,21 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             log.warning("회의록 가져오기 실패: %s", e)
             meet["error"] = "Claude 의 Notion 연결로 회의록을 가져오지 못했어요."
         meet["at"] = time.time()
+
+    @api.get("/brain/firebase")
+    def brain_firebase():
+        return fb_sync.status()
+
+    @api.post("/brain/firebase/sync")
+    async def brain_firebase_sync():
+        if not firebase.project():
+            raise HTTPException(400, ".env 에 FIREBASE_PROJECT 를 넣어 주세요.")
+        try:
+            n = await asyncio.to_thread(fb_sync.push, True)
+        except firebase.FirebaseError as e:
+            fb_sync.error = str(e)
+            raise HTTPException(502, str(e))
+        return fb_sync.status() | {"sent": n}
 
     @api.get("/brain/meetings")
     async def brain_meetings(refresh: bool = False):

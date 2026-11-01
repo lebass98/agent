@@ -538,3 +538,5 @@ pytest -v
 - 회의 지정에 '쓰기' 노션 주소를 추가하고, 컴퓨터에서는 notion:// 로 노션 앱의 회의록 보기를 바로 연다(notion.com 주소도 허용)
 - 메일 목록 아래의 잘린 요약 줄을 지우고 회의 요약 클래스 이름 충돌을 정리
 - 통합 캘린더의 '● Google' 출처 칩 줄을 숨김
+- server/firebase.py: cache/brain*.json 을 1분마다 Firestore agent-brain 컬렉션에 올리고, 서버를 켤 때 없는 파일은 되살림(캘린더 비공개 주소 제외)
+- 로그인은 이 컴퓨터의 Firebase CLI, 프로젝트는 .env 의 FIREBASE_PROJECT. /api/brain/firebase 상태·즉시 동기화

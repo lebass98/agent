@@ -16,6 +16,8 @@ def no_real_claude(monkeypatch):
     """테스트가 이 컴퓨터의 실제 claude CLI(Gmail·Notion·캘린더 커넥터)를 부르지 않게. 필요한 테스트는 다시 덮어쓴다."""
     from server import connectors
     monkeypatch.setattr(connectors, "claude_exe", lambda: None)
+    from server import firebase
+    monkeypatch.setattr(firebase, "project", lambda: "")   # 실제 Firestore 로 올리지 않게
 
 
 @pytest.fixture
