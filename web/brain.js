@@ -42,7 +42,7 @@ window.Brain = (() => {
         <button type="button" class="bn-more" id="bnMailRefresh" title="새 업무 메일만 더 가져와 쌓아요">${ico("history", "ic sm")} 다시 불러오기</button></header><div class="bn-body" id="bnMail"></div></article>
       <article class="bn-card bn-meet"><header><h3>${ico("file")}회의 노트</h3><small id="bnMeetSub">Notion</small>
         <button type="button" class="bn-more" data-act="meetings">회의 지정</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
-      <article class="bn-card bn-apps"><header><h3>${ico("grid")}내 서비스</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
+      <article class="bn-card bn-apps"><header><h3>${ico("grid")}내 서비스</h3><button type="button" class="bn-more" id="bnAppsSub" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
       <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬 라이브러리</h3><small id="bnSkSub"></small>
         <label class="bn-sksearch">${ico("search")}<input id="bnSkQ" placeholder="스킬 검색" aria-label="스킬 검색"></label></header>
         <div class="bn-body"><div class="bn-skpages" id="bnSkills"></div><div class="bn-dots" id="bnSkDots"></div></div></article>
@@ -368,7 +368,6 @@ window.Brain = (() => {
     const box = $b("bnApps");
     if (!loaded) { box.innerHTML = loadingNote; return; }
     if (offline) { box.innerHTML = offlineNote("바로가기"); return; }
-    $b("bnAppsSub").textContent = [CFG.shortcuts.length ? `${CFG.shortcuts.length}개` : "", VERCEL ? (VERCEL.connected ? `▲ ${VERCEL.user || "Vercel"} 연결` : "▲ Vercel 연결 안 됨") : ""].filter(Boolean).join(" · ");
     $b("bnAppsSub").title = VERCEL ? (VERCEL.connected ? `Vercel ${VERCEL.via === "env" ? "토큰(.env)" : "CLI 로그인"}으로 연결됨${VERCEL.synced ? ` · ${VERCEL.synced.slice(11)} 동기화` : ""} — 새 프로젝트는 6시간마다 자동으로 더해요` : VERCEL.error) : "";
     box.innerHTML = CFG.shortcuts.map(s => `<a class="bn-app" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.name)} — ${esc(s.url)}" style="--c:${esc(s.color)}"><span class="bn-tile">${esc(s.abbr)}</span><span>${esc(s.name)}</span></a>`).join("") +
       `<button type="button" class="bn-app" data-act="shortcuts" title="바로가기 추가"><span class="bn-tile add">${ico("plus")}</span><span>추가</span></button>`;

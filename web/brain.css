@@ -337,3 +337,9 @@ body.brain-mode .brain .bn-cal > header h3 { white-space: nowrap; flex-shrink: 0
 body.brain-mode .brain .bn-cal > header #bnCalSub { flex-basis: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body.brain-mode .brain .bn-cal > header .bn-seg { margin-left: auto; flex-shrink: 0; }
 body.brain-mode .brain .bn-cal > header .bn-mini { flex-shrink: 0; }
+
+/* 내 서비스 머리줄: 제목 오른쪽에 'Vercel 가져오기 · 편집'을 한 줄로 (연결 상태는 단추 툴팁) */
+body.brain-mode .brain .bn-apps > header { flex-wrap: nowrap; }
+body.brain-mode .brain .bn-apps > header h3 { white-space: nowrap; }
+body.brain-mode .brain .bn-apps > header .bn-more { margin-left: 0; white-space: nowrap; flex-shrink: 0; }
+body.brain-mode .brain .bn-apps > header .bn-more[data-act="vercel"] { margin-left: auto; }
