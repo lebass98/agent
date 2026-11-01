@@ -103,6 +103,11 @@ class Store:
         except (OSError, ValueError, TypeError):
             self.items, self.at, self.span = [], 0.0, 0   # span: 며칠 치를 거슬러 받아 두었는지(기간을 늘리면 그만큼 한 번 더 받는다)
 
+    def reload(self) -> None:
+        """다른 컴퓨터에서 받은 파일로 다시 읽기(Firebase 동기화)"""
+        with self.lock:
+            self.__init__(self.file)
+
     def ids(self) -> list[str]:
         return [m["id"] for m in self.items]
 

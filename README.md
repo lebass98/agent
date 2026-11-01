@@ -540,3 +540,5 @@ pytest -v
 - 통합 캘린더의 '● Google' 출처 칩 줄을 숨김
 - server/firebase.py: cache/brain*.json 을 1분마다 Firestore agent-brain 컬렉션에 올리고, 서버를 켤 때 없는 파일은 되살림(캘린더 비공개 주소 제외)
 - 로그인은 이 컴퓨터의 Firebase CLI, 프로젝트는 .env 의 FIREBASE_PROJECT. /api/brain/firebase 상태·즉시 동기화
+- 1분마다 바뀐 쪽을 다른 쪽으로 맞추고, 양쪽이 다 바뀌면 최근 것이 이기며 진 파일은 cache/firebase-conflicts/ 에 보관
+- 받은 메일·회의록·캘린더는 서버 메모리도 다시 읽고, 다른 컴퓨터 서버가 함께 켜져 있으면 상태·로그로 알림

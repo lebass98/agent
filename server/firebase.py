@@ -4,11 +4,16 @@
 - 로그인: 이 컴퓨터에서 `firebase login` 한 Firebase CLI 의 저장된 로그인(갱신 토큰)으로 접근 토큰을 받는다.
   토큰은 화면·로그로 보내지 않는다. (서비스 계정 키 파일을 쓰려면 다음 단계에서)
 - 자료: `cache/brain*.json` 파일마다 Firestore 문서 하나(`agent-brain/<파일 이름>`)에 gzip 으로 올린다.
-  1분마다 바뀐 파일만 올리고, 서버를 켤 때 이 컴퓨터에 없는 파일은 Firestore 에서 받아 되살린다.
+- 양방향(집·회사 컴퓨터): 1분마다 마지막 동기화(`cache/.firebase-sync.json`) 이후 이쪽에서 바뀐 파일은 올리고, 저쪽에서 바뀐 파일은 받는다.
+  양쪽 다 바뀌었으면 더 최근에 고친 쪽이 이기고, 진 이 컴퓨터 파일은 `cache/firebase-conflicts/` 에 남긴다.
+  컴퓨터마다 `agent-brain-hosts/<이름>` 에 1분마다 신호를 남겨, 다른 컴퓨터 서버가 같이 켜져 있으면 상태에 알린다.
+- 스킬 실행 기록(brain-skill-runs.json)은 결과 파일이 그 컴퓨터에만 있어 동기화하지 않는다.
 - 비밀: 캘린더 iCal 비공개 주소(`brain.json` 의 calendars[].url)는 올리지 않는다. notify.json·.env 도 올리지 않는다.
 - Firestore 규칙은 닫혀 있어(브라우저 접근 불가) 이 서버의 로그인으로만 읽고 쓴다.
 """
 import base64
+import shutil
+import socket
 import gzip
 import json
 import os
@@ -21,6 +26,9 @@ from pathlib import Path
 
 COLLECTION = "agent-brain"
 PATTERN = "brain*.json"
+SKIP = {"brain-skill-runs.json"}
+HOSTS = "agent-brain-hosts"
+ALIVE = 180  # 이 시간 안에 신호가 있으면 켜져 있는 서버
 TIMEOUT = 20
 CLI_CONFIG = Path.home() / ".config/configstore/firebase-tools.json"
 
@@ -93,14 +101,40 @@ def _strip(name: str, raw: bytes) -> bytes:
     return json.dumps(d, ensure_ascii=False, indent=2).encode()
 
 
-class Sync:
-    def __init__(self, cache_dir: Path, auth: Auth | None = None):
-        self.dir, self.auth = cache_dir, auth or Auth()
-        self.sent: dict[str, float] = {}
-        self.last, self.error, self.restored = "", "", []
+def host_name() -> str:
+    return re.sub(r"[^A-Za-z0-9-]", "-", socket.gethostname().split(".")[0])[:40] or "server"
 
-    def _url(self, proj: str, name: str = "") -> str:
-        base = f"https://firestore.googleapis.com/v1/projects/{proj}/databases/(default)/documents/{COLLECTION}"
+
+def _keep_calendar_urls(raw: bytes, local: Path) -> bytes:
+    """받은 brain.json 에 이 컴퓨터의 캘린더 비공개 주소를 다시 붙인다(Firestore 에는 없다)"""
+    try:
+        d, mine = json.loads(raw), json.loads(local.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return raw
+    urls = {c.get("id"): c.get("url") for c in mine.get("calendars") or [] if isinstance(c, dict) and c.get("url")}
+    if not urls:
+        return raw
+    for c in d.get("calendars") or []:
+        if isinstance(c, dict) and urls.get(c.get("id")):
+            c["url"] = urls[c["id"]]
+    return json.dumps(d, ensure_ascii=False, indent=2).encode()
+
+
+class Sync:
+    def __init__(self, cache_dir: Path, auth: Auth | None = None, host: str | None = None, on_pull=None):
+        self.dir, self.auth, self.host = cache_dir, auth or Auth(), host or host_name()
+        self.on_pull = on_pull                      # 받은 파일 이름으로 불러 메모리 속 자료를 다시 읽게
+        self.state_file = cache_dir / ".firebase-sync.json"
+        try:
+            self.base: dict = json.loads(self.state_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            self.base = {}
+        self.last, self.error, self.others = "", "", []
+        self.pulled: list[str] = []
+        self.pushed: list[str] = []
+
+    def _url(self, proj: str, name: str = "", coll: str = COLLECTION) -> str:
+        base = f"https://firestore.googleapis.com/v1/projects/{proj}/databases/(default)/documents/{coll}"
         return f"{base}/{urllib.parse.quote(name)}" if name else base
 
     def _call(self, url: str, method: str = "GET", body: dict | None = None) -> dict:
@@ -117,51 +151,109 @@ class Sync:
             raise FirebaseError("Firestore 에 연결하지 못했어요(인터넷 확인).")
 
     def files(self) -> list[Path]:
-        return sorted(p for p in self.dir.glob(PATTERN) if not p.name.startswith("._"))
+        return sorted(p for p in self.dir.glob(PATTERN) if not p.name.startswith("._") and p.name not in SKIP)
 
-    def push(self, force: bool = False) -> int:
-        """바뀐 파일만 올린다(동기, 스레드에서). 올린 개수"""
-        proj = project()
-        if not proj:
-            return 0
-        n = 0
-        for f in self.files():
-            try:
-                mt = f.stat().st_mtime
-                if not force and self.sent.get(f.name) == mt:
-                    continue
-                data = base64.b64encode(gzip.compress(_strip(f.name, f.read_bytes()))).decode()
-            except OSError:
-                continue
-            self._call(self._url(proj, f.name), "PATCH", {"fields": {"data": {"bytesValue": data}, "mtime": {"doubleValue": mt}}})
-            self.sent[f.name] = mt
-            n += 1
-        self.last, self.error = time.strftime("%Y-%m-%dT%H:%M"), ""
-        return n
-
-    def restore(self) -> list[str]:
-        """이 컴퓨터에 없는 브레인 파일을 Firestore 에서 되살린다"""
-        proj = project()
-        if not proj:
-            return []
-        got = []
+    def _remote(self, proj: str) -> dict[str, dict]:
+        out = {}
         for doc in self._call(self._url(proj) + "?pageSize=100").get("documents", []):
+            name, f = doc["name"].rsplit("/", 1)[-1], doc.get("fields", {})
+            if not re.fullmatch(r"brain[\w.-]*\.json", name) or name in SKIP or "data" not in f:
+                continue
+            out[name] = {"data": f["data"].get("bytesValue", ""), "mtime": float(f.get("mtime", {}).get("doubleValue", 0)),
+                         "at": f.get("at", {}).get("stringValue", "") or str(f.get("mtime", {}).get("doubleValue", ""))}
+        return out
+
+    def _save_state(self) -> None:
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_text(json.dumps(self.base), encoding="utf-8")
+
+    def _push(self, proj: str, f: Path) -> None:
+        mt = f.stat().st_mtime
+        at = f"{self.host}:{time.time():.3f}"
+        data = base64.b64encode(gzip.compress(_strip(f.name, f.read_bytes()))).decode()
+        self._call(self._url(proj, f.name), "PATCH", {"fields": {"data": {"bytesValue": data}, "mtime": {"doubleValue": mt},
+                                                                   "at": {"stringValue": at}, "host": {"stringValue": self.host}}})
+        self.base[f.name] = {"local": mt, "remote": at}
+        self.pushed.append(f.name)
+
+    def _pull(self, name: str, r: dict, backup: bool = False) -> bool:
+        try:
+            raw = gzip.decompress(base64.b64decode(r["data"]))
+            json.loads(raw)
+        except (ValueError, OSError):
+            return False
+        f = self.dir / name
+        if backup and f.exists():
+            keep = self.dir / "firebase-conflicts"
+            keep.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(f, keep / f"{f.stem}.{time.strftime('%Y%m%d-%H%M%S')}.json")
+        if name == "brain.json" and f.exists():
+            raw = _keep_calendar_urls(raw, f)
+        self.dir.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_suffix(".fbtmp")
+        tmp.write_bytes(raw)
+        os.replace(tmp, f)
+        self.base[name] = {"local": f.stat().st_mtime, "remote": r["at"]}
+        self.pulled.append(name)
+        if self.on_pull:
+            self.on_pull(name)
+        return True
+
+    def sync(self) -> dict:
+        """양방향 한 번(동기, 스레드에서). {pulled, pushed}"""
+        proj = project()
+        self.pulled, self.pushed = [], []
+        if not proj:
+            return {"pulled": [], "pushed": []}
+        try:   # 같은 컴퓨터의 다른 서버(예: 8000·8001)와 기록을 함께 쓴다 — 서로 주고받기를 되풀이하지 않게
+            self.base = json.loads(self.state_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pass
+        remote = self._remote(proj)
+        local = {f.name: f for f in self.files()}
+        for name in sorted(set(remote) | set(local)):
+            f, r, b = local.get(name), remote.get(name), self.base.get(name)
+            lm = f.stat().st_mtime if f else None
+            if f and not r:
+                self._push(proj, f)
+            elif r and not f:
+                self._pull(name, r)
+            elif b is None:                                          # 처음 맞춰 볼 때: 더 최근에 고친 쪽
+                if r["mtime"] > lm + 1:
+                    self._pull(name, r, backup=True)
+                elif lm > r["mtime"] + 1:
+                    self._push(proj, f)
+                else:
+                    self.base[name] = {"local": lm, "remote": r["at"]}
+            else:
+                mine, theirs = lm != b.get("local"), r["at"] != b.get("remote")
+                if mine and theirs:                                  # 양쪽 다 바뀜: 최근 것이 이기고 진 쪽은 남긴다
+                    if r["mtime"] > lm:
+                        self._pull(name, r, backup=True)
+                    else:
+                        self._push(proj, f)
+                elif theirs:
+                    self._pull(name, r)
+                elif mine:
+                    self._push(proj, f)
+        self._beat(proj)
+        self._save_state()
+        self.last, self.error = time.strftime("%Y-%m-%dT%H:%M"), ""
+        return {"pulled": self.pulled, "pushed": self.pushed}
+
+    def _beat(self, proj: str) -> None:
+        """이 서버가 켜져 있다는 신호 + 다른 컴퓨터 서버 확인"""
+        now = time.time()
+        self._call(self._url(proj, self.host, HOSTS), "PATCH", {"fields": {"at": {"doubleValue": now}}})
+        others = []
+        for doc in self._call(self._url(proj, coll=HOSTS) + "?pageSize=50").get("documents", []):
             name = doc["name"].rsplit("/", 1)[-1]
-            if not re.fullmatch(r"brain[\w.-]*\.json", name) or (self.dir / name).exists():
-                continue
-            try:
-                raw = gzip.decompress(base64.b64decode(doc["fields"]["data"]["bytesValue"]))
-                json.loads(raw)
-            except (KeyError, ValueError, OSError):
-                continue
-            self.dir.mkdir(parents=True, exist_ok=True)
-            (self.dir / name).write_bytes(raw)
-            self.sent[name] = (self.dir / name).stat().st_mtime
-            got.append(name)
-        self.restored = got
-        return got
+            at = float(doc.get("fields", {}).get("at", {}).get("doubleValue", 0))
+            if name != self.host and now - at < ALIVE:
+                others.append(name)
+        self.others = others
 
     def status(self) -> dict:
         proj = project()
-        return {"enabled": bool(proj), "project": proj, "last": self.last, "error": self.error, "restored": self.restored,
-                "files": [f.name for f in self.files()] if proj else []}
+        return {"enabled": bool(proj), "project": proj, "host": self.host, "last": self.last, "error": self.error,
+                "others": self.others, "files": [f.name for f in self.files()] if proj else []}

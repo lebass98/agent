@@ -479,17 +479,17 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             later(recorder.record, d, rid, bool(event.get("ok")), event.get("usage"))
 
     async def fb_loop() -> None:
-        """켤 때 없는 브레인 파일을 Firestore 에서 되살리고, 1분마다 바뀐 파일을 올린다"""
-        first = True
+        """1분마다 Firebase 와 양방향으로 맞춘다(이쪽에서 바뀐 것은 올리고, 다른 컴퓨터에서 바뀐 것은 받는다)"""
+        warned = False
         while True:
             if firebase.project():
                 try:
-                    if first:
-                        got = await asyncio.to_thread(fb_sync.restore)
-                        if got:
-                            log.info("Firebase 에서 브레인 자료 %d개를 되살렸어요", len(got))
-                    await asyncio.to_thread(fb_sync.push)
-                    first = False
+                    got = await asyncio.to_thread(fb_sync.sync)
+                    if got["pulled"]:
+                        log.info("Firebase 에서 받은 브레인 자료: %s", ", ".join(got["pulled"]))
+                    if fb_sync.others and not warned:
+                        log.warning("다른 컴퓨터(%s)의 서버도 켜져 있어요 — 한쪽만 켜 두는 것이 안전해요", ", ".join(fb_sync.others))
+                    warned = bool(fb_sync.others)
                 except firebase.FirebaseError as e:
                     fb_sync.error = str(e)
                 except Exception as e:
@@ -984,6 +984,20 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         last = json.loads(meet_file.read_text(encoding="utf-8"))
         meet.update(items=list(last["items"]), at=float(last["at"]), key=str(last["key"]))
 
+    def fb_reload(name: str) -> None:
+        """Firebase 에서 받은 파일 → 메모리 속 자료도 다시 읽는다(brain.json·회의 체크·메일 상세는 매번 파일을 읽음)"""
+        with contextlib.suppress(OSError, ValueError, KeyError):
+            if name == mail_store.file.name:
+                mail_store.reload()
+                mail["at"] = max(mail["at"], mail_store.at)   # 다른 컴퓨터가 방금 받았으면 다시 받지 않는다
+            elif name == meet_file.name:
+                last = json.loads(meet_file.read_text(encoding="utf-8"))
+                meet.update(items=list(last["items"]), at=float(last["at"]), key=str(last["key"]))
+            elif name == cal_file.name:
+                last = json.loads(cal_file.read_text(encoding="utf-8"))
+                cal.update(items=list(last["items"]), at=float(last["at"]))
+    fb_sync.on_pull = fb_reload
+
     def read_done() -> dict:
         try:
             d = json.loads(meet_done.read_text(encoding="utf-8"))
@@ -1014,11 +1028,11 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         if not firebase.project():
             raise HTTPException(400, ".env 에 FIREBASE_PROJECT 를 넣어 주세요.")
         try:
-            n = await asyncio.to_thread(fb_sync.push, True)
+            got = await asyncio.to_thread(fb_sync.sync)
         except firebase.FirebaseError as e:
             fb_sync.error = str(e)
             raise HTTPException(502, str(e))
-        return fb_sync.status() | {"sent": n}
+        return fb_sync.status() | got
 
     @api.get("/brain/meetings")
     async def brain_meetings(refresh: bool = False):

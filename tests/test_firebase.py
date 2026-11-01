@@ -1,8 +1,9 @@
-"""브레인 자료 Firebase 백업: 비밀 빼기 · 바뀐 파일만 올리기 · 없는 파일 되살리기(네트워크 없이 가짜 Firestore)."""
+"""브레인 자료 Firebase 양방향 동기화: 두 컴퓨터(집·회사)가 가짜 Firestore 하나를 같이 쓴다(네트워크 없음)."""
 import base64
 import gzip
 import json
 import os
+import time
 
 from server import firebase
 
@@ -12,57 +13,89 @@ class FakeAuth:
         return "tok"
 
 
-def fake_store(monkeypatch, sync):
-    docs, calls = {}, []
+class FakeFirestore:
+    def __init__(self):
+        self.docs = {}       # (컬렉션, 이름) → body
 
-    def call(url, method="GET", body=None):
-        calls.append(method)
-        name = url.split("/agent-brain")[-1].lstrip("/").split("?")[0]
-        if method == "PATCH":
-            docs[name] = body
-            return {}
-        return {"documents": [{"name": f"x/agent-brain/{k}", **v} for k, v in docs.items()]}
-    monkeypatch.setattr(sync, "_call", call)
-    return docs, calls
+    def attach(self, sync):
+        def call(url, method="GET", body=None):
+            path = url.split("/documents/", 1)[1].split("?")[0]
+            coll, _, name = path.partition("/")
+            if method == "PATCH":
+                self.docs[(coll, name)] = body
+                return {}
+            return {"documents": [{"name": f"x/{c}/{n}", **b} for (c, n), b in self.docs.items() if c == coll]}
+        sync._call = call
+        return sync
+
+    def data(self, name):
+        return json.loads(gzip.decompress(base64.b64decode(self.docs[("agent-brain", name)]["fields"]["data"]["bytesValue"])))
 
 
-def test_push_strips_calendar_url_and_skips_unchanged(tmp_path, monkeypatch):
+def write(p, d, ago=0):
+    p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    t = time.time() - ago
+    os.utime(p, (t, t))
+
+
+def machine(fs, d, host, pulled=None):
+    d.mkdir(exist_ok=True)
+    return fs.attach(firebase.Sync(d, FakeAuth(), host=host, on_pull=(pulled.append if pulled is not None else None)))
+
+
+def test_two_way_sync_between_home_and_office(tmp_path, monkeypatch):
     monkeypatch.setattr(firebase, "project", lambda: "demo-project")
-    (tmp_path / "brain.json").write_text(json.dumps({"calendars": [{"name": "회사", "url": "https://secret.example/basic.ics"}]}), encoding="utf-8")
-    (tmp_path / "notify.json").write_text("{}", encoding="utf-8")          # 브레인 파일이 아니면 올리지 않는다
-    sync = firebase.Sync(tmp_path, FakeAuth())
-    docs, calls = fake_store(monkeypatch, sync)
-    assert sync.push() == 1 and list(docs) == ["brain.json"]
-    up = json.loads(gzip.decompress(base64.b64decode(docs["brain.json"]["fields"]["data"]["bytesValue"])))
-    assert up == {"calendars": [{"name": "회사"}]}                          # 캘린더 비공개 주소는 빠진다
-    assert json.loads((tmp_path / "brain.json").read_text())["calendars"][0]["url"]   # 이 컴퓨터 파일은 그대로
-    assert sync.push() == 0 and sync.push(force=True) == 1                 # 안 바뀌면 다시 올리지 않는다
-    assert sync.status()["enabled"] and sync.status()["project"] == "demo-project"
+    fs, pulled = FakeFirestore(), []
+    home, office = tmp_path / "home", tmp_path / "office"
+    h = machine(fs, home, "home")
+    write(home / "brain.json", {"shortcuts": [1], "calendars": [{"id": "c1", "name": "회사", "url": "https://secret.example/a.ics"}]}, ago=100)
+    write(home / "brain-skill-runs.json", [])                                  # 컴퓨터마다 따로라 올리지 않는다
+    assert h.sync() == {"pulled": [], "pushed": ["brain.json"]}
+    assert fs.data("brain.json")["calendars"] == [{"id": "c1", "name": "회사"}]   # 비공개 주소는 올라가지 않는다
+
+    o = machine(fs, office, "office", pulled)
+    assert o.sync()["pulled"] == ["brain.json"] and pulled == ["brain.json"]   # 회사 컴퓨터는 받아 온다
+    assert json.loads((office / "brain.json").read_text())["shortcuts"] == [1]
+    assert o.others == ["home"] and o.status()["others"] == ["home"]           # 집 서버도 켜져 있다고 알린다
+
+    write(office / "brain.json", {"shortcuts": [1, 2], "calendars": [{"id": "c1", "name": "회사"}]})
+    assert o.sync()["pushed"] == ["brain.json"]                                # 회사에서 바꾸면 올리고
+    assert h.sync()["pulled"] == ["brain.json"]                                # 집에서 받는다
+    got = json.loads((home / "brain.json").read_text())
+    assert got["shortcuts"] == [1, 2] and got["calendars"][0]["url"] == "https://secret.example/a.ics"   # 집의 비공개 주소는 지킨다
+    assert h.sync() == {"pulled": [], "pushed": []} and o.sync() == {"pulled": [], "pushed": []}        # 더 할 게 없다
 
 
-def test_restore_only_missing_files(tmp_path, monkeypatch):
+def test_conflict_newer_wins_and_loser_kept(tmp_path, monkeypatch):
     monkeypatch.setattr(firebase, "project", lambda: "demo-project")
-    src, dst = tmp_path / "a", tmp_path / "b"
-    src.mkdir()
-    (src / "brain-mail-store.json").write_text('{"items": [1]}', encoding="utf-8")
-    (src / "brain.json").write_text('{"shortcuts": []}', encoding="utf-8")
-    up = firebase.Sync(src, FakeAuth())
-    docs, _ = fake_store(monkeypatch, up)
-    up.push()
-    dst.mkdir()
-    (dst / "brain.json").write_text('{"local": true}', encoding="utf-8")
-    down = firebase.Sync(dst, FakeAuth())
-    monkeypatch.setattr(down, "_call", lambda url, method="GET", body=None: {"documents": [{"name": f"x/agent-brain/{k}", **v} for k, v in docs.items()]})
-    assert down.restore() == ["brain-mail-store.json"]                     # 이 컴퓨터에 있는 파일은 덮어쓰지 않는다
-    assert json.loads((dst / "brain-mail-store.json").read_text()) == {"items": [1]}
-    assert json.loads((dst / "brain.json").read_text()) == {"local": True}
+    fs = FakeFirestore()
+    h, o = machine(fs, tmp_path / "home", "home"), machine(fs, tmp_path / "office", "office")
+    write(h.dir / "brain.json", {"v": 0}, ago=500)
+    h.sync(), o.sync()
+    write(h.dir / "brain.json", {"v": "home"}, ago=60)                         # 둘 다 고쳤지만 회사가 더 최근
+    write(o.dir / "brain.json", {"v": "office"}, ago=5)
+    o.sync()
+    assert h.sync()["pulled"] == ["brain.json"]
+    assert json.loads((h.dir / "brain.json").read_text()) == {"v": "office"}
+    kept = list((h.dir / "firebase-conflicts").glob("brain.*.json"))
+    assert len(kept) == 1 and json.loads(kept[0].read_text()) == {"v": "home"}   # 진 쪽은 지우지 않고 남긴다
+
+
+def test_state_survives_restart(tmp_path, monkeypatch):
+    monkeypatch.setattr(firebase, "project", lambda: "demo-project")
+    fs = FakeFirestore()
+    h = machine(fs, tmp_path / "home", "home")
+    write(h.dir / "brain-mail-store.json", {"items": [1]})
+    h.sync()
+    again = machine(fs, tmp_path / "home", "home")                             # 서버를 다시 켜도 다시 올리지 않는다
+    assert again.sync() == {"pulled": [], "pushed": []}
 
 
 def test_off_without_project(tmp_path, monkeypatch):
     monkeypatch.setattr(firebase, "project", lambda: "")
     (tmp_path / "brain.json").write_text("{}", encoding="utf-8")
     sync = firebase.Sync(tmp_path, FakeAuth())
-    assert sync.push() == 0 and sync.restore() == [] and sync.status()["enabled"] is False
+    assert sync.sync() == {"pulled": [], "pushed": []} and sync.status()["enabled"] is False
 
 
 def test_api_status(make_client):
