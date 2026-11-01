@@ -43,6 +43,22 @@ def test_claude_rules_are_scoped(tmp_path):
     assert not any(r.startswith(("Bash", "Edit(/" + str(tmp_path / "skill"))) for r in rules)     # 셸·스킬 폴더 쓰기 없음
     assert all("send" not in r and "create" not in r and "update" not in r for r in rules)
     assert "Bash" not in skills.BUILTIN and "Task" not in skills.BUILTIN
+    assert not any(r.startswith("mcp__") for r in rules)      # 웹과 함께 메일·노션을 주지 않는다(밖으로 새는 길 차단)
+
+
+def test_codex_skill_runs_without_network(tmp_path, monkeypatch):
+    import asyncio
+    seen = {}
+
+    async def fake_proc(cmd, prompt, folder, env):
+        seen["cmd"] = cmd
+        return ""
+    monkeypatch.setattr(skills, "_proc", fake_proc)
+    from agentteam import cli
+    monkeypatch.setattr(cli, "which", lambda name: "/usr/bin/" + name)
+    asyncio.run(skills.execute({"ai": "codex", "name": "demo", "dir": str(tmp_path)}, "", tmp_path))
+    cmd = seen["cmd"]
+    assert cmd[cmd.index("--sandbox") + 1] == "workspace-write" and "sandbox_workspace_write.network_access=false" in cmd
 
 
 def test_skill_api(make_client, home, monkeypatch):

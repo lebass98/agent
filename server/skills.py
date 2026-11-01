@@ -1,8 +1,9 @@
 """브레인 모드 스킬: 실행 · 결과 보관 · SKILL.md 편집.
 
 - 실행: Claude 스킬은 `claude -p "/<스킬> <입력>"`, GPT(codex) 스킬은 `codex exec` 로 스킬 이름을 불러 실행한다.
-  스킬마다 전용 결과 폴더(runs/skills/<시각>-<이름>/)에서 돌리고, 허용 도구는 그 폴더 안 파일 읽기·쓰기 · 웹 검색 ·
-  메일·노션·캘린더 '읽기'뿐이다(셸 명령·하위 에이전트·보내기·고치기 도구는 허용하지 않는다). 결과는 마지막 답(마크다운)과 만든 파일.
+  스킬마다 전용 결과 폴더(runs/skills/<시각>-<이름>/)에서 돌리고, Claude 는 그 폴더 안 파일 읽기·쓰기 · 스킬 폴더 읽기 · 웹 검색만 쓴다
+  (셸 명령·하위 에이전트 없음). 메일·노션 연결은 스킬에 주지 않는다 — 웹 접근과 함께 있으면 메일 속 지시에 속아 내용을 밖으로 보낼 수 있어서.
+  Codex 는 `workspace-write` 샌드박스(쓰기는 그 폴더만)에 네트워크를 끈다. 결과는 마지막 답(마크다운)과 만든 파일.
 - 편집: 직접 만든 스킬(mine)의 SKILL.md 만 저장할 수 있다. 설치한 스킬(플러그인·동기화·기본 내장)은 읽기만.
 - 입력 받기: SKILL.md 의 `argument-hint` 가 있으면 실행 전에 입력 창을 띄운다(화면에서 바꿀 수 있다 — 브레인 설정 skillnotes).
 """
@@ -18,15 +19,12 @@ from pathlib import Path
 from . import brain
 
 BUILTIN = "Skill,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"   # 쓸 수 있는 기본 도구(셸·하위 에이전트 없음)
-READ_ONLY_MCP = ["mcp__claude_ai_Gmail__search_threads", "mcp__claude_ai_Gmail__get_thread",
-                 "mcp__claude_ai_Notion__notion-search", "mcp__claude_ai_Notion__notion-fetch",
-                 "mcp__claude_ai_Notion__notion-calendar-list-events", "mcp__claude_ai_Notion__notion-calendar-list-calendars"]
 
 
 def claude_rules(folder: Path, skill_dir: Path) -> list[str]:
     """허용 규칙: 파일은 결과 폴더(읽기·쓰기)와 스킬 폴더(읽기)만. 절대 경로 규칙은 '//' 로 시작한다."""
     out, sk = "/" + str(folder).rstrip("/") + "/**", "/" + str(skill_dir).rstrip("/") + "/**"
-    return ["Skill", "WebSearch", "WebFetch", f"Read({out})", f"Edit({out})", f"Read({sk})", *READ_ONLY_MCP]
+    return ["Skill", "WebSearch", "WebFetch", f"Read({out})", f"Edit({out})", f"Read({sk})"]
 TIMEOUT = 1200            # 스킬 실행 최대 20분
 FILE_LIMIT = 200_000      # SKILL.md 최대 크기
 RESULT_LIMIT = 60_000
@@ -156,7 +154,7 @@ async def _proc(cmd: list[str], stdin: str, cwd: Path, env: dict) -> str:
 
 async def execute(skill: dict, text: str, folder: Path) -> str:
     from agentteam import cli
-    note = "결과 파일은 지금 작업 폴더 안에만 만드세요. 메일을 보내거나 노션·캘린더를 고치지 마세요."
+    note = "결과 파일은 지금 작업 폴더 안에만 만드세요. 작업 폴더 밖의 파일(설정·키 파일 등)은 읽지 마세요."
     if skill["ai"] == "claude":
         exe = cli.which("claude")
         if not exe:
@@ -177,7 +175,8 @@ async def execute(skill: dict, text: str, folder: Path) -> str:
     if not exe:
         raise SkillError("codex CLI 가 없어요.")
     last = folder / ".last.txt"
-    cmd = [exe, "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "-C", str(folder), "-o", str(last), "-"]
+    cmd = [exe, "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false",
+           "-C", str(folder), "-o", str(last), "-"]
     await _proc(cmd, f"${skill['name']} 스킬을 사용하세요. {text}\n\n({note})", folder, cli._env("OPENAI_API_KEY"))
     try:
         return last.read_text(encoding="utf-8")
