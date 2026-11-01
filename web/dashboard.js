@@ -25,13 +25,13 @@ window.Dashboard = (() => {
     const c = cards.get(tipFor), i = c?.info;
     if (!tip || !c || !i) return;
     tip.style.setProperty("--c", c.d.color);
-    tip.replaceChildren(
+    tip.replaceChildren(...[
       el("div",{class:"ft-head"}, el("strong",{text:c.d.label}), el("span",{class:`ft-status${i.busy ? " busy" : ""}${i.failed ? " failed" : ""}`,text:i.failed ? `${i.status} · 실패 있음` : i.status})),
       c.d.role ? el("p",{class:"ft-role",text:c.d.role}) : null,
       i.ready && !i.ready.ok ? el("p",{class:"ft-conn",text:`연결 안 됨 · ${i.ready.hint || "연결 설정이 필요해요"}`}) : null,
       el("p",{class:"ft-task",text:i.task}),
       el("div",{class:"ft-prog"}, el("span",{class:"bar"},el("i",{style:{width:`${i.pct}%`}})), el("small",{text:i.total ? `업무 ${i.fin}/${i.total} · ${i.pct}%` : "배정된 업무 없음"})),
-      el("small",{class:"ft-model",text:c.d.model || PROVIDER_KO[c.d.provider] || c.d.provider || ""}));
+      el("small",{class:"ft-model",text:c.d.model || PROVIDER_KO[c.d.provider] || c.d.provider || ""})].filter(Boolean));
   }
   addEventListener("scroll", hideTip, true);
   addEventListener("keydown", e => { if (e.key === "Escape") hideTip(); });
@@ -99,9 +99,10 @@ window.Dashboard = (() => {
     $("railProfile").onclick=()=>showView("settings");
     $("activityMembers").onclick=()=>showView("members");
     // 팀 활동 접기·펼치기 (브라우저에 기억). 접힌 띠에서 얼굴을 누르면 대화창, 화살표를 누르면 다시 펼친다
-    const setTeamCollapsed=on=>{document.body.classList.toggle("team-collapsed",on);const b=$("activityCollapse");b.setAttribute("aria-expanded",String(!on));b.setAttribute("aria-label",on?"팀 활동 펼치기":"팀 활동 접기");b.title=on?"팀 활동 펼치기":"팀 활동 접기";store.set("agentOffice.teamCollapsed",on?"1":"0");};
+    const teamCollapseKey=window.SpaceTheme?.isBrain ? "agentOffice.brain.teamCollapsed" : "agentOffice.teamCollapsed";
+    const setTeamCollapsed=on=>{document.body.classList.toggle("team-collapsed",on);const b=$("activityCollapse");b.setAttribute("aria-expanded",String(!on));b.setAttribute("aria-label",on?"팀 활동 펼치기":"팀 활동 접기");b.title=on?"팀 활동 펼치기":"팀 활동 접기";store.set(teamCollapseKey,on?"1":"0");};
     $("activityCollapse").onclick=()=>setTeamCollapsed(!document.body.classList.contains("team-collapsed"));
-    setTeamCollapsed(store.get("agentOffice.teamCollapsed")==="1");
+    setTeamCollapsed(store.get(teamCollapseKey)==="1" || (store.get(teamCollapseKey)==null && !!window.SpaceTheme?.isBrain));
     $("activityClose").onclick=()=>{setDock(false);$("teamToggle").setAttribute("aria-expanded","false");$("teamToggle").focus();};
     $("teamToggle").onclick=()=>{const open=!$("dock").classList.contains("open");setDock(open,"log");$("teamToggle").setAttribute("aria-expanded",String(open));};
     $("newTaskBtn").onclick=()=>{closeView();$("goal").focus();};

@@ -1,5 +1,5 @@
 "use strict";
-/* 브레인 모드(기본 공간) — 시안 A '커맨드 센터'(web/brain-preview/a.html).
+/* 브레인 모드(기본 공간) — 승인된 Soft Glass 디자인. 기존 API·업무 DOM 계약은 유지한다.
    3D 사무실 자리에 업무 화면을 띄운다: 중요 일정 플로팅 · 오늘 브리핑 · 통합 캘린더 · 진행 중인 업무 · 루틴 · 메일 요약 · 회의록 · 바로가기 · 스킬.
    데이터는 /api/brain*(server/brain.py, docs/events.md '브레인 모드'). 설정은 서버 cache/brain.json 에 저장되어 휴대폰에서도 같다.
    app.js 가 3D 를 켜지 않고(테마 flat) 목록 모드로 돈다 — 업무 지시·팀 상태·로그는 그대로. 모션은 Moxie 기법(두 스프링 탭·카운트업·체크 그리기 등). */
@@ -21,33 +21,60 @@ window.Brain = (() => {
   let loaded = false, offline = false;
   let MAIL = null, mailT = 0, MEET = null, meetT = 0, meetOpen = 0; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
   let RUNS = [], runsT = 0, VERCEL = null; // Vercel CLI 연결 상태 // 스킬 실행 기록(/api/brain/skills/runs)
-  const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), skAi: "all", skMine: "mine", skQ: "", edit: false };
+  const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), date: ymd(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1), skAi: "all", skMine: "mine", skQ: "", edit: false };
   let hiddenFloats = new Set();
   try { hiddenFloats = new Set(JSON.parse(sessionStorage.getItem("agentOffice.brain.hide") || "[]")); } catch {}
 
   /* ───────── 틀 ───────── */
   const ui = h(`<section class="brain" id="brain" aria-label="브레인">
+    <header class="bn-welcome"><div><p id="bnDate"></p><h1><span id="bnGreeting">나의 업무 공간</span><span class="bn-welcome-sub"> 당신의 하루를 가볍게.</span></h1></div><button type="button" class="bn-team-toggle" id="bnTeamToggle">${ico("users")}<span>팀 활동</span></button></header>
     <div class="bn-floats" id="bnFloats" aria-label="중요 일정"></div>
     <div class="bn-grid">
       <article class="bn-card bn-brief" id="bnBrief"></article>
       <article class="bn-card bn-cal"><header><h3>${ico("calendar")}통합 캘린더</h3><small id="bnCalSub"></small>
-        <span class="bn-seg" id="bnCalView"><button type="button" data-v="day">오늘</button><button type="button" data-v="week">주간</button></span>
+        <span class="bn-seg" id="bnCalView"><button type="button" data-v="day">월간</button><button type="button" data-v="week">주간</button></span>
         <button type="button" class="bn-mini" data-act="event" title="일정 직접 넣기">${ico("plus")}</button><button type="button" class="bn-mini" data-act="cals" title="캘린더 연결">${ico("gear")}</button></header>
-        <div class="bn-chips" id="bnSrc"></div><div class="bn-body" id="bnCal"></div></article>
+        <div class="bn-chips" id="bnSrc"></div><div class="bn-body" id="bnCal"></div><div class="bn-cal-footer"><button type="button" class="bn-btn" data-act="event">${ico("plus")} 일정 추가</button></div></article>
       <article class="bn-card bn-work"><header><h3>${ico("kanban")}진행 중인 업무</h3><small id="bnWorkSub"></small><button type="button" class="bn-more" data-act="board">보드 ›</button></header><div class="bn-body" id="bnWork"></div></article>
-      <article class="bn-card bn-rt"><header><h3>${ico("repeat")}루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-more" data-act="routines">+ 추가·편집</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
-      <article class="bn-card bn-mail"><header><h3>${ico("mail")}메일 요약</h3><small id="bnMailSub">Gmail</small>
+      <article class="bn-card bn-rt"><header><h3>${ico("repeat")}나의 루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-more" data-act="routines">+ 추가·편집</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
+      <article class="bn-card bn-mail"><header><h3>${ico("mail")}이메일 브리핑</h3><small id="bnMailSub">Gmail</small>
         <span class="bn-seg" id="bnMailView"><button type="button" data-v="key">할 일·중요</button><button type="button" data-v="all">전체</button></span>
         <button type="button" class="bn-more" id="bnMailRefresh" title="새 업무 메일만 더 가져와 쌓아요">${ico("history", "ic sm")} 다시 불러오기</button></header><div class="bn-body" id="bnMail"></div></article>
-      <article class="bn-card bn-meet"><header><h3>${ico("file")}회의록</h3><small id="bnMeetSub">Notion</small>
+      <article class="bn-card bn-meet"><header><h3>${ico("file")}회의 노트</h3><small id="bnMeetSub">Notion</small>
         <button type="button" class="bn-more" data-act="meetings">회의 지정</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
-      <article class="bn-card bn-apps"><header><h3>${ico("grid")}바로가기</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
-      <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬</h3><small id="bnSkSub"></small>
+      <article class="bn-card bn-apps"><header><h3>${ico("grid")}내 서비스</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
+      <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬 라이브러리</h3><small id="bnSkSub"></small>
         <label class="bn-sksearch">${ico("search")}<input id="bnSkQ" placeholder="스킬 검색" aria-label="스킬 검색"></label></header>
         <div class="bn-body"><div class="bn-skpages" id="bnSkills"></div><div class="bn-dots" id="bnSkDots"></div></div></article>
-    </div></section>`);
+    </div><footer class="bn-footer"><span>${ico("brain")}나의 업무가 모이는 공간</span><span>메일 · 일정 · 회의 · 스킬 · 루틴</span></footer>
+    <nav class="bn-mobile-nav" aria-label="브레인 바로가기"><button type="button" data-focus="overview" aria-current="page">${ico("house")}홈</button><button type="button" data-focus="cal">${ico("calendar")}일정</button><button type="button" class="bn-mobile-add" data-act="event" aria-label="일정 추가">${ico("plus")}</button><button type="button" data-focus="meet">${ico("file")}회의</button><button type="button" data-focus="rt">${ico("repeat")}루틴</button></nav></section>`);
   document.body.append(ui);
   const $b = id => ui.querySelector("#" + id);
+  // 승인한 세 열 배치. 원래 카드와 핸들러를 옮기므로 연결된 데이터·업무 흐름은 유지된다.
+  const grid = ui.querySelector(".bn-grid");
+  for (const names of [["mail", "apps"], ["cal", "meet"], ["rt", "skills", "work"]]) {
+    const col = h('<div class="bn-column"></div>');
+    for (const name of names) col.append(ui.querySelector(`.bn-${name}`));
+    grid.append(col);
+  }
+  ui.querySelector(".bn-mail > header").after($b("bnBrief"));
+  const bnNav = h(`<nav class="bn-workspace-nav" aria-label="브레인 업무 메뉴"><small>WORKSPACE</small>${[["overview", "house", "오버뷰"], ["cal", "calendar", "통합 캘린더"], ["mail", "mail", "이메일"], ["meet", "file", "회의 노트"], ["skills", "sparkles", "내 스킬"], ["rt", "repeat", "루틴 & 예약"]].map(([key, icon, label]) => `<button type="button" data-focus="${key}"${key === "overview" ? ' aria-current="page"' : ""}>${ico(icon)}<span>${label}</span></button>`).join("")}<small>AGENT OFFICE</small></nav>`);
+  document.querySelector("#sidenav").before(bnNav);
+  const focusPanel = key => {
+    closeView(); setDrawer(false);
+    const target = key === "overview" ? ui.querySelector(".bn-welcome") : ui.querySelector(`.bn-${key}`);
+    document.querySelectorAll("[data-focus]").forEach(b => key === b.dataset.focus ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    if (target) { ui.scrollTo({ top: key === "overview" ? 0 : Math.max(0, target.getBoundingClientRect().top - ui.getBoundingClientRect().top + ui.scrollTop - ($b("bnFloats").hidden ? 16 : $b("bnFloats").offsetHeight + 28)), behavior: reduce() ? "instant" : "smooth" }); }
+  };
+  for (const nav of [bnNav, ui.querySelector(".bn-mobile-nav")]) nav.addEventListener("click", e => { const b = e.target.closest("[data-focus]"); if (b) focusPanel(b.dataset.focus); });
+  $b("bnTeamToggle").onclick = () => {
+    if (matchMedia("(max-width: 760px)").matches) $("teamToggle").click();
+    else $("activityCollapse").click();
+  };
+  const topBrand = document.querySelector(".workspace-brand .brand");
+  if (topBrand) topBrand.firstChild.textContent = "brainmode";
+  const homeNav = document.querySelector('#sidenav [data-view="office"] span');
+  if (homeNav) homeNav.textContent = "오버뷰";
 
   // 3D 사무실·업무 선반 자리에 맞춰 놓는다(데스크톱·휴대폰 배치를 그대로 따른다)
   function place() {
@@ -60,12 +87,11 @@ window.Brain = (() => {
   // 업무 보드 카드(기존 DOM·클릭 동작 그대로)를 '진행 중인 업무' 칸으로 옮긴다
   const pane = document.querySelector('[data-pane="board"]');
   if (pane) $b("bnWork").append(pane);
-  // 현재 업무 카드(목표·단계·완료율·새 업무): 데스크톱에서는 사무실 위에 떠 있던 것을 '진행 중인 업무' 칸 맨 위로. 휴대폰은 원래 자리
+  // 현재 업무 카드(목표·단계·완료율·새 업무)는 모든 화면에서 업무 칸 안으로.
   const strip = document.querySelector(".run-strip"), mqDesk = matchMedia("(min-width: 761px)");
   const placeStrip = () => {
     if (!strip) return;
-    if (mqDesk.matches) $b("bnWork").prepend(strip);
-    else if (strip.parentElement !== document.body) document.body.insertBefore(strip, $("officeFrame"));
+    $b("bnWork").prepend(strip);
     place();
   };
   mqDesk.addEventListener?.("change", placeStrip);
@@ -163,6 +189,9 @@ window.Brain = (() => {
   let briefDone = false;
   function drawBrief() {
     const box = $b("bnBrief");
+    const clock = new Date(), hourNow = clock.getHours();
+    $b("bnDate").textContent = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(clock);
+    $b("bnGreeting").textContent = hourNow < 11 ? "좋은 아침이에요" : hourNow < 18 ? "좋은 오후예요" : "오늘도 수고했어요";
     if (!loaded) { box.innerHTML = `<div class="bn-briefin"><h2>오늘의 브리핑</h2><p><span class="bn-think">일정·루틴·업무 정리하는 중…</span></p></div>`; return; }
     const now = new Date(), today = ymd(now), evs = events().filter(e => ymd(e.s) === today);
     const next = evs.filter(e => !e.allDay && e.s > now)[0], left = evs.filter(e => e.allDay || e.e > now).length;
@@ -180,8 +209,7 @@ window.Brain = (() => {
       if (acts.length) lines.push(`회의록에서 나온 할 일 <b>${acts.length}개</b>가 남았어요.`);
       if (D.running) lines.push(`AI 팀이 “${esc(clip(D.shown?.goal || "", 30))}” 업무를 진행 중이에요 (${esc(D.phaseText)}).`);
     }
-    const hour = now.getHours(), hi = hour < 11 ? "좋은 아침이에요" : hour < 18 ? "좋은 오후예요" : "오늘도 수고했어요";
-    box.innerHTML = `<div class="bn-briefin"><span class="bn-orb" aria-hidden="true"></span><h2>${hi} 👋</h2><p>${lines.join(" ")}</p>
+    box.innerHTML = `<div class="bn-briefin"><span class="bn-orb" aria-hidden="true"></span><h2>${ico("sparkles")} 오늘의 업무 브리핑</h2><p>${lines.join(" ")}</p>
       <div class="bn-kpis"><div><b data-n="${left}">${left}</b><span>남은 일정</span></div><div><b data-n="${done}" data-of="${due.length}">${done}/${due.length}</b><span>루틴 확인</span></div><div><b data-n="${fin}" data-of="${tasks.length}">${tasks.length ? `${fin}/${tasks.length}` : "—"}</b><span>업무</span></div></div></div>`;
     if (!briefDone && !reduce()) { // 처음 한 번만 숫자가 올라간다 (cifras)
       briefDone = true;
@@ -194,7 +222,7 @@ window.Brain = (() => {
     }
   }
 
-  // 통합 캘린더 (Moxie semana·lunario): 오늘 시간표 / 주간
+  // 통합 캘린더: 월간 날짜 선택 + 선택일 목록 / 주간
   function drawCal() {
     seg($b("bnCalView"), V.cal, v => { V.cal = v; store.set("agentOffice.brain.cal", v); drawCal(); });
     const all = events(), srcs = [...new Set(all.map(e => e.src))];
@@ -224,16 +252,21 @@ window.Brain = (() => {
         return `<div class="bn-wd${ymd(d) === ymd(now) ? " today" : ""}"><h5>${"월화수목금토일"[i]}<b>${d.getDate()}</b></h5>${evs.map(e => `<div class="bn-wev" style="--c:${SRC[e.src]?.[1]}" title="${esc(e.title)}${e.where ? " · " + esc(e.where) : ""}">${e.allDay ? "" : `<small>${hm(e.s)}</small>`}${e.star ? "★ " : ""}${esc(e.title)}</div>`).join("")}</div>`;
       }).join("")}</div>`;
     } else {
-      const today = list.filter(e => ymd(e.s) === ymd(now) || (e.allDay && e.s <= now && e.e > now));
-      const timed = today.filter(e => !e.allDay), allDay = today.filter(e => e.allDay);
-      const from = Math.max(0, Math.min(8, ...timed.map(e => e.s.getHours()))), to = Math.min(24, Math.max(20, ...timed.map(e => e.e.getHours() + 1)));
-      const H = 42, nowY = (now.getHours() + now.getMinutes() / 60 - from) * H;
-      box.innerHTML = (allDay.length ? `<div class="bn-allday">${allDay.map(e => `<span style="--c:${SRC[e.src]?.[1]}">${esc(e.title)}</span>`).join("")}</div>` : "") +
-        `<div class="bn-day" style="height:${(to - from) * H}px">${Array.from({ length: to - from }, (_, i) => `<div class="bn-hr" style="top:${i * H}px"><span>${pad(from + i)}:00</span></div>`).join("")}
-        ${timed.map((e, i) => { const top = (e.s.getHours() + e.s.getMinutes() / 60 - from) * H, ht = Math.max(24, (e.e - e.s) / 36e5 * H - 3);
-          return `<div class="bn-ev${e.e < now ? " past" : ""}${e.star ? " star" : ""}" style="--c:${SRC[e.src]?.[1]};top:${top + 1}px;height:${ht}px;animation-delay:${i * 40}ms"><b>${e.star ? "★ " : ""}${esc(e.title)}</b><small>${hm(e.s)}–${hm(e.e)} · ${esc(SRC[e.src]?.[0] || "")}${e.where ? ` · ${esc(e.where)}` : ""}</small><button type="button" class="bn-pin" data-pin="${esc(e.title)}" data-when="${esc(e.start)}" title="중요 일정으로 고정">${ico("pin")}</button></div>`; }).join("")}
-        ${nowY > 0 && nowY < (to - from) * H ? `<div class="bn-now" style="top:${nowY}px"></div>` : ""}</div>` + (timed.length || allDay.length ? "" : `<p class="bn-empty">오늘은 일정이 없어요.</p>`);
-      if (!box.dataset.scrolled && nowY > 0) { box.dataset.scrolled = "1"; requestAnimationFrame(() => { box.scrollTop = Math.max(0, nowY - 80); }); }
+      const selected = new Date(`${V.date}T12:00:00`), month = V.month;
+      const first = new Date(month.getFullYear(), month.getMonth(), 1), last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      const cells = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
+      const today = list.filter(e => e.allDay ? e.s < new Date(selected.getFullYear(), selected.getMonth(), selected.getDate() + 1) && e.e > new Date(selected.getFullYear(), selected.getMonth(), selected.getDate()) : ymd(e.s) === V.date);
+      box.innerHTML = `<div class="bn-month-head"><b>${first.getFullYear()}년 ${first.getMonth() + 1}월</b><div><button type="button" class="bn-month-today">오늘</button><button type="button" class="bn-mini" data-month="-1" aria-label="이전 달">${ico("chev-right")}</button><button type="button" class="bn-mini" data-month="1" aria-label="다음 달">${ico("chev-right")}</button></div></div>
+        <div class="bn-month" role="group" aria-label="월간 캘린더">${[..."일월화수목금토"].map(d => `<span class="bn-month-weekday">${d}</span>`).join("")}${Array.from({length: cells}, (_, i) => {
+          const d = new Date(first.getFullYear(), first.getMonth(), i - first.getDay() + 1), key = ymd(d), outside = d.getMonth() !== first.getMonth();
+          const has = list.some(e => e.allDay ? e.s < new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) && e.e > d : ymd(e.s) === key);
+          return `<button type="button" class="bn-month-day${outside ? " outside" : ""}${key === V.date ? " selected" : ""}${has ? " has-events" : ""}" data-date="${key}" aria-label="${d.getMonth() + 1}월 ${d.getDate()}일${has ? " 일정 있음" : ""}" aria-pressed="${key === V.date}"${key === ymd(now) ? ' aria-current="date"' : ""}>${d.getDate()}</button>`;
+        }).join("")}</div><h4 class="bn-agenda-date">${selected.getMonth() + 1}월 ${selected.getDate()}일 ${"일월화수목금토"[selected.getDay()]}요일</h4>
+        <div class="bn-agenda">${today.length ? today.map(e => `<div class="bn-agenda-row"><time>${e.allDay ? "종일" : hm(e.s)}</time><div class="bn-agenda-event" style="--c:${SRC[e.src]?.[1] || "var(--accent)"}"><b>${esc(e.title)}</b><small>${[SRC[e.src]?.[0], e.where, !e.allDay && `${hm(e.s)}–${hm(e.e)}`].filter(Boolean).map(esc).join(" · ")}</small></div><button type="button" class="bn-agenda-pin" data-pin="${esc(e.title)}" data-when="${esc(e.start)}" aria-label="${esc(e.title)} 중요 일정으로 고정">${ico("pin")}</button></div>`).join("") : '<p class="bn-empty">불러온 일정에 이 날짜의 일정이 없어요.</p>'}</div>`;
+      box.querySelectorAll("[data-month]").forEach(b => b.onclick = () => { V.month = new Date(month.getFullYear(), month.getMonth() + +b.dataset.month, 1); drawCal(); });
+      box.querySelectorAll("[data-date]").forEach(b => b.onclick = () => { V.date = b.dataset.date; V.month = new Date(`${V.date.slice(0, 7)}-01T12:00:00`); drawCal(); });
+      box.querySelector(".bn-month-today").onclick = () => { V.date = ymd(new Date()); V.month = new Date(new Date().getFullYear(), new Date().getMonth(), 1); drawCal(); };
+
     }
     for (const b of box.querySelectorAll("[data-pin]")) b.onclick = async () => {
       if (CFG.pins.some(p => p.title === b.dataset.pin && p.when === b.dataset.when)) return toast("이미 고정한 일정이에요");
@@ -663,6 +696,16 @@ window.Brain = (() => {
     if (act === "cals") return editor("calendars");
     editor(act);
   });
+
+  // 중첩 패널·모달·검색 목록까지 실제 스크롤 중에만 얇은 스크롤바를 표시한다.
+  const scrollTimers = new WeakMap();
+  document.addEventListener("scroll", e => {
+    const target = e.target === document ? document.scrollingElement : e.target;
+    if (!(target instanceof Element)) return;
+    target.classList.add("bn-scrolling");
+    clearTimeout(scrollTimers.get(target));
+    scrollTimers.set(target, setTimeout(() => { target.classList.remove("bn-scrolling"); scrollTimers.delete(target); }, 850));
+  }, { capture: true, passive: true });
 
   /* ───────── 시작 · 갱신 ───────── */
   // 앱의 상태(업무 진행·연결)가 바뀌면 브리핑·업무 칸을 다시 그린다

@@ -33,7 +33,10 @@
 - 공간 테마(docs/space-themes.md): **모양만 다르고 구조는 같다.** 공통 규격 `web/theme-kit.js`(작업석 12·회의 12·커피 12·방 7·조연 3·손님 3) · 테마 지도 `Decor`(사무실 `web/decor.js`, 동물원 `web/zoo-theme.js`) ·
   공통 조연 엔진 `web/life.js`(디자인팀장·본부장·경리팀장, 캐릭터끼리 대화, 손님 산책, 배경 생물) + 테마 내용 `web/life-office.js`·`web/life-zoo.js`. 팀원 외형은 `app.js` 의 `LOOKS` 어댑터.
   동물원 모양: `web/zoo-animals.js`(동물 12종+조연 3종) · `web/zoo-friends.js`(친구 3종) · `web/zoo-forest.js`(바깥 숲). 새 테마는 docs/space-themes.md '새 테마 더하기'를 따른다. 조연·손님은 D.names 에 넣지 않는다
-- **브레인 모드(기본 공간)**: `web/brain.js`·`brain.css` + `server/brain.py`(`/api/brain*`, docs/events.md '브레인 모드'). 시안 A '커맨드 센터'(`web/brain-preview/`).
+- **브레인 모드(기본 공간)**: `web/brain.js`·`brain.css`·`brain-soft.css` + `server/brain.py`(`/api/brain*`, docs/events.md '브레인 모드'). 승인된 Soft Glass 디자인(밝은 회색·입체 카드·파란색/민트 포인트). 이전 시안은 `web/brain-preview/`.
+  `brain-soft.css`는 `body.brain-mode` 안에서만 메인·서브페이지 7종·모달·검색·팀 활동/툴팁까지 스타일을 통일한다. 모든 스크롤은 동작 중에만 얇게 나타나고 850ms 후 숨긴다.
+  세 열 배치(메일/서비스 · 캘린더/회의 · 루틴/스킬/업무)는 컨테이너 너비에 따라 2열/1열로 바뀐다. 캘린더 월간 날짜 선택·주간 보기, 기존 API와 업무 지시 DOM은 유지한다.
+  팀 활동 접기 상태는 브레인 전용 `agentOffice.brain.teamCollapsed`에 따로 저장하며 기본은 접힘(다른 공간 설정은 유지).
   테마 목록 첫 번째(`theme-kit.js` 의 `brain`, `flat: true`)라 3D 를 켜지 않고 목록 모드 위에 업무 화면을 띄운다(업무 지시·팀 상태·로그는 그대로).
   중요 일정 플로팅·브리핑·통합 캘린더(iCal 구독+직접 입력)·진행 중인 업무·루틴(확인 체크)·바로가기·스킬 목록. 설정은 `cache/brain.json`(Git 제외, 캘린더 주소는 화면에 안 보냄).
   메일 요약(`server/gmail.py`): 업무 메일만(한글 제목·광고 제외) 최근 30일(GMAIL_DAYS)을 쌓고 '다시 불러오기'·10분마다 새 것만 더한다(`cache/brain-mail-store.json`). 기본은 `claude -p` + claude.ai Gmail 커넥터(읽기 도구 2개만 `--allowedTools`, 쓰기 도구는 허용하지 않음)로 읽기·요약을 한 번에.
