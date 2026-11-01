@@ -80,3 +80,15 @@ def test_meeting_count_validated(tmp_path):
     s = brain.Store(tmp_path / "brain.json")
     assert s.put("meetings", [{"name": "팀 회의", "ref": "팀 회의", "count": "3"}])["meetings"][0]["count"] == 3
     assert s.put("meetings", [{"name": "주간회의", "ref": "주간회의"}])["meetings"][0]["count"] == 2
+
+
+def test_meeting_write_link(tmp_path):
+    s = brain.Store(tmp_path / "brain.json")
+    out = s.put("meetings", [{"name": "팀 회의", "ref": "팀별 미팅", "count": 3, "write": "https://app.notion.com/p/" + PID}])["meetings"][0]
+    assert out["write"].endswith(PID)
+    assert meetings.groups([out], [])[0]["write"].endswith(PID)                      # 직접 넣은 쓰기 주소가 먼저
+    try:
+        s.put("meetings", [{"name": "x", "ref": "x", "write": "https://evil.example/a"}])
+        raise AssertionError("거부해야 함")
+    except brain.BrainError:
+        pass

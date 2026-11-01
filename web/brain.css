@@ -399,8 +399,11 @@ body.brain-mode .brain .bn-mwrite { margin-left: auto; width: auto; padding: 0 9
 body.brain-mode .brain .bn-mwrite .ic { width: 12px; height: 12px; }
 body.brain-mode .brain .bn-mg .bn-meets { max-height: none; overflow: visible; }
 body.brain-mode .brain .bn-mg .bn-mth { padding: 10px 0; }
-body.brain-mode .brain .bn-msum { grid-column: 1; grid-row: 3; font-style: normal; font-size: 11.5px; line-height: 1.5; color: var(--text-2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.brain-mode .brain .bn-mtsum { grid-column: 1; grid-row: 3; font-style: normal; font-size: 11.5px; line-height: 1.5; color: var(--text-2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.brain-mode .brain .bn-mth em { grid-row: 1 / 4; }
 body.brain-mode .brain .bn-mg .bn-empty { margin: 2px 0 0; font-size: 11px; }
 body.brain-mode .brain .bn-meet .bn-note { display: block; line-height: 1.6; }
 body.brain-mode .brain .bn-meet .bn-note .ic { vertical-align: -2px; margin-right: 4px; }
+
+/* 메일 목록: 아래 요약 줄(…)은 지운다 — 요약은 눌러서 여는 창에서 */
+body.brain-mode .brain .bn-mail .bn-mrow .bn-msum { display: none; }

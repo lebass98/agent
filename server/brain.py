@@ -158,13 +158,16 @@ class Store:
     def _meetings(x: dict, old: dict) -> dict:
         """회의록 출처: 노션 페이지·데이터베이스 주소 또는 검색어(예: 주간회의)"""
         ref = _text(x.get("ref"), 300, "노션 주소 또는 검색어")
-        if ref.startswith(("http://", "https://")) and not re.match(r"https://([a-z0-9-]+\.)?notion\.(so|site)/", ref):
+        if ref.startswith(("http://", "https://")) and not re.match(r"https://([a-z0-9-]+\.)?notion\.(so|site|com)/", ref):
             raise BrainError("노션 주소(notion.so)나 검색어를 넣어 주세요.")
         try:
             count = max(1, min(5, int(x.get("count") or 2)))
         except (TypeError, ValueError):
             raise BrainError("보여 줄 개수는 1~5 사이 숫자로 넣어 주세요.")
-        return {"id": x.get("id") if x.get("id") in old else _id(), "name": _text(x.get("name"), 40, "이름"), "ref": ref, "count": count}
+        write = _text(x.get("write"), 300, "쓰기 주소", required=False)
+        if write and not re.match(r"https://([a-z0-9-]+\.)?notion\.(so|site|com)/", write):
+            raise BrainError("쓰기 주소는 노션 주소(notion.so)로 넣어 주세요.")
+        return {"id": x.get("id") if x.get("id") in old else _id(), "name": _text(x.get("name"), 40, "이름"), "ref": ref, "count": count, "write": write}
 
     @staticmethod
     def _skillnotes(x: dict, old: dict) -> dict:

@@ -467,6 +467,12 @@ window.Brain = (() => {
     if (MEET?.loading) meetT = setTimeout(() => loadMeet(), 10_000);
   }
   // 회의록 (Moxie acordeon: 하나씩 펼치기 · jornada: 할 일 체크)
+  // 노션 주소 → 컴퓨터에서는 노션 앱(notion://)으로 바로, 휴대폰·주소 없음은 웹 주소
+  const notionApp = url => {
+    const id = String(url || "").replace(/-/g, "").match(/[0-9a-f]{32}/i)?.[0];
+    if (!id) return url || "https://www.notion.so/";
+    return /Android|iPhone|iPad/i.test(navigator.userAgent) ? `https://www.notion.so/${id}` : `notion://www.notion.so/${id}`;
+  };
   function drawMeet() {
     const box = $b("bnMeet");
     $b("bnMeetRefresh").hidden = !MEET?.enabled;
@@ -482,14 +488,14 @@ window.Brain = (() => {
     const byGroup = groups.map(g => ({ ...g, list: items.filter(m => m.source === g.name).slice(0, g.count || 5) }));
     const rest = items.filter(m => !known.has(m.source));
     if (rest.length) byGroup.push({ name: "기타", count: 0, write: "", list: rest });
-    const writeBtn = g => `<a class="bn-mini bn-mwrite" href="${esc(g.write || "https://www.notion.so/")}" target="_blank" rel="noopener noreferrer" title="${esc(g.name)} 쓰기 — 노션에서 새 회의록" aria-label="${esc(g.name)} 쓰기">${ico("edit")}<span>쓰기</span></a>`;
+    const writeBtn = g => `<a class="bn-mini bn-mwrite" href="${esc(notionApp(g.write))}"${notionApp(g.write).startsWith("notion:") ? "" : ' target="_blank" rel="noopener noreferrer"'} title="${esc(g.name)} 쓰기 — 노션에서 새 회의록" aria-label="${esc(g.name)} 쓰기">${ico("edit")}<span>쓰기</span></a>`;
     if (MEET.error && !items.length) { box.innerHTML = `${hint}<p class="bn-empty bn-err">${ico("alert")}${esc(MEET.error)}</p>`; return; }
     if (!items.length && MEET.loading) { box.innerHTML = hint + `<p class="bn-empty"><span class="bn-think2">Claude 가 Notion 회의록을 읽고 정리하는 중… (1분쯤)</span></p>`; return; }
     let n = 0;
     box.innerHTML = hint + byGroup.map(g => `<div class="bn-mg"><div class="bn-mgh"><b>${esc(g.name)}</b><small>최근 ${g.list.length}건</small>${g.name !== "기타" ? writeBtn(g) : ""}</div>
       ${g.list.length ? `<div class="bn-meets">${g.list.map(m => { const i = n++; return `<section class="bn-mt${i === meetOpen ? " open" : ""}" data-i="${i}">
       <button type="button" class="bn-mth"><b>${esc(m.title)}</b><span>${[m.date && m.date.slice(5).replace("-", "/"), m.attendees].filter(Boolean).map(esc).join(" · ")}</span>
-        ${m.summary ? `<i class="bn-msum">${esc(m.summary)}</i>` : ""}
+        ${m.summary ? `<i class="bn-mtsum">${esc(m.summary)}</i>` : ""}
         ${m.actions.length ? `<em>${m.actions.filter(a => !a.done).length}/${m.actions.length}</em>` : ""}</button>
       <div class="bn-mtb">${m.points.length ? `<ul>${m.points.map(p => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
         ${m.actions.map((a, j) => `<label class="bn-act${a.done ? " done" : ""}"><input type="checkbox" data-key="${m.id}:${j}"${a.done ? " checked" : ""}><span>${esc(a.text)}${a.owner ? ` <small>· ${esc(a.owner)}</small>` : ""}</span></label>`).join("")}
@@ -666,7 +672,7 @@ window.Brain = (() => {
       { k: "title", label: "제목", req: true }, { k: "start", label: "시작", type: "datetime-local", req: true }, { k: "end", label: "끝", type: "datetime-local" },
       { k: "where", label: "장소" }, { k: "star", label: "중요(위에 띄우기)", type: "check" }] },
     meetings: { title: "회의 지정", sub: "브레인에 보여 줄 노션 회의(주간회의·팀별 미팅)", row: x => `${x.name} · ${x.ref} · ${x.count || 2}건`, fields: [
-      { k: "name", label: "이름", ph: "예: 주간회의", req: true }, { k: "ref", label: "노션 페이지·데이터베이스 주소 또는 검색어", ph: "https://www.notion.so/… 또는 '디자인팀 미팅'", req: true }, { k: "count", label: "보여 줄 최근 회의록", type: "select", def: "2", opts: [["1", "1건"], ["2", "2건"], ["3", "3건"], ["4", "4건"], ["5", "5건"]] }],
+      { k: "name", label: "이름", ph: "예: 주간회의", req: true }, { k: "ref", label: "노션 페이지·데이터베이스 주소 또는 검색어", ph: "https://www.notion.so/… 또는 '디자인팀 미팅'", req: true }, { k: "write", label: "'쓰기'가 열 노션 주소(선택)", ph: "회의록 모음 보기의 링크 — 비우면 위 주소" }, { k: "count", label: "보여 줄 최근 회의록", type: "select", def: "2", opts: [["1", "1건"], ["2", "2건"], ["3", "3건"], ["4", "4건"], ["5", "5건"]] }],
       help: `회의록이 모이는 <b>노션 페이지나 데이터베이스 주소</b>(공유 → 링크 복사)를 넣으면 그 안에서, <b>검색어</b>를 넣으면 노션 검색으로 최근 30일 회의록을 찾아요. 주소를 넣으면 '쓰기' 단추가 그 페이지를 열어요. 이 컴퓨터의 Claude 에 연결된 Notion 으로 <b>읽기만</b> 해요.` },
     calendars: { title: "캘린더 연결", sub: "iCal 주소로 구독 — 주소는 서버에만 저장되고 화면에 다시 보이지 않아요", row: x => `${x.name} · ${SRC[x.kind]?.[0]} · ${x.host || ""}`, fields: [
       { k: "name", label: "이름", ph: "예: 회사 캘린더", req: true }, { k: "kind", label: "어디 캘린더", type: "select", opts: [["google", "Google 캘린더"], ["phone", "휴대폰(iCloud)"], ["notion", "Notion"], ["other", "기타 .ics"]] },

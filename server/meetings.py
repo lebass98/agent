@@ -12,7 +12,7 @@ import re
 READ_TOOLS = ",".join(f"mcp__claude_ai_Notion__{t}" for t in ("notion-search", "notion-fetch", "notion-query-meeting-notes", "notion-query-data-sources"))
 DEFAULT = [{"name": "주간회의", "ref": "주간회의", "count": 1}, {"name": "팀 회의", "ref": "👥 팀별 미팅", "count": 3}]
 DAYS = 30
-NOTION_URL = re.compile(r"https://([a-z0-9-]+\.)?notion\.(so|site)/")
+NOTION_URL = re.compile(r"https://([a-z0-9-]+\.)?notion\.(so|site|com)/")
 
 
 def sources_key(sources: list[dict]) -> str:
@@ -87,6 +87,6 @@ def groups(sources: list[dict], items: list[dict]) -> list[dict]:
     out = []
     for s in sources:
         ref = str(s.get("ref") or "")
-        write = ref if NOTION_URL.match(ref) else next((m["parent"] for m in items if m.get("source") == s["name"] and m.get("parent")), "")
+        write = s.get("write") or (ref if NOTION_URL.match(ref) else "") or next((m["parent"] for m in items if m.get("source") == s["name"] and m.get("parent")), "")
         out.append({"name": s["name"], "count": count(s), "write": write})
     return out
