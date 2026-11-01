@@ -36,7 +36,7 @@
 - **브레인 모드(기본 공간)**: `web/brain.js`·`brain.css` + `server/brain.py`(`/api/brain*`, docs/events.md '브레인 모드'). 시안 A '커맨드 센터'(`web/brain-preview/`).
   테마 목록 첫 번째(`theme-kit.js` 의 `brain`, `flat: true`)라 3D 를 켜지 않고 목록 모드 위에 업무 화면을 띄운다(업무 지시·팀 상태·로그는 그대로).
   중요 일정 플로팅·브리핑·통합 캘린더(iCal 구독+직접 입력)·진행 중인 업무·루틴(확인 체크)·바로가기·스킬 목록. 설정은 `cache/brain.json`(Git 제외, 캘린더 주소는 화면에 안 보냄).
-  메일 요약(`server/gmail.py`): 기본은 `claude -p` + claude.ai Gmail 커넥터(읽기 도구 2개만 `--allowedTools`, 쓰기 도구는 허용하지 않음)로 읽기·요약을 한 번에.
+  메일 요약(`server/gmail.py`): 업무 메일만(한글 제목·광고 제외) 최근 3주를 쌓고 '다시 불러오기'·10분마다 새 것만 더한다(`cache/brain-mail-store.json`). 기본은 `claude -p` + claude.ai Gmail 커넥터(읽기 도구 2개만 `--allowedTools`, 쓰기 도구는 허용하지 않음)로 읽기·요약을 한 번에.
   `.env` 에 `GMAIL_USER`·`GMAIL_APP_PASSWORD`(앱 비밀번호)가 있으면 IMAP 읽기 전용 → 팀원(기본 gemini) 요약. 로그인 실패 시 claude 로 넘어간다.
   캘린더(`server/calconn.py`)도 `claude` + Notion 커넥터의 캘린더(Notion 캘린더에 연결된 Google 캘린더 포함, 목록 읽기 도구 2개만).
   회의록(`server/meetings.py`)도 `claude` + claude.ai Notion 커넥터(읽기 도구만, 공통 호출 `server/connectors.py`). 할 일 체크는 앱에만 저장.

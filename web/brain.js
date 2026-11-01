@@ -38,7 +38,7 @@ window.Brain = (() => {
       <article class="bn-card bn-rt"><header><h3>${ico("repeat")}루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-more" data-act="routines">+ 추가·편집</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
       <article class="bn-card bn-mail"><header><h3>${ico("mail")}메일 요약</h3><small id="bnMailSub">Gmail</small>
         <span class="bn-seg" id="bnMailView"><button type="button" data-v="key">할 일·중요</button><button type="button" data-v="all">전체</button></span>
-        <button type="button" class="bn-mini" id="bnMailRefresh" title="지금 새로 받기">${ico("history")}</button></header><div class="bn-body" id="bnMail"></div></article>
+        <button type="button" class="bn-more" id="bnMailRefresh" title="새 업무 메일만 더 가져와 쌓아요">${ico("history", "ic sm")} 다시 불러오기</button></header><div class="bn-body" id="bnMail"></div></article>
       <article class="bn-card bn-meet"><header><h3>${ico("file")}회의록</h3><small id="bnMeetSub">Notion</small>
         <button type="button" class="bn-more" data-act="meetings">회의 지정</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
       <article class="bn-card bn-apps"><header><h3>${ico("grid")}바로가기</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
@@ -314,12 +314,19 @@ window.Brain = (() => {
 
   // 메일·회의록: 다음 단계에서 연결(무엇이 필요한지 안내)
   const TAG = { reply: ["답장·할 일", "reply"], important: ["중요", "imp"], info: ["참고", "info"], ad: ["광고·알림", "ad"] };
+  let mailAsked = false; // '다시 불러오기'를 누른 뒤 끝나면 몇 통 더했는지 알린다
   async function loadMail(refresh = false) {
     clearTimeout(mailT);
+    if (refresh) mailAsked = true;
+    const wasLoading = MAIL?.loading;
     try { MAIL = await getJSON(`/api/brain/mail${refresh ? "?refresh=1" : ""}`); }
     catch { MAIL = MAIL || { enabled: false, offline: true }; }
     drawMail(); drawBrief(); drawFloats();
-    if (MAIL?.pending || MAIL?.loading) mailT = setTimeout(() => loadMail(), 10_000); // 가져오기·요약이 끝날 때까지 가끔 다시 본다
+    if (MAIL?.pending || MAIL?.loading) { mailT = setTimeout(() => loadMail(), 10_000); return; } // 가져오기·요약이 끝날 때까지
+    if (mailAsked && (wasLoading || refresh) && MAIL?.enabled) {
+      mailAsked = false;
+      toast(MAIL.error ? MAIL.error : MAIL.added ? `새 업무 메일 ${MAIL.added}통을 더했어요` : "새로 온 업무 메일이 없어요", MAIL.error ? "error" : "info", 3500);
+    }
   }
   const ago = iso => { if (!iso) return ""; const d = new Date(iso), t = new Date(); return ymd(d) === ymd(t) ? hm(d) : `${d.getMonth() + 1}/${d.getDate()}`; };
   function drawMail() {
@@ -337,12 +344,14 @@ window.Brain = (() => {
       return;
     }
     const items = MAIL.items || [], key = items.filter(m => m.tag === "reply" || m.tag === "important" || m.starred || (!m.tag && m.unread));
-    $b("bnMailSub").textContent = `${MAIL.user}${MAIL.at ? ` · ${MAIL.at.slice(11)} 받음` : ""}${MAIL.loading ? " · 가져오는 중…" : MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : ""}`;
+    $b("bnMailSub").textContent = `최근 ${MAIL.days || 21}일 · 업무 메일 ${MAIL.total ?? items.length}통${MAIL.loading ? " · 새 메일 확인 중…" : MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : MAIL.at ? ` · ${MAIL.at.slice(5, 10).replace("-", "/")} ${MAIL.at.slice(11)}` : ""}`;
+    $b("bnMailSub").title = `${MAIL.user} · 제목이 영어로만 된 메일·광고·뉴스레터·알림은 빼고 업무 메일만 쌓아요`;
+    $b("bnMailRefresh").disabled = !!MAIL.loading;
     const note = MAIL.note ? `<p class="bn-note">${ico("info")}${esc(MAIL.note)}</p>` : "";
     if (MAIL.error && !items.length) { box.innerHTML = `${note}<p class="bn-empty bn-err">${ico("alert")}${esc(MAIL.error)}</p>`; return; }
-    if (MAIL.loading && !items.length) { box.innerHTML = `${note}<p class="bn-empty"><span class="bn-think2">Claude 가 Gmail 을 읽고 요약하는 중… (30초쯤)</span></p>`; return; }
+    if (MAIL.loading && !items.length) { box.innerHTML = `${note}<p class="bn-empty"><span class="bn-think2">Claude 가 최근 3주 업무 메일을 읽고 요약하는 중… (1~2분)</span></p>`; return; }
     const list = V.mail === "key" ? key : items;
-    if (!list.length) { box.innerHTML = `${note}<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : "최근 받은 메일이 없어요."}</p>`; return; }
+    if (!list.length) { box.innerHTML = `${note}<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : "최근 3주 안의 업무 메일이 없어요."}</p>`; return; }
     box.innerHTML = `${note}<div class="bn-mails">${list.map((m, i) => {
       const t = TAG[m.tag];
       return `<a class="bn-mrow${m.unread ? " unread" : ""}" href="https://mail.google.com/mail/u/0/#all/${esc(m.thread)}" target="_blank" rel="noopener noreferrer" style="animation-delay:${i * 40}ms" title="Gmail 에서 열기">
@@ -671,6 +680,6 @@ window.Brain = (() => {
   setInterval(() => { if (!document.hidden && MEET?.enabled) loadMeet(); }, 1_800_000);
   $b("bnMeetRefresh").onclick = () => { $b("bnMeetRefresh").classList.add("spin"); MEET = { ...MEET, loading: true }; drawMeet(); loadMeet(true).finally(() => $b("bnMeetRefresh").classList.remove("spin")); };
   setInterval(() => { if (!document.hidden && MAIL?.enabled) loadMail(); }, 600_000);
-  $b("bnMailRefresh").onclick = () => { $b("bnMailRefresh").classList.add("spin"); loadMail(true).finally(() => $b("bnMailRefresh").classList.remove("spin")); };
+  $b("bnMailRefresh").onclick = () => { if (MAIL) MAIL = { ...MAIL, loading: true }; drawMail(); loadMail(true); };
   return { reload: load, editor };
 })();
