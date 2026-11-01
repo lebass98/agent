@@ -6,8 +6,10 @@ window.SpaceTheme = (() => {
   const key = 'agentOffice.spaceTheme';
   const KIT = window.ThemeKit || { THEMES: [{ id: 'office', label: '사무실', icon: '🏢', blurb: '', brand: 'WordNCode Agent Office', title: 'WordNCode Agent Office', picture: '🏢' }], valid: id => id === 'office', get: () => KIT.THEMES[0] };
   const valid = value => KIT.valid(value);
-  let saved = 'office', chosen = false; // chosen: 이 브라우저에 고른 공간이 저장되어 있다(처음 한 번만 묻는다)
+  let saved = KIT.THEMES[0].id, chosen = false; // chosen: 이 브라우저에 고른 공간이 저장되어 있다(처음 한 번만 묻는다). 기본은 첫 테마(브레인)
   try { const value = localStorage.getItem(key); if (valid(value)) { saved = value; chosen = true; } } catch {}
+  // 브레인 모드가 기본이 된 뒤 처음 열 때 한 번만 브레인으로 옮긴다(이후 다른 공간을 고르면 그대로 둔다)
+  try { if (localStorage.getItem('agentOffice.brainDefault') !== '1') { localStorage.setItem('agentOffice.brainDefault', '1'); if (chosen && saved !== 'brain' && valid('brain')) { saved = 'brain'; localStorage.setItem(key, saved); } } } catch {}
   const query = new URLSearchParams(location.search).get('space');
   const current = valid(query) ? query : saved;
   const theme = KIT.get(current);
@@ -21,7 +23,7 @@ window.SpaceTheme = (() => {
       dialog = document.createElement('dialog'); dialog.className = 'space-picker';
       dialog.setAttribute('aria-labelledby', 'spaceTitle');
       const options = KIT.THEMES.map(t => `<button type="button" data-space="${esc(t.id)}"><span class="space-picture ${esc(t.id)}-picture" aria-hidden="true">${esc(t.picture || t.icon)}</span><strong>${esc(t.label)}</strong><span>${esc(t.blurb)}</span></button>`).join('');
-      dialog.innerHTML = `<form method="dialog"><header><span class="space-eyebrow">AGENT · YOUR WORKSPACE</span><h1 id="spaceTitle">어디에서 함께 일할까요?</h1><p>공간이 바뀌어도 함께 일하는 AI 팀과 자리·조연·대화 구조는 그대로예요. 모양만 달라져요.</p></header><div class="space-options">${options}</div><p class="space-note">선택은 이 브라우저에 기억됩니다. 왼쪽 위 공간 이름이나 설정에서 다시 바꿀 수 있어요.<br>다른 공간으로 바꾸면 화면을 새로 불러옵니다.</p><p class="space-status" role="status"></p></form>`;
+      dialog.innerHTML = `<form method="dialog"><header><span class="space-eyebrow">AGENT · YOUR WORKSPACE</span><h1 id="spaceTitle">어디에서 함께 일할까요?</h1><p>어느 공간이든 함께 일하는 AI 팀은 그대로예요. 브레인은 메일·일정·업무를 한 화면에 모은 기본 모드이고, 나머지는 캐릭터가 움직이는 공간이에요.</p></header><div class="space-options">${options}</div><p class="space-note">선택은 이 브라우저에 기억됩니다. 왼쪽 위 공간 이름이나 설정에서 다시 바꿀 수 있어요.<br>다른 공간으로 바꾸면 화면을 새로 불러옵니다.</p><p class="space-status" role="status"></p></form>`;
       status = dialog.querySelector('.space-status');
       for (const button of dialog.querySelectorAll('[data-space]')) {
         button.setAttribute('aria-pressed', String(button.dataset.space === current));
@@ -64,5 +66,5 @@ window.SpaceTheme = (() => {
     for (const brand of document.querySelectorAll('.brand')) for (const child of brand.childNodes) if (child.nodeType===3 && child.textContent.includes('WordNCode Agent Office')) child.textContent=child.textContent.replace('WordNCode Agent Office',theme.brand);
     if (!skip && !chosen && !valid(query)) show(); // 처음 진입(저장값·주소 지정 없음)일 때만 묻는다. 이후 변경은 경로 단추·설정 '공간 테마'
   });
-  return {current, theme, isZoo:current === 'zoo', isPixel:current === 'pixel', show, control, get reduce(){try{return mqReduce.matches;}catch{return false;}}};
+  return {current, theme, isZoo:current === 'zoo', isPixel:current === 'pixel', isBrain:current === 'brain', show, control, get reduce(){try{return mqReduce.matches;}catch{return false;}}};
 })();

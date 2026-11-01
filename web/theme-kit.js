@@ -8,6 +8,7 @@
    space-theme.js 보다 먼저 읽는다(노드 테스트에서도 require 할 수 있다). */
 (function () {
   const THEMES = [
+    { id: 'brain', label: '브레인', icon: '🧠', blurb: '메일·일정·회의록·루틴·바로가기를 한 화면에. AI 팀은 작게(기본)', brand: 'WordNCode Agent Office', title: 'WordNCode Agent · 브레인', picture: '🧠', flat: true }, // flat: 3D 공간 없이 업무 화면(brain.js)
     { id: 'office', label: '사무실', icon: '🏢', blurb: '익숙한 작업 공간과 사람 팀원', brand: 'WordNCode Agent Office', title: 'WordNCode Agent Office', picture: '🏢' },
     { id: 'zoo', label: '동물원', icon: '🦊', blurb: '동물 팀원과 서식지 마을 5곳이 있는 넓은 동물원', brand: 'WordNCode Agent Zoo', title: 'WordNCode Agent · 동물원', picture: '🦊 🐼 🦦 🐧' },
     { id: 'pixel', label: '픽셀 스튜디오', icon: '▦', blurb: '도트 캐릭터가 함께 일하는 따뜻한 2D 픽셀아트 사무실', brand: 'WordNCode Pixel Studio', title: 'WordNCode Agent · 픽셀 스튜디오', picture: 'PIXEL STUDIO' },
@@ -31,7 +32,7 @@
 
   const ids = THEMES.map(t => t.id);
   const valid = id => ids.includes(id);
-  const get = id => THEMES.find(t => t.id === id) || THEMES[0];
+  const get = id => THEMES.find(t => t.id === id) || THEMES[0]; // 기본(처음 진입) = 첫 테마(브레인)
   /** 테마 지도가 규격을 지키는지 검사한다. 문제 목록(한국어)을 돌려준다 — 노드 테스트와 개발 중 콘솔 경고에 쓴다 */
   function check(decor, { need3d = true } = {}) {
     const out = [];

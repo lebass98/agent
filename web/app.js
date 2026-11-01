@@ -187,6 +187,7 @@ function dispose(obj) {
 
 /** 장면을 만든다. three.js·OrbitControls 가 없거나 WebGL 컨텍스트를 만들 수 없으면 false. */
 function init3D() {
+  if (window.SpaceTheme?.theme?.flat) return false; // 브레인 모드: 3D 공간 없이 업무 화면(brain.js)
   if (!window.THREE || typeof THREE.OrbitControls !== "function") return false;
   try {
     renderer = window.SpaceTheme?.isPixel && window.PixelTheme ? new PixelTheme.Renderer() : new THREE.WebGLRenderer({ antialias: true });
@@ -575,6 +576,7 @@ function reframe() { if (!UI.focused) frame(true); }
 /** 목록 모드(3D 없음): 3D 자리에 차분한 안내를 두고, 휴대폰에서는 시트를 열어 목록을 바로 보여 준다. */
 function enterListMode() {
   document.body.classList.add("no3d");
+  if (window.SpaceTheme?.theme?.flat) return; // 일부러 3D 를 쓰지 않는 공간(브레인)
   $("stage").append(el("div", { class: "stage-empty", role: "note" },
     el("div", { class: "stage-empty-card" },
       el("b", { text: "3D 사무실 없이 목록으로 보여 드려요" }),
@@ -3078,6 +3080,6 @@ markNav();
 window.Dashboard?.init();
 resize();
 if (HAS3D) requestAnimationFrame(loop);
-else if (mqMobile.matches && !mqSide.matches) setDock(true); // 목록 모드 휴대폰: 시트를 열어 둔다
+else if (mqMobile.matches && !mqSide.matches && !window.SpaceTheme?.theme?.flat) setDock(true); // 목록 모드 휴대폰: 시트를 열어 둔다(브레인은 업무 화면이 있으니 닫아 둔다)
 setInterval(ambient, 1000);
 connect();

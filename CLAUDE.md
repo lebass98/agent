@@ -33,6 +33,10 @@
 - 공간 테마(docs/space-themes.md): **모양만 다르고 구조는 같다.** 공통 규격 `web/theme-kit.js`(작업석 12·회의 12·커피 12·방 7·조연 3·손님 3) · 테마 지도 `Decor`(사무실 `web/decor.js`, 동물원 `web/zoo-theme.js`) ·
   공통 조연 엔진 `web/life.js`(디자인팀장·본부장·경리팀장, 캐릭터끼리 대화, 손님 산책, 배경 생물) + 테마 내용 `web/life-office.js`·`web/life-zoo.js`. 팀원 외형은 `app.js` 의 `LOOKS` 어댑터.
   동물원 모양: `web/zoo-animals.js`(동물 12종+조연 3종) · `web/zoo-friends.js`(친구 3종) · `web/zoo-forest.js`(바깥 숲). 새 테마는 docs/space-themes.md '새 테마 더하기'를 따른다. 조연·손님은 D.names 에 넣지 않는다
+- **브레인 모드(기본 공간)**: `web/brain.js`·`brain.css` + `server/brain.py`(`/api/brain*`, docs/events.md '브레인 모드'). 시안 A '커맨드 센터'(`web/brain-preview/`).
+  테마 목록 첫 번째(`theme-kit.js` 의 `brain`, `flat: true`)라 3D 를 켜지 않고 목록 모드 위에 업무 화면을 띄운다(업무 지시·팀 상태·로그는 그대로).
+  중요 일정 플로팅·브리핑·통합 캘린더(iCal 구독+직접 입력)·진행 중인 업무·루틴(확인 체크)·바로가기·스킬 목록. 설정은 `cache/brain.json`(Git 제외, 캘린더 주소는 화면에 안 보냄).
+  다음 단계: Gmail 요약·Notion 회의록·자동 실행 루틴 예약·Vercel 프로젝트 가져오기. 처음 열 때 한 번 브레인으로 옮긴다(`agentOffice.brainDefault`)
 - 화면 모션(`web/motion.js`·`motion.css`): WnC Motion(Moxie `proposals/agentoffice.html`) '풀' 단계. app.js 를 고치지 않고 전역 함수(toast·renderBoard·log·openReport 등)를 감싸 붙는다.
   `html.mo` 일 때만 동작하고 설정 '움직임 줄이기'·시스템 '동작 줄이기'면 꺼진다. 3D 사무실은 건드리지 않는다
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)

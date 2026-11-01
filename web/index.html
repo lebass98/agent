@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="extras.css"><!-- 이어 하기 카드·사용량·결과 알림·외부 도구 -->
 <link rel="stylesheet" href="outside.css"><!-- 바깥 풍경: 사무실 위치 설정·지도 출처 -->
 <link rel="stylesheet" href="mobile.css"><!-- 모바일 앱 정렬·안전 영역 -->
+<link rel="stylesheet" href="brain.css"><!-- 브레인 모드(기본 공간) 업무 화면. brain.js 와 함께 -->
 <link rel="stylesheet" href="motion.css"><!-- 화면 모션(WnC Motion 풀 단계). motion.js 와 함께 -->
 </head>
 <body class="dashboard-v2">
@@ -63,6 +64,13 @@
   <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
   <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.5 2.9a.5.5 0 0 1 1 0l2.3 4.7a2 2 0 0 0 1.5 1.1l5.2.8a.5.5 0 0 1 .3.9l-3.8 3.7a2 2 0 0 0-.6 1.8l.9 5.2a.5.5 0 0 1-.8.6l-4.6-2.5a2 2 0 0 0-1.9 0l-4.6 2.5a.5.5 0 0 1-.8-.6l.9-5.2a2 2 0 0 0-.6-1.8L1.7 10.3a.5.5 0 0 1 .3-.9l5.2-.8a2 2 0 0 0 1.5-1.1z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></symbol>
   <symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
 </svg>
 
@@ -251,6 +259,7 @@
 <script src="pixel/eden.js"></script>
 <script src="life-pixel.js"></script><!-- 픽셀 스튜디오 조연·손님·말투 -->
 <script src="life.js"></script><!-- 공통 조연 엔진: 조연 3명 동작·서로 대화(AI 팀원끼리도)·손님 산책·배경 생물. 모든 테마 같은 구조. app.js 다음에 -->
+<script src="brain.js"></script><!-- 브레인 모드: 중요 일정·통합 캘린더·루틴·바로가기·스킬·메일·회의록 화면(/api/brain). app.js 다음에 -->
 <script src="motion.js"></script><!-- 화면 모션: 선택 표시·단계 빛·진행률·말풍선 점·업무 카드 이동·알림 쌓기·검색·보고서 흘려 쓰기 등. app.js 를 감싸 붙는다 -->
 <script src="zoo-forest.js"></script><!-- 동물원 바깥: 숲·흐르는 강·다리·먼 산·새 떼(축소하면 솟아오름, '숲' 버튼). 동물원에서만 -->
 <script src="outside.js"></script><!-- 바깥 풍경(주소 주변 실제 건물·도로, OpenStreetMap). app.js 다음에. 없어도 app.js 는 동작 -->

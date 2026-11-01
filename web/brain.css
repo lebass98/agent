@@ -1,0 +1,213 @@
+/* 브레인 모드(기본 공간) — brain.js 와 함께. 3D 사무실·업무 선반 자리를 업무 화면이 차지한다(시안 A 커맨드 센터) */
+body.brain-mode .office-frame, body.brain-mode .task-shelf { visibility: hidden; }
+body.brain-mode #stage, body.brain-mode #labels { display: none; }
+.brain { position: fixed; z-index: 3; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 0 2px 12px; display: flex; flex-direction: column; gap: 12px; }
+:root { --bn-spring: cubic-bezier(.34, 1.56, .64, 1); --bn-out: cubic-bezier(.22, 1, .36, 1); }
+
+/* ── 중요 일정 플로팅 (Moxie pila · baliza) ── */
+.bn-floats { display: flex; gap: 8px; flex: none; overflow-x: auto; scrollbar-width: none; padding: 1px; }
+.bn-fl { position: relative; flex: 0 1 280px; min-width: 210px; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 9px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); animation: bn-drop .5s var(--bn-spring) backwards; }
+.bn-fl.urgent { border-color: color-mix(in srgb, var(--err) 45%, var(--line)); }
+.bn-fl.urgent::before { content: ""; position: absolute; left: 5px; top: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--err); animation: bn-ping 1.8s infinite; }
+.bn-when { --c: var(--accent-btn); flex: none; display: grid; place-items: center; min-width: 50px; height: 38px; padding: 0 6px; border-radius: 9px; background: var(--c); color: #fff; font-weight: 800; font-size: 12.5px; line-height: 1.1; text-align: center; }
+.bn-fl.urgent .bn-when { background: var(--err); }
+.bn-when small { display: block; font-size: 9.5px; font-weight: 600; opacity: .85; }
+.bn-flt { min-width: 0; flex: 1; }
+.bn-flt b { display: flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-flt span { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-x { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--faint); border: 0; background: none; flex: none; }
+.bn-x:hover { background: var(--panel-2); color: var(--text); }
+.bn-x .ic, .ic.sm { width: 13px; height: 13px; }
+@keyframes bn-drop { from { opacity: 0; transform: translateY(-10px) scale(.97); } }
+@keyframes bn-ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--err) 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+
+/* ── 바둑판 ── */
+.bn-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.bn-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column; min-width: 0; animation: bn-rise .5s var(--bn-out) backwards; }
+.bn-card > header { display: flex; align-items: center; gap: 7px; padding: 12px 14px 8px; flex-wrap: wrap; }
+.bn-card > header h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 6px; letter-spacing: -.2px; }
+.bn-card > header h3 .ic { width: 16px; height: 16px; color: var(--accent-text); }
+.bn-card > header small { color: var(--muted); font-size: 11.5px; }
+.bn-more { margin-left: auto; border: 0; background: none; color: var(--accent-text); font-weight: 600; font-size: 12px; padding: 2px 4px; }
+.bn-mini { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); display: grid; place-items: center; color: var(--text-2); }
+.bn-mini .ic { width: 14px; height: 14px; }
+.bn-seg + .bn-mini, header .bn-seg { margin-left: auto; }
+.bn-body { padding: 0 14px 12px; min-height: 0; }
+.bn-brief { grid-column: 1 / 5; border: 0; }
+.bn-cal { grid-column: 5 / 9; grid-row: span 2; }
+.bn-cal .bn-body { max-height: 470px; overflow: auto; scrollbar-width: thin; }
+.bn-work { grid-column: 9 / 13; }
+.bn-rt { grid-column: 1 / 5; }
+.bn-mail { grid-column: 9 / 13; }
+.bn-meet { grid-column: 1 / 5; }
+.bn-apps { grid-column: 5 / 9; }
+.bn-skills { grid-column: 9 / 13; }
+.bn-grid > :nth-child(2) { animation-delay: .04s; } .bn-grid > :nth-child(3) { animation-delay: .08s; } .bn-grid > :nth-child(4) { animation-delay: .12s; }
+.bn-grid > :nth-child(5) { animation-delay: .16s; } .bn-grid > :nth-child(6) { animation-delay: .2s; } .bn-grid > :nth-child(7) { animation-delay: .24s; } .bn-grid > :nth-child(8) { animation-delay: .28s; }
+@keyframes bn-rise { from { opacity: 0; transform: translateY(10px); } }
+.bn-empty { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.bn-empty .ic { width: 15px; height: 15px; }
+.bn-setup { border: 1px dashed var(--line-strong); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.bn-setup > .ic { width: 22px; height: 22px; color: var(--accent-text); }
+.bn-setup b { font-size: 13px; }
+.bn-setup p { margin: 0; font-size: 12px; color: var(--text-2); word-break: keep-all; line-height: 1.55; }
+.bn-setup .bn-need { color: var(--muted); font-size: 11.5px; }
+.bn-setup div { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.bn-btn { height: 30px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text-2); font-size: 12px; font-weight: 600; }
+.bn-btn.pri { background: var(--accent-btn); border-color: var(--accent-btn); color: #fff; }
+
+/* ── 두 스프링 탭 (Moxie segmentos) ── */
+.bn-seg { position: relative; display: inline-flex; background: var(--chip); border-radius: 9px; padding: 3px; }
+.bn-seg button { position: relative; z-index: 1; border: 0; background: none; padding: 3px 9px; border-radius: 7px; font-size: 11.5px; color: var(--muted); }
+.bn-seg button[aria-pressed="true"] { color: var(--text); font-weight: 700; }
+.bn-mark { position: absolute; top: 3px; bottom: 3px; border-radius: 7px; background: var(--panel); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); transition: left .26s var(--bn-spring), right .48s var(--bn-spring); }
+.bn-mark.back { transition: left .48s var(--bn-spring), right .26s var(--bn-spring); }
+
+/* ── 브리핑 (Moxie cavila · cifras · aliento) ── */
+.bn-briefin { position: relative; overflow: hidden; border-radius: 14px; padding: 16px 18px; color: #fff; min-height: 150px;
+  background: radial-gradient(120% 140% at 0% 0%, #8a63f7 0, transparent 55%), radial-gradient(120% 140% at 100% 100%, #2fb8ff 0, transparent 55%), linear-gradient(135deg, #3b45d8, #5b2fb8); }
+.bn-briefin h2 { margin: 0; font-size: 17px; letter-spacing: -.4px; position: relative; }
+.bn-briefin p { margin: 5px 0 0; font-size: 12.5px; line-height: 1.6; opacity: .93; word-break: keep-all; position: relative; }
+.bn-kpis { display: flex; gap: 8px; margin-top: 12px; position: relative; }
+.bn-kpis div { flex: 1; min-width: 0; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22); border-radius: 11px; padding: 7px 10px; }
+.bn-kpis b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+.bn-kpis span { font-size: 10.5px; opacity: .85; }
+.bn-orb { position: absolute; right: -40px; top: -50px; width: 190px; height: 190px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, .45), rgba(255, 255, 255, .04) 60%); animation: bn-orb 9s ease-in-out infinite; }
+@keyframes bn-orb { 50% { transform: translate(-14px, 12px) scale(1.06); } }
+.bn-think { background: linear-gradient(90deg, rgba(255, 255, 255, .55) 0 35%, #fff 50%, rgba(255, 255, 255, .55) 65% 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: bn-shine 1.4s linear infinite; font-weight: 600; }
+@keyframes bn-shine { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+
+/* ── 통합 캘린더 (Moxie semana · lunario) ── */
+.bn-chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 14px 8px; }
+.bn-chips:empty { display: none; }
+.bn-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 11px; color: var(--text-2); transition: opacity .2s; }
+.bn-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.bn-chip[aria-pressed="false"] { opacity: .45; }
+.bn-allday { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.bn-allday span { font-size: 11px; border-radius: 6px; padding: 2px 8px; background: color-mix(in srgb, var(--c) 16%, var(--panel)); border-left: 3px solid var(--c); }
+.bn-day { position: relative; }
+.bn-hr { position: absolute; left: 0; right: 0; border-top: 1px dashed color-mix(in srgb, var(--line) 85%, transparent); }
+.bn-hr span { position: absolute; left: 0; top: -7px; font-size: 10px; color: var(--faint); background: var(--panel); padding-right: 4px; font-variant-numeric: tabular-nums; }
+.bn-ev { position: absolute; left: 44px; right: 2px; border-radius: 8px; padding: 4px 26px 4px 8px; font-size: 11px; overflow: hidden; background: color-mix(in srgb, var(--c) 14%, var(--panel)); border-left: 3px solid var(--c); animation: bn-rise .4s var(--bn-out) backwards; }
+.bn-ev.past { opacity: .55; }
+.bn-ev.star { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent); }
+.bn-ev b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-ev small { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+.bn-pin { position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border: 0; border-radius: 6px; background: none; color: var(--faint); display: grid; place-items: center; opacity: 0; transition: opacity .2s; }
+.bn-ev:hover .bn-pin, .bn-pin:focus-visible { opacity: 1; }
+.bn-pin:hover { background: var(--panel); color: var(--accent-text); }
+.bn-pin .ic { width: 13px; height: 13px; }
+@media (hover: none) { .bn-pin { opacity: .7; } }
+.bn-now { position: absolute; left: 38px; right: 0; height: 2px; background: var(--err); z-index: 2; }
+.bn-now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--err); }
+.bn-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.bn-wd { background: var(--panel-2); border-radius: 10px; padding: 7px 5px; min-height: 160px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bn-wd h5 { margin: 0 0 2px; font-size: 10.5px; color: var(--muted); display: flex; justify-content: space-between; padding: 0 2px; }
+.bn-wd h5 b { font-size: 14px; color: var(--text); }
+.bn-wd.today { background: var(--accent-weak); }
+.bn-wd.today h5 b { color: var(--accent-text); }
+.bn-wev { font-size: 10.5px; border-radius: 6px; padding: 3px 5px; background: var(--panel); border-left: 3px solid var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-wev small { color: var(--muted); margin-right: 3px; font-variant-numeric: tabular-nums; }
+
+/* ── 진행 중인 업무 (기존 업무 보드 카드를 옮겨 온다) ── */
+.bn-work .bn-body [data-pane="board"] { border: 0; box-shadow: none; padding: 0; background: none; }
+.bn-work .bn-body [data-pane="board"] > h3 { display: none; }
+.bn-work .board { max-height: 240px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.bn-work .trow { height: auto !important; max-width: none !important; flex: none !important; }
+
+/* ── 루틴 (Moxie jornada · brinco · racha) ── */
+.bn-rtrow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 1px 10px; align-items: center; padding: 7px 4px; border-radius: 10px; }
+.bn-rtrow:hover { background: var(--panel-2); }
+.bn-rtrow.off { opacity: .55; }
+.bn-rtic { grid-column: 1; grid-row: 1 / 3; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--ok-weak); color: var(--ok); }
+.bn-rtic.auto { background: var(--accent-weak); color: var(--accent-text); }
+.bn-rtic .ic { width: 16px; height: 16px; }
+.bn-rtrow b { grid-column: 2; grid-row: 1; font-size: 12.5px; position: relative; justify-self: start; }
+.bn-rtrow small { grid-column: 2; grid-row: 2; font-size: 11px; color: var(--muted); }
+.bn-rtrow small em { font-style: normal; color: var(--faint); }
+.bn-rtrow.done b { color: var(--muted); }
+.bn-rtrow.done b::after { content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1.5px; background: var(--muted); transform-origin: 0 50%; animation: bn-sweep .4s var(--bn-out); }
+@keyframes bn-sweep { from { transform: scaleX(0); } }
+.bn-ck, .bn-sw { grid-column: 3; grid-row: 1 / 3; }
+.bn-ck { width: 24px; height: 24px; border-radius: 7px; border: 1.5px solid var(--line-strong); background: var(--panel); display: grid; place-items: center; color: #fff; padding: 0; transition: background .2s, border-color .2s; }
+.bn-ck .ic { width: 15px; height: 15px; opacity: 0; transform: scale(.4); transition: transform .3s var(--bn-spring), opacity .2s; }
+.bn-ck[aria-checked="true"] { background: var(--ok-dot); border-color: var(--ok-dot); }
+.bn-ck[aria-checked="true"] .ic { opacity: 1; transform: none; }
+.bn-ck:disabled { opacity: .4; }
+.bn-sw { width: 36px; height: 21px; border-radius: 999px; border: 0; background: var(--track); position: relative; padding: 0; transition: background .25s; }
+.bn-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .35s var(--bn-spring), width .2s; }
+.bn-sw[aria-checked="true"] { background: var(--accent-btn); }
+.bn-sw[aria-checked="true"]::after { transform: translateX(15px); }
+.bn-ck.pop { animation: bn-pop .45s var(--bn-spring); }
+.bn-sw.pop::after { width: 23px; }
+@keyframes bn-pop { 0% { transform: scale(.6); } }
+.bn-streak { margin-top: 8px; }
+.bn-streak:empty { display: none; }
+.bn-streak small { font-size: 11px; color: var(--muted); }
+.bn-streak div { display: grid; grid-template-rows: repeat(7, 9px); grid-auto-flow: column; grid-auto-columns: 9px; gap: 3px; margin-top: 6px; }
+.bn-streak i { border-radius: 2px; background: color-mix(in srgb, var(--ok-dot) calc(var(--v) * 100%), var(--track)); animation: bn-cell .4s var(--bn-spring) backwards; }
+@keyframes bn-cell { from { transform: scale(0); } }
+
+/* ── 바로가기 (Moxie iman) ── */
+.bn-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px 6px; }
+.bn-app { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--text-2); text-decoration: none; border: 0; background: none; padding: 0; min-width: 0; }
+.bn-app > span:last-child { max-width: 78px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-tile { position: relative; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: -.4px;
+  background: linear-gradient(140deg, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 70%, #000)); box-shadow: 0 6px 16px color-mix(in srgb, var(--c) 35%, transparent); }
+.bn-tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(160deg, rgba(255, 255, 255, .35), transparent 50%); }
+.bn-tile.add { background: var(--chip); color: var(--muted); box-shadow: none; border: 1.5px dashed var(--line-strong); }
+.bn-tile.add::after { display: none; }
+
+/* ── 스킬 (Moxie hallazgo) ── */
+.bn-sktools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.bn-find { flex: 1; min-width: 100px; height: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); padding: 0 9px; font-size: 12px; outline: 0; color: var(--text); }
+.bn-find:focus { border-color: var(--accent); }
+#bnSkills { max-height: 260px; overflow: auto; scrollbar-width: thin; }
+.bn-sk { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 0 9px; align-items: center; padding: 6px 4px; border-radius: 9px; }
+.bn-sk:hover { background: var(--panel-2); }
+.bn-ai { grid-column: 1; grid-row: 1 / 3; width: 28px; height: 28px; border-radius: 8px; background: var(--c); color: #fff; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; }
+.bn-sk b { grid-column: 2; grid-row: 1; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-sk small { grid-column: 2; grid-row: 2; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-sk em { grid-column: 3; grid-row: 1 / 3; font-style: normal; font-size: 10px; color: var(--muted); background: var(--chip); border-radius: 5px; padding: 1px 6px; }
+.bn-sk mark { background: color-mix(in srgb, var(--accent) 26%, transparent); color: inherit; border-radius: 3px; }
+
+/* ── 편집 창 ── */
+.bn-editor .bn-help { font-size: 12px; color: var(--text-2); background: var(--panel-2); border-radius: 10px; padding: 10px 12px; line-height: 1.6; margin: 0 0 12px; word-break: keep-all; }
+.bn-elist { display: flex; flex-direction: column; gap: 4px; }
+.bn-erow { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 2px 4px 2px 10px; }
+.bn-erow.on { border-color: var(--accent); background: var(--accent-weak); }
+.bn-etext { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 7px 0; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bn-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.bn-field[data-k="name"], .bn-field[data-k="title"], .bn-field[data-k="url"], .bn-field[data-k="goal"], .bn-field[data-k="days"] { grid-column: 1 / -1; }
+.bn-field.row { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 8px; }
+.bn-field input:not([type="checkbox"]), .bn-field select, .bn-field textarea { height: 36px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--text); padding: 0 10px; font: inherit; font-size: 13px; }
+.bn-field textarea { height: auto; padding: 8px 10px; resize: vertical; }
+.bn-field input[type="color"] { padding: 2px; width: 60px; }
+.bn-days { display: flex; gap: 6px; flex-wrap: wrap; }
+.bn-days label { display: inline-flex; align-items: center; gap: 3px; color: var(--text-2); font-size: 12.5px; }
+.bn-formfoot { grid-column: 1 / -1; display: flex; gap: 8px; }
+
+/* ── 반응형 ── */
+@media (max-width: 1250px) {
+  .bn-brief, .bn-rt, .bn-meet { grid-column: 1 / 7; }
+  .bn-cal { grid-column: 7 / 13; }
+  .bn-work, .bn-mail, .bn-apps, .bn-skills { grid-column: span 6; }
+}
+@media (max-width: 900px) {
+  .bn-grid > * { grid-column: 1 / -1 !important; grid-row: auto !important; }
+  .bn-cal .bn-body { max-height: 380px; }
+  .bn-form { grid-template-columns: 1fr; }
+}
+.reduce-motion .brain *, .reduce-motion .brain *::before, .reduce-motion .brain *::after { animation: none !important; }
+
+/* 현재 업무 카드(run-strip)를 '진행 중인 업무' 칸 안에 넣었을 때(데스크톱) */
+@media (min-width: 761px) {
+  body.brain-mode .bn-work .run-strip { position: static; width: auto; margin: 0 0 10px; box-shadow: none; backdrop-filter: none; background: var(--panel-2); border: 1px solid var(--line); z-index: auto; }
+}
+@media (max-width: 600px) {
+  .bn-week { grid-template-columns: minmax(0, 1fr); }
+  .bn-wd { min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .bn-wd h5 { width: 100%; justify-content: flex-start; gap: 6px; }
+  .bn-wd:not(.today):not(:has(.bn-wev)) { display: none; }
+}

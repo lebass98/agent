@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import mcptools, notify, notion, outside, projects, teamcfg
+from . import brain, mcptools, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -343,6 +343,15 @@ class ResumeIn(BaseModel):
     tools: list[str] | None = Field(None, max_length=20)
 
 
+class BrainListIn(BaseModel):
+    items: list[dict] = Field(default_factory=list, max_length=brain.MAX_ITEMS)
+
+
+class BrainCheckIn(BaseModel):
+    day: str
+    done: bool = True
+
+
 class NotifyIn(BaseModel):
     url: str = Field("", max_length=2000)
     enabled: bool = False
@@ -398,7 +407,7 @@ class RevalidatedStaticFiles(StaticFiles):
 
 def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev: bool = False,
                cache_dir: Path | None = None, projects_file: Path | None = None,
-               notify_file: Path | None = None, tools_file: Path | None = None) -> FastAPI:
+               notify_file: Path | None = None, tools_file: Path | None = None, brain_file: Path | None = None) -> FastAPI:
     """dev=True: web/ 변경 시 브라우저 자동 새로고침 + 정적 파일 캐시 금지(새로고침하면 항상 최신 파일).
     cache_dir: 바깥 풍경 지도 원본·사무실 위치를 두는 곳(기본: runs 옆 cache/outside, Git 제외).
     projects_file: 등록한 프로젝트(폴더 접근) 목록(기본: runs 옆 projects.json, Git 제외)."""
@@ -411,6 +420,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     notifier = notify.Notify(Path(notify_file) if notify_file else runs_dir.parent / "cache" / "notify.json")
     tools_store = mcptools.Store(Path(tools_file) if tools_file else runs_dir.parent / "mcp-servers.json")
     recorder = notion.Notion()
+    brain_store = brain.Store(Path(brain_file) if brain_file else runs_dir.parent / "cache" / "brain.json")
     dist_dir = runs_dir.parent / "dist"  # 휴대폰 앱 릴리즈(scripts/release.py, Git 제외)
     _mark_interrupted(runs_dir)
     background: set[asyncio.Task] = set()
@@ -625,6 +635,33 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         if not notifier.load()["url"]:
             raise HTTPException(400, "받을 주소(URL)를 먼저 저장하세요.")
         return await asyncio.to_thread(notifier.send, notify.sample_payload(), True)
+
+    # ── 브레인 모드(docs/events.md '브레인 모드') ──
+    @api.get("/brain")
+    def get_brain():
+        return brain_store.public()
+
+    @api.put("/brain/{kind}")
+    def put_brain(kind: Literal["shortcuts", "routines", "pins", "calendars", "events"], body: BrainListIn):
+        try:
+            return brain_store.put(kind, body.items)
+        except brain.BrainError as e:
+            raise HTTPException(400, str(e))
+
+    @api.post("/brain/routines/{rid}/check")
+    def check_routine(rid: str, body: BrainCheckIn):
+        try:
+            return brain_store.check(rid, body.day, body.done)
+        except brain.BrainError as e:
+            raise HTTPException(400, str(e))
+
+    @api.get("/brain/calendar")
+    async def brain_calendar(days: int = 14):
+        return await asyncio.to_thread(brain.calendar, brain_store, 1, max(1, min(60, days)))
+
+    @api.get("/brain/skills")
+    async def brain_skills():
+        return {"skills": await asyncio.to_thread(brain.skills, runs_dir.parent)}
 
     # ── 노션 업무 기록 ──
     @api.get("/notion")
