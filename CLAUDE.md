@@ -33,6 +33,8 @@
 - 공간 테마(docs/space-themes.md): **모양만 다르고 구조는 같다.** 공통 규격 `web/theme-kit.js`(작업석 12·회의 12·커피 12·방 7·조연 3·손님 3) · 테마 지도 `Decor`(사무실 `web/decor.js`, 동물원 `web/zoo-theme.js`) ·
   공통 조연 엔진 `web/life.js`(디자인팀장·본부장·경리팀장, 캐릭터끼리 대화, 손님 산책, 배경 생물) + 테마 내용 `web/life-office.js`·`web/life-zoo.js`. 팀원 외형은 `app.js` 의 `LOOKS` 어댑터.
   동물원 모양: `web/zoo-animals.js`(동물 12종+조연 3종) · `web/zoo-friends.js`(친구 3종) · `web/zoo-forest.js`(바깥 숲). 새 테마는 docs/space-themes.md '새 테마 더하기'를 따른다. 조연·손님은 D.names 에 넣지 않는다
+- 화면 모션(`web/motion.js`·`motion.css`): WnC Motion(Moxie `proposals/agentoffice.html`) '풀' 단계. app.js 를 고치지 않고 전역 함수(toast·renderBoard·log·openReport 등)를 감싸 붙는다.
+  `html.mo` 일 때만 동작하고 설정 '움직임 줄이기'·시스템 '동작 줄이기'면 꺼진다. 3D 사무실은 건드리지 않는다
 - `tests/` : pytest (스냅샷 리듀서, API·WebSocket·인증)
 - `runs/<시각>/` : plan.json, task-*.md, report.md (Git 제외)
 
