@@ -353,3 +353,9 @@ body.brain-mode .brain .bn-imp .bn-when small { font-size: 8.5px; }
 body.brain-mode .brain .bn-imp .bn-flt b { font-size: 11.5px; }
 body.brain-mode .brain .bn-imp .bn-flt span { font-size: 10px; margin-top: 1px; }
 body.brain-mode .brain .bn-imp .bn-x { flex-shrink: 0; }
+
+/* 인사말(날짜·'오늘도 수고했어요 …')은 지워 공간을 아낀다. 데스크톱은 팀 활동 접기 단추가 오른쪽에 있으니 머리줄째 숨기고,
+   휴대폰은 팀 활동 단추만 오른쪽에 남긴다 */
+body.brain-mode .brain .bn-welcome > div { display: none; }
+body.brain-mode .brain .bn-welcome { justify-content: flex-end; }
+@media (min-width: 761px) { body.brain-mode .brain .bn-welcome { display: none; } }
