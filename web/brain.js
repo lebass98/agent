@@ -53,8 +53,8 @@ window.Brain = (() => {
   // 승인한 세 열 배치. 원래 카드와 핸들러를 옮기므로 연결된 데이터·업무 흐름은 유지된다.
   const grid = ui.querySelector(".bn-grid");
   // 좌우 메뉴가 모두 접히고 가운데가 넉넉하면 4열, 아니면 승인한 3열(카드를 옮길 뿐이라 데이터·동작은 그대로)
-  const COLS3 = [["brief", "mail", "apps"], ["imp", "cal", "meet"], ["rt", "skills", "work"]];
-  const COLS4 = [["brief", "mail"], ["imp", "cal"], ["meet", "rt"], ["skills", "apps", "work"]];
+  const COLS3 = [["brief", "mail", "apps"], ["imp", "cal", "meet"], ["work", "rt", "skills"]];
+  const COLS4 = [["brief", "mail"], ["imp", "cal"], ["meet", "rt"], ["work", "skills", "apps"]];
   let colsNow = null;
   function arrange() {
     const four = document.body.classList.contains("bn-side-mini") && document.body.classList.contains("team-collapsed")
@@ -475,7 +475,7 @@ window.Brain = (() => {
     if (!MEET.enabled) { box.innerHTML = `<div class="bn-setup">${ico("file")}<b>Notion 회의록</b><p>서버 컴퓨터의 <code>claude</code> CLI 에 claude.ai Notion 커넥터가 연결돼 있으면 회의록을 가져와요.</p></div>`; return; }
     const items = MEET.items || [];
     $b("bnMeetSub").textContent = `Notion${MEET.at ? ` · ${MEET.at.slice(11)} 읽음` : ""}${MEET.loading ? " · 읽는 중…" : ""}`;
-    const hint = MEET.custom ? "" : `<p class="bn-note">${ico("info")}노션 검색으로 찾은 주간회의·팀 회의예요. <button type="button" class="bn-link" data-act="meetings">회의 지정</button>에서 페이지 주소와 보여 줄 개수를 정할 수 있어요.</p>`;
+    const hint = "";
     // 출처별 묶음: 이름 · 최근 n건 · ✎ 쓰기(노션의 회의록 모음으로) — 각 회의록은 제목 + 한 줄 요약
     const groups = MEET.sources?.length ? MEET.sources : [...new Set(items.map(m => m.source))].map(name => ({ name, count: 0, write: "" }));
     const known = new Set(groups.map(g => g.name));
