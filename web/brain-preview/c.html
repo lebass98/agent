@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>브레인 모드 시안 C · 브리핑 피드</title>
+<link rel="stylesheet" href="../vendor/pretendard-gov/pretendardvariable-gov-dynamic-subset.css">
+<link rel="stylesheet" href="brain.css">
+<script src="brain-kit.js"></script>
+<style>
+/* C · 브리핑 피드: AI 가 오늘을 요약한 큰 브리핑이 맨 위, 그 아래 메일·회의록·업무가 시간순 카드 피드로 흐른다.
+   오른쪽은 달력·다가오는 일정·루틴·AI 팀. 바로가기는 화면 아래 맥 독(Dock)처럼 떠 있다. 3D 사무실은 작은 미리보기로만 */
+body { display: flex; flex-direction: column; overflow: hidden; }
+.shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); }
+.main { min-height: 0; overflow: auto; padding: 14px 22px 120px; scrollbar-width: thin; }
+.main > * + * { margin-top: 14px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+.brief { padding: 22px 24px; }
+.brief h2 { font-size: 24px; }
+.brief .bullets { margin-top: 12px; display: grid; gap: 6px; font-size: 13px; }
+.brief .bullets div { display: flex; gap: 8px; align-items: flex-start; background: rgba(255, 255, 255, .1); border-radius: 10px; padding: 7px 10px; }
+.brief .bullets b { white-space: nowrap; }
+.floats-v { display: flex; flex-direction: column; gap: 10px; }
+.floats-v .fl { flex: 1; padding: 12px 14px; }
+.floats-v .fl .when { min-width: 58px; height: 46px; font-size: 14px; }
+.floats-v .fl b { font-size: 14px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+.feedhead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.feedhead h3 { font-size: 15px; }
+.feed { display: flex; flex-direction: column; gap: 10px; }
+.item { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; }
+.item time { font-size: 12px; font-weight: 700; color: var(--muted); padding-top: 14px; text-align: right; font-variant-numeric: tabular-nums; position: relative; }
+.item .card { padding: 12px 14px; }
+.item .kind { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.item .kind .ic { width: 13px; height: 13px; }
+.item h4 { font-size: 14px; margin-bottom: 3px; }
+.item p { font-size: 12.5px; color: var(--text-2); word-break: keep-all; }
+.item .acts { display: flex; gap: 6px; margin-top: 9px; }
+.item .acts button { font-size: 11.5px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line); color: var(--text-2); }
+.item .acts button.pri { background: var(--accent-btn); color: var(--on-accent); border-color: var(--accent-btn); }
+.side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
+.office { position: relative; height: 110px; border-radius: 12px; overflow: hidden; background: radial-gradient(120% 90% at 50% 40%, #1d284a, #0b1020); }
+.office::before { content: ""; position: absolute; left: 50%; top: 52%; width: 120%; aspect-ratio: 2 / 1; transform: translate(-50%, -50%); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: repeating-linear-gradient(26.6deg, transparent 0 18px, rgba(255, 255, 255, .06) 18px 19px), repeating-linear-gradient(-26.6deg, transparent 0 18px, rgba(255, 255, 255, .06) 18px 19px), linear-gradient(160deg, #2a3352, #1c2440); }
+.office i { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px #fff; animation: bob 1.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+.office span { position: absolute; right: 8px; bottom: 8px; font-size: 11px; color: #fff; background: rgba(255, 255, 255, .15); border-radius: 999px; padding: 3px 9px; backdrop-filter: blur(4px); }
+.dockwrap { position: fixed; left: 76px; right: 0; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; z-index: 20; }
+.dockwrap > * { pointer-events: auto; }
+.dockwrap .command { width: min(760px, calc(100% - 40px)); box-shadow: var(--shadow-lg); }
+@media (max-width: 1150px) { .hero, .grid2 { grid-template-columns: minmax(0, 1fr); } .side { position: static; } }
+@media (max-width: 760px) { .shell { grid-template-columns: minmax(0, 1fr); } .rail, .search, .conn { display: none; } .dockwrap { left: 0; } .main { padding: 10px 12px 140px; } .dock { max-width: calc(100% - 24px); overflow-x: auto; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <script>document.write(Brain.rail("home"))</script>
+  <main class="main">
+    <script>document.write(Brain.topbar())</script>
+    <section class="hero">
+      <div class="brief rise" data-moxie="raudal cavila cifras aliento"><span class="orb"></span>
+        <h2>오늘의 브리핑</h2>
+        <p>메일 23통·일정 6개·회의록 3개를 읽고 정리했어요. 지금 꼭 볼 것은 세 가지예요.</p>
+        <div class="bullets">
+          <div><b>① 14:00</b><span>투자사 미팅 — 박지훈 님이 IR 자료 최종본을 미팅 전까지 요청</span></div>
+          <div><b>② D-2</b><span>랜딩 페이지 배포 실패(환경 변수 누락) — 오픈 전에 해결 필요</span></div>
+          <div><b>③ 11/25</b><span>부가세 신고 자료 — 카드 사용 내역만 보내면 끝</span></div>
+        </div>
+        <div class="kpis"><div class="kpi"><b>2</b><span>답장 필요</span></div><div class="kpi"><b>6</b><span>오늘 일정</span></div><div class="kpi"><b>4</b><span>할 일(회의)</span></div><div class="kpi"><b>3/6</b><span>루틴</span></div></div>
+      </div>
+      <div class="floats-v" id="floats" data-moxie="pila baliza"></div>
+    </section>
+    <section class="grid2">
+      <div>
+        <div class="feedhead"><h3>오늘 흐름</h3><div class="seg" id="ff"><button aria-selected="true" data-f="all">전체</button><button aria-selected="false" data-f="mail">메일</button><button aria-selected="false" data-f="meet">회의록</button><button aria-selected="false" data-f="cal">일정</button><button aria-selected="false" data-f="ai">AI 팀</button></div></div>
+        <div class="feed" id="feed" data-moxie="anticipo segmentos"></div>
+      </div>
+      <aside class="side">
+        <section data-moxie="lunario" class="card rise"><header><h3><span data-i="cal"></span>달력</h3></header><div class="body"><div id="src" style="margin-bottom:10px"></div><div id="month"></div></div></section>
+        <section data-moxie="turno semana" class="card rise" style="animation-delay:.05s"><header><h3><span data-i="clock"></span>다가오는 일정</h3><small>3일</small></header><div class="body"><div id="agenda"></div></div></section>
+        <section data-moxie="jornada brinco racha" class="card rise" style="animation-delay:.1s"><header><h3><span data-i="repeat"></span>루틴</h3><span class="more">+ 추가</span></header><div class="body" data-streak><div id="rt"></div></div></section>
+        <section data-moxie="corrillo" class="card rise" style="animation-delay:.15s"><header><h3><span data-i="team"></span>AI 팀</h3><small>2명 작업 중</small></header><div class="body">
+          <div class="office"><i style="--c:var(--claude);left:58%;top:58%"></i><i style="--c:var(--gpt);left:38%;top:40%;animation-delay:.3s"></i><i style="--c:var(--gemini);left:70%;top:34%;animation-delay:.6s"></i><span>3D 사무실 열기 ↗</span></div>
+          <div id="team" style="flex-direction:column;align-items:stretch;margin-top:10px"></div></div></section>
+        <section data-moxie="hallazgo segmentos" class="card rise" style="animation-delay:.2s"><header><h3><span data-i="spark"></span>스킬</h3><span style="margin-left:auto" id="skTabs"></span></header><div class="body"><div id="skills"></div></div></section>
+      </aside>
+    </section>
+  </main>
+</div>
+<div class="dockwrap" data-moxie="dock pregunta sintonia"><script>document.write(Brain.command())</script><div id="dock"></div></div>
+<script>
+Brain.bar("c.html", "AI 가 오늘을 요약한 큰 브리핑 + 시간순 피드(메일·회의록·일정·AI 팀 결과). 바로가기는 아래 떠 있는 독(Dock). 3D 사무실은 작은 미리보기로만.");
+const B = Brain, $ = B.$, $$ = B.$$;
+$$("[data-i]").forEach(s => { s.outerHTML = B.ic(s.dataset.i, 15); });
+B.floats($("#floats")); $("#floats").classList.remove("float-strip");
+B.miniMonth($("#month")); B.sourceChips($("#src")); B.agenda($("#agenda"), 3); B.routines($("#rt"), 4);
+B.team($("#team"), "bars"); B.skills($("#skills"), $("#skTabs")); B.apps($("#dock"), "dock", false);
+const FEED = [
+  ["08:42", "mail", "메일 · 박지훈 (투자사)", "IR 자료 최종본 요청", "오늘 14시 미팅 전까지 IR 자료 최종본과 지난 분기 매출 표를 보내 달라는 요청이에요.", ["답장 초안 만들기", "팀에 자료 정리 맡기기"]],
+  ["08:30", "ai", "루틴 · 아침 메일 브리핑 (Gemini)", "메일 23통 요약 완료", "답장 필요 2, 중요 1, 읽을거리 4. 나머지는 광고·알림이라 접어 두었어요.", ["요약 전체 보기"]],
+  ["09:00", "cal", "일정 · Notion", "개발팀 스탠드업", "09:00–09:30 · 3명 · 배포 자동 점검 루틴 추가 논의", []],
+  ["09:05", "ai", "루틴 · Vercel 배포 점검 (Claude)", "랜딩 페이지 배포 실패 1건", "빌드 단계에서 환경 변수 NEXT_PUBLIC_API_URL 이 없어 실패했어요. 이전 배포는 정상 동작 중이에요.", ["팀에 수정 맡기기", "Vercel 열기"]],
+  ["10:00", "meet", "회의록 · Notion · 주간회의", "랜딩 이번 주 오픈 확정 · Q4 목표 신규 30곳", "할 일 3개 중 1개 완료 — IR 자료 정리, 랜딩 배포 오류 해결이 남았어요.", ["노션에서 열기", "할 일 캘린더에 넣기"]],
+  ["어제", "mail", "메일 · 김하늘 (디자인팀)", "랜딩 시안 v3 공유", "첫 화면 문구 A/B 중 하나만 고르면 오늘 안에 마무리 가능하대요.", ["A 로 답장", "B 로 답장"]],
+];
+const KIND = { mail: ["mail", "var(--google)"], ai: ["spark", "var(--accent)"], cal: ["cal", "var(--phone)"], meet: ["note", "var(--notion)"] };
+const drawFeed = f => { $("#feed").innerHTML = FEED.filter(x => f === "all" || x[1] === f).map((x, i) => `<div class="item rise" style="animation-delay:${i * 50}ms"><time>${x[0]}</time><article class="card"><div class="kind" style="color:${KIND[x[1]][1]}">${B.ic(KIND[x[1]][0])}${x[2]}</div><h4>${x[3]}</h4><p>${x[4]}</p>${x[5].length ? `<div class="acts">${x[5].map((a, j) => `<button class="${j ? "" : "pri"}" onclick="Brain.toast('시안: ${a}')">${a}</button>`).join("")}</div>` : ""}</article></div>`).join(""); };
+drawFeed("all");
+$("#ff").onclick = e => { const b = e.target.closest("button"); if (!b) return; $$("button", $("#ff")).forEach(x => x.setAttribute("aria-selected", x === b)); drawFeed(b.dataset.f); };
+</script>
+<script src="brain-moxie.js"></script>
+</body>
+</html>

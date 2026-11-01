@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>브레인 모드 시안</title>
+<link rel="stylesheet" href="../vendor/pretendard-gov/pretendardvariable-gov-dynamic-subset.css">
+<link rel="stylesheet" href="brain.css">
+<script src="brain-kit.js"></script>
+<style>
+body { overflow: auto; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; }
+.eyebrow { color: var(--accent-text); font-weight: 700; font-size: 12px; }
+h1 { font-size: 28px; letter-spacing: -.7px; margin: 6px 0 8px; }
+.lead { color: var(--muted); max-width: 760px; word-break: keep-all; font-size: 14px; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
+.pick { display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); transition: transform .35s var(--spring), box-shadow .3s; }
+.pick:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.pick .thumb { height: 150px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); display: grid; gap: 5px; padding: 8px; }
+.pick .thumb i { border-radius: 5px; background: var(--c, var(--panel-3)); }
+.pick h2 { font-size: 17px; }
+.pick p { font-size: 12.5px; color: var(--text-2); word-break: keep-all; }
+.pick ul { padding-left: 16px; font-size: 12px; color: var(--muted); }
+.pick .go { margin-top: auto; color: var(--accent-text); font-weight: 700; }
+.tA { grid-template-columns: repeat(4, 1fr); grid-template-rows: 14px 1fr 1fr 18px; }
+.tB { grid-template-columns: 1fr 2.2fr 1.4fr; grid-template-rows: 22px 1fr 16px; }
+.tC { grid-template-columns: 1.4fr 1fr; grid-template-rows: 46px 1fr 16px; }
+.common { margin-top: 30px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+.common h3 { font-size: 15px; margin-bottom: 8px; }
+.common ol { padding-left: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; font-size: 13px; color: var(--text-2); }
+@media (max-width: 900px) { .grid, .common ol { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">WordNCode Agent Office · 새 공간 테마</p>
+  <h1>🧠 브레인 모드 — 시안 3종</h1>
+  <p class="lead">캐릭터 사무실을 줄이고, 메일·일정·회의록·바로가기·스킬·루틴을 한 화면에서 보는 기본 모드입니다. 세 시안은 같은 기능을 서로 다른 배치로 보여 줍니다. 모션은 Moxie(WnC Motion) 리소스의 기법으로 넣었고, 각 시안 위쪽 <b>✦ Moxie</b> 단추에서 쓴 리소스를 볼 수 있어요. 데이터는 모두 예시입니다.</p>
+  <div class="grid">
+    <a class="pick" href="a.html"><div class="thumb tA"><i style="--c:#7c5cf6;grid-column:1/5"></i><i style="--c:#c9b8ff"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i style="grid-column:1/5"></i></div>
+      <h2>A · 커맨드 센터</h2><p>모든 기능을 한 화면 바둑판(벤토)에. 맨 위 중요 일정 플로팅, AI 팀은 아래 얇은 띠.</p>
+      <ul><li>한눈에 다 보임 — 넓은 모니터에 좋음</li><li>위젯 순서·크기를 나중에 바꾸기 쉬움</li></ul><span class="go">열기 →</span></a>
+    <a class="pick" href="b.html"><div class="thumb tB"><i style="grid-column:1/4"></i><i></i><i style="--c:#c9d6ff"></i><i></i><i style="grid-column:1/4"></i></div>
+      <h2>B · 타임라인 포커스</h2><p>가운데 통합 캘린더(일·주·목록)와 크게 고정된 중요 일정. 왼쪽 도구, 오른쪽 메일·회의록·루틴 탭.</p>
+      <ul><li>일정 관리가 중심인 하루에 맞음</li><li>정보가 탭으로 정리돼 덜 복잡함</li></ul><span class="go">열기 →</span></a>
+    <a class="pick" href="c.html"><div class="thumb tC"><i style="--c:#7c5cf6"></i><i style="--c:#ffd2c2"></i><i></i><i></i><i style="grid-column:1/3;--c:#d7dcea"></i></div>
+      <h2>C · 브리핑 피드</h2><p>AI 가 오늘을 요약한 큰 브리핑 + 시간순 피드(메일·회의록·일정·AI 결과). 바로가기는 아래 독.</p>
+      <ul><li>“지금 뭘 봐야 하지?”에 바로 답함</li><li>휴대폰에서도 위아래로 읽기 좋음</li></ul><span class="go">열기 →</span></a>
+  </div>
+  <section class="common"><h3>세 시안 공통 기능 (요청 1~8)</h3>
+    <ol><li>Gmail 연동 · 메일 AI 요약</li><li>Vercel 프로젝트 바로가기 아이콘</li><li>Google·Notion·휴대폰 캘린더 통합 일정</li><li>Notion 주간회의·팀 미팅 회의록</li><li>중요 일정 상단 플로팅</li><li>Claude·Gemini·GPT 스킬 목록</li><li>루틴 등록 · 예약 실행 · 확인 체크</li><li>캐릭터 사무실 최소화 → 업무 정보 중심</li></ol>
+  </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>브레인 모드 시안 A · 커맨드 센터</title>
+<link rel="stylesheet" href="../vendor/pretendard-gov/pretendardvariable-gov-dynamic-subset.css">
+<link rel="stylesheet" href="brain.css">
+<script src="brain-kit.js"></script>
+<style>
+/* A · 커맨드 센터: 한 화면에 모든 위젯을 바둑판(벤토)으로. 캐릭터 사무실은 아래 'AI 팀' 띠로 줄인다 */
+body { display: flex; flex-direction: column; overflow: hidden; }
+.shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); }
+.main { min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px 18px 0; }
+.content { flex: 1; min-height: 0; overflow: auto; padding-bottom: 14px; scrollbar-width: thin; }
+.bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.c-brief { grid-column: 1 / 5; }
+.c-day { grid-column: 5 / 9; grid-row: span 2; }
+.c-mail { grid-column: 9 / 13; grid-row: span 2; }
+.c-rt { grid-column: 1 / 5; }
+.c-meet { grid-column: 1 / 6; }
+.c-apps { grid-column: 6 / 9; }
+.c-skill { grid-column: 9 / 13; }
+.c-day .body { max-height: 470px; overflow: auto; }
+.brief { padding: 16px 18px; }
+.brief h2 { font-size: 17px; }
+.brief .kpi { min-width: 0; flex: 1; padding: 7px 10px; }
+.brief .kpi b { font-size: 18px; }
+.foot { display: flex; align-items: center; gap: 12px; padding: 10px 0 14px; border-top: 1px solid var(--line); }
+.foot .team-mini { flex: none; }
+.foot .command { flex: 1; }
+@media (max-width: 1200px) { .c-brief, .c-rt { grid-column: 1 / 7; } .c-day { grid-column: 7 / 13; } .c-mail { grid-column: 1 / 13; grid-row: auto; } .c-meet { grid-column: 1 / 13; } .c-apps, .c-skill { grid-column: span 6; } .foot { flex-direction: column; align-items: stretch; } }
+@media (max-width: 760px) { .shell { grid-template-columns: minmax(0, 1fr); } .main { padding: 10px 12px 0; } .topbar .crumb b { font-size: 16px; } .topbar > span.muted, .iconbtn { display: none; } .rail { display: none; } .bento > * { grid-column: 1 / -1 !important; } .search, .conn { display: none; } .float-strip { overflow-x: auto; } .fl { flex: none; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <script>document.write(Brain.rail("home"))</script>
+  <main class="main">
+    <script>document.write(Brain.topbar())</script>
+    <div id="floats"></div>
+    <div class="content">
+      <div class="bento">
+        <section class="c-brief rise"><div class="brief"><span class="orb"></span>
+          <h2>좋은 아침이에요 👋</h2>
+          <p>답장할 메일 <b>2건</b>, 오늘 <b>14시 투자사 미팅</b>이 가장 중요해요. 랜딩 페이지 배포가 실패해서 오픈(D-2) 전에 고쳐야 해요.</p>
+          <div class="kpis"><div class="kpi"><b>2</b><span>답장 필요</span></div><div class="kpi"><b>6</b><span>오늘 일정</span></div><div class="kpi"><b>3/6</b><span>루틴</span></div></div>
+        </div></section>
+        <section data-moxie="semana lunario" class="card c-day rise" style="animation-delay:.05s"><header><h3><span id="i-cal"></span>통합 캘린더</h3><small>오늘</small><span class="more">주간 ›</span></header>
+          <div class="body"><div id="srcA" style="margin-bottom:10px"></div><div id="day"></div></div></section>
+        <section data-moxie="bandeja esqueleto" class="card c-mail rise" style="animation-delay:.1s"><header><h3><span id="i-mail"></span>메일 요약</h3><small>Gmail · AI 요약 · 08:30 갱신</small><span class="more">전체 ›</span></header>
+          <div class="body"><div id="mail"></div></div></section>
+        <section data-moxie="jornada brinco racha" class="card c-rt rise" style="animation-delay:.15s"><header><h3><span id="i-rt"></span>루틴</h3><small>예약 실행 · 확인</small><span class="more">+ 추가</span></header>
+          <div class="body" data-streak><div id="rt"></div></div></section>
+        <section data-moxie="acordeon placet" class="card c-meet rise" style="animation-delay:.2s"><header><h3><span id="i-note"></span>회의록</h3><small>Notion · 지정한 회의 3개</small><span class="more">노션에서 열기 ›</span></header>
+          <div class="body"><div id="meet"></div></div></section>
+        <section data-moxie="iman" class="card c-apps rise" style="animation-delay:.25s"><header><h3><span id="i-grid"></span>바로가기</h3><small>Vercel 8</small></header>
+          <div class="body"><div id="apps"></div></div></section>
+        <section data-moxie="hallazgo segmentos" class="card c-skill rise" style="animation-delay:.3s"><header><h3><span id="i-spark"></span>스킬</h3><span style="margin-left:auto" id="skTabs"></span></header>
+          <div class="body"><div id="skills"></div></div></section>
+      </div>
+    </div>
+    <div class="foot" data-moxie="corrillo pregunta pila baliza raudal cavila cifras aliento sintonia"><div id="team"></div><script>document.write(Brain.command())</script></div>
+  </main>
+</div>
+<script>
+Brain.bar("a.html", "모든 기능을 한 화면 바둑판(벤토)으로. 중요 일정은 맨 위 플로팅, AI 팀(캐릭터)은 아래 얇은 띠로 줄임. 화면이 넓을수록 유리.");
+const B = Brain, $ = B.$;
+for (const [id, k] of [["i-cal", "cal"], ["i-mail", "mail"], ["i-rt", "repeat"], ["i-note", "note"], ["i-grid", "grid"], ["i-spark", "spark"]]) $("#" + id).outerHTML = B.ic(k);
+B.floats($("#floats")); B.sourceChips($("#srcA")); B.dayView($("#day")); B.mail($("#mail")); B.routines($("#rt"));
+B.meetings($("#meet"), 2); B.apps($("#apps")); B.skills($("#skills"), $("#skTabs")); B.team($("#team"), "bars");
+</script>
+<script src="brain-moxie.js"></script>
+</body>
+</html>
