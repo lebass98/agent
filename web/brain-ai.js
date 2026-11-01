@@ -136,12 +136,24 @@ window.BrainAI = (() => {
       if (desk && form.parentElement !== slot) slot.append(form);
       if (!desk && form.parentElement === slot) { formHome.insertBefore(form, formNext); openCmd(false); }
     }
+    // 휴대폰: AI 단추를 아래 입력줄 안(보내기 단추 왼쪽)에 나란히 — 입력줄은 한 줄로(brain-ai.css)
+    const run = $("runBtn");
+    if (!desk && run && fab.parentElement !== run.parentElement) { run.before(fab); fab.classList.add("bai-inline"); }
+    if (desk && fab.classList.contains("bai-inline")) { fab.classList.remove("bai-inline"); document.body.append(fab); }
     const r = $("rightcol")?.getBoundingClientRect();
     if (desk && r?.width) {
       document.body.style.setProperty("--bai-x", `${Math.round(r.left + r.width / 2)}px`);
       document.body.style.setProperty("--bai-right", `${Math.round(innerWidth - r.left + 12)}px`);
     }
   }
+  // 휴대폰 한 줄 입력줄: 안내 문구를 짧게 (app.js 가 바꿀 때마다 줄인다)
+  const goal = $("goal");
+  const shortPh = () => {
+    if (!goal || mqDesk.matches) return;
+    const p = goal.placeholder, short = p.startsWith("팀에 업무를") ? "업무 지시하기" : p.startsWith("팀이 업무를 진행") ? `진행 중${(p.match(/\(([^)]*)\)/) || [])[1] ? ` · ${p.match(/\(([^)]*)\)/)[1]}` : "…"}` : p;
+    if (short !== p) goal.placeholder = short;
+  };
+  if (goal) { new MutationObserver(shortPh).observe(goal, { attributes: true, attributeFilter: ["placeholder"] }); shortPh(); }
   layout();
   addEventListener("resize", layout);
   mqDesk.addEventListener?.("change", layout);

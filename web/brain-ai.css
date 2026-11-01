@@ -138,3 +138,23 @@ body.bcmd-open .bai-task { transform: scale(.9); color: var(--accent-btn); }
 .bcmd-recent .ic { width: 15px; height: 15px; color: var(--faint); flex: none; }
 .bcmd-recent span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bcmd-hint { margin: 10px 4px 0; font-size: 11px; color: var(--faint); }
+
+/* ── 휴대폰(브레인): 아래 입력줄을 한 줄로 — [폴더] [팀에 업무를 지시해보세요…] [첨부] [AI] [보내기] ── */
+@media (max-width: 760px) {
+  body.brain-mode .command { flex-wrap: wrap; gap: 5px; min-height: 0; height: auto; padding: 7px; align-items: center; }
+  body.brain-mode .command .spark { display: none; }
+  body.brain-mode .command #projectBtn { order: 1; margin-right: 0; flex: none; }
+  body.brain-mode .command #goal { order: 2; flex: 1 1 0; width: auto; min-width: 0; height: 40px; min-height: 40px; padding: 9px 4px; }
+  body.brain-mode .command #goal::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.brain-mode .command #goal:placeholder-shown { white-space: nowrap; overflow: hidden; }
+  body.brain-mode .command #reportBtn { order: 3; }
+  body.brain-mode .command #attachBtn { order: 3; flex: none; width: 32px; min-width: 32px; padding: 0; background: none; border: 0; box-shadow: none; }
+  body.brain-mode .command .bai-fab.bai-inline { order: 4; position: static; flex: none; width: 44px; height: 44px; box-shadow: none; }
+  body.brain-mode .command .bai-fab.bai-inline svg { width: 21px; height: 21px; }
+  body.brain-mode .command .send { order: 5; flex: none; }
+  body.brain-mode .command .att-chip { order: 0; }
+  body.brain-mode.bai-open .command .bai-fab.bai-inline { display: grid; }
+  /* 입력줄이 낮아진 만큼 위 화면을 아래로 늘린다 */
+  body.brain-mode .office-frame { bottom: calc(76px + var(--mobile-bottom)); }
+  body.brain-mode .view { bottom: calc(76px + var(--mobile-bottom)); }
+}
