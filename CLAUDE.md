@@ -22,6 +22,7 @@
 - `android/` : 휴대폰 앱(APK) — 웹 UI 를 띄우는 WebView 껍데기. AI 는 컴퓨터의 `serve.py --lan` 이 구독 CLI 로 실행하고, 휴대폰은 Tailscale 이름(`android/local.properties` 의 `serverHost=`, Git 제외)으로 접속한다.
   릴리즈는 `python scripts/release.py -n "변경 내용"` 한 번: 버전 올림(build.gradle)→빌드→`dist/agent-office.apk`·`latest.json`→`android/CHANGELOG.md`→Drive `Agent/` 복사.
   앱은 열 때 `/api/app/latest` 를 보고 새 버전이면 `/api/app/apk` 를 받아 설치 창을 띄운다(뒤로 가기 메뉴 '업데이트 확인'). 서명은 이 Mac 의 debug 키라 다른 컴퓨터에서 빌드하면 업데이트 설치가 거부된다.
+  상단 상태바 아이콘 색은 화면 테마를 따른다: `web/native.js` 가 앱의 `AgentApp.setDarkUi(dark)` 다리를 부른다(브라우저에서는 아무것도 안 함).
   기본 주소의 접속 키는 빌드 때 `.env` 의 `ACCESS_KEY` 에서 읽으므로 APK·`dist/` 는 Git 제외(커밋 금지)
 - `scripts/launch.py` : 실행 메뉴(모든 OS 공용), `scripts/bootstrap.sh` : macOS·Linux 가상환경 준비
 - 노션 업무 기록(`server/notion.py`): `.env` 의 `NOTION_TOKEN`(노션 내부 통합 토큰)·`NOTION_DATABASE_ID` 가 있으면 업무가 끝날 때마다 '에이전트 오피스 업무 기록' DB 에 한 쪽씩 쌓는다

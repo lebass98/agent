@@ -555,3 +555,5 @@ pytest -v
 
 ### 2026-11-02
 - 휴대폰 앱 0.4 릴리즈(브레인 휴대폰 화면 정리·회의 노트·Firebase 동기화·아이콘 정리), Drive Agent/ 에 APK 복사
+- 앱이 화면 테마(라이트·다크)에 맞춰 상단 상태바·내비게이션 바 아이콘 색을 바꾸도록(web/native.js → AgentApp.setDarkUi)
+- 휴대폰 앱 0.5 릴리즈, Drive Agent/ 에 APK 복사

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Build;
@@ -11,6 +12,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
+import android.view.View;
+import android.view.WindowInsetsController;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -85,6 +89,9 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(web);
+        // 상단 상태바 글자·아이콘 색: 처음엔 휴대폰 설정(다크 모드)을 따르고, 화면이 테마를 알려 주면(web/native.js) 그에 맞춘다
+        setDarkUi((getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES);
+        web.addJavascriptInterface(new Bridge(), "AgentApp");
 
         // Android 16(targetSdk 36)부터 뒤로 가기에 onBackPressed 가 불리지 않는다
         if (Build.VERSION.SDK_INT >= 33) {
@@ -94,6 +101,29 @@ public class MainActivity extends Activity {
 
         if (state != null) web.restoreState(state);
         else web.loadUrl(url());
+    }
+
+    /** 밝은 화면이면 상태바·내비게이션 바 아이콘을 어둡게, 어두운 화면이면 밝게 */
+    @SuppressWarnings("deprecation")
+    void setDarkUi(boolean dark) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c == null) return;
+            int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+            c.setSystemBarsAppearance(dark ? 0 : light, light);
+        } else {
+            View d = getWindow().getDecorView();
+            int f = d.getSystemUiVisibility();
+            d.setSystemUiVisibility(dark ? f & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR : f | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+    }
+
+    /** 화면(JS)이 부르는 다리: 상태바 색만 바꾼다 */
+    private class Bridge {
+        @JavascriptInterface
+        public void setDarkUi(boolean dark) {
+            runOnUiThread(() -> MainActivity.this.setDarkUi(dark));
+        }
     }
 
     @Override
