@@ -122,14 +122,17 @@
 | `POST /api/brain/routines/{id}/check` `{day: "YYYY-MM-DD", done}` | 확인 체크 루틴의 그날 체크(최근 100일 보관) |
 | `GET /api/brain/calendar?days=14` | 구독 캘린더(iCal)+직접 넣은 일정을 합친 `{events: [{title,start,end,allDay,where,src,cal,star?}], status: [{id,ok,count|error}]}` |
 | `GET /api/brain/mail?refresh=0` | Gmail 요약(server/gmail.py). 설정이 없으면 `{enabled:false}`. 있으면 `{enabled, user(가린 주소), items:[{id,thread,from,addr,subject,date,unread,important,starred,snippet,summary,tag: reply·important·info·ad,due}], error, pending, at}`. 메일은 10분 재사용(`refresh=1` 이면 새로 받기), 요약이 없는 메일은 뒤에서 팀원에게 맡기고 `pending` 으로 알린다 |
+| `GET /api/brain/meetings?refresh=0` | Notion 회의록(server/meetings.py): `claude` CLI 의 Notion 커넥터로 읽기만(검색·페이지 읽기·회의록·DB 조회). 지정(`meetings` 목록 [{name, ref: 노션 주소·검색어}])이 없으면 '회의'로 찾는다. `{enabled, items:[{id,source,title,url,date,attendees,points[],actions[{text,owner,done}]}], loading, custom, error, at}` — 30분 재사용, 지정이 바뀌면 다시 읽음 |
+| `POST /api/brain/meetings/check` `{key: "<페이지ID>:<번호>", done}` | 회의록 할 일 체크(이 앱에만 저장, 노션은 바꾸지 않음) |
+| `POST /api/brain/shortcuts/vercel` | Vercel 프로젝트(개인+팀)를 바로가기로 더한다(같은 주소는 건너뜀). `{…설정, added, found}`. 토큰: `.env` 의 `VERCEL_TOKEN` → 없으면 Vercel CLI 로그인. 실패 400 + 안내 |
 | `GET /api/brain/skills` | `{skills: [{ai: claude|gpt|gemini, name, desc, mine, path}]}` — 직접 만든 것(mine)이 먼저 |
 
 - 항목 모양: 바로가기 `{name,url,abbr,color}` · 루틴 `{name,kind: check|auto,at:"HH:MM",days:[mon..sun],on,goal(auto 일 때 필수),checks}` ·
   중요 일정 `{title,when(ISO),note}` · 캘린더 `{name,kind: google|phone|notion|other,url,on}`(이미 있는 캘린더는 `url` 을 빼고 보내면 기존 주소 유지) ·
-  일정 `{title,start,end,where,star}`. `id` 를 그대로 보내면 같은 항목으로 본다.
+  일정 `{title,start,end,where,star}` · 회의 지정 `{name, ref}`(ref: notion.so 주소 또는 검색어). `id` 를 그대로 보내면 같은 항목으로 본다.
 - 캘린더 주소는 `http(s)`·`webcal`(→https)만, 받은 것은 10분 동안 재사용. 같은 제목·같은 시작 시각 일정은 하나로 합친다.
 - Gmail: ① `claude` CLI 의 claude.ai Gmail 커넥터(읽기 도구 `search_threads`·`get_thread` 만 허용, 읽기+요약 한 번에, 응답 `source: "claude"`·`loading`) 또는 ② `.env` 의 `GMAIL_USER`·`GMAIL_APP_PASSWORD`(앱 비밀번호)로 IMAP 읽기 전용(`source: "imap"`, 요약은 팀원·`cache/brain-mail.json`). `GMAIL_SOURCE=auto` 면 ② 가 로그인에 실패할 때 ① 로 넘어가고 `note` 로 알린다. `.env` 는 요청마다 다시 읽는다. ① 의 마지막 목록은 `cache/brain-mail-last.json`.
-- 자동 실행 루틴(`kind: auto`)의 예약 실행, Notion 회의록은 다음 단계(아직 API 없음).
+- 자동 실행 루틴(`kind: auto`)의 예약 실행은 다음 단계(아직 API 없음).
 
 ## WebSocket 종료 코드
 

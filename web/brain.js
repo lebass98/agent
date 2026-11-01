@@ -19,7 +19,7 @@ window.Brain = (() => {
 
   let CFG = { shortcuts: [], routines: [], pins: [], calendars: [], events: [] }, CAL = { events: [], status: [] }, SKILLS = null;
   let loaded = false, offline = false;
-  let MAIL = null, mailT = 0; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
+  let MAIL = null, mailT = 0, MEET = null, meetT = 0, meetOpen = 0; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
   const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), skAi: "all", skMine: "mine", skQ: "", edit: false };
   let hiddenFloats = new Set();
   try { hiddenFloats = new Set(JSON.parse(sessionStorage.getItem("agentOffice.brain.hide") || "[]")); } catch {}
@@ -38,8 +38,9 @@ window.Brain = (() => {
       <article class="bn-card bn-mail"><header><h3>${ico("mail")}메일 요약</h3><small id="bnMailSub">Gmail</small>
         <span class="bn-seg" id="bnMailView"><button type="button" data-v="key">할 일·중요</button><button type="button" data-v="all">전체</button></span>
         <button type="button" class="bn-mini" id="bnMailRefresh" title="지금 새로 받기">${ico("history")}</button></header><div class="bn-body" id="bnMail"></div></article>
-      <article class="bn-card bn-meet"><header><h3>${ico("file")}회의록</h3><small>Notion</small></header><div class="bn-body" id="bnMeet"></div></article>
-      <article class="bn-card bn-apps"><header><h3>${ico("grid")}바로가기</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="shortcuts">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
+      <article class="bn-card bn-meet"><header><h3>${ico("file")}회의록</h3><small id="bnMeetSub">Notion</small>
+        <button type="button" class="bn-more" data-act="meetings">회의 지정</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
+      <article class="bn-card bn-apps"><header><h3>${ico("grid")}바로가기</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
       <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬</h3><small id="bnSkSub"></small>
         <span class="bn-seg" id="bnSkMine"><button type="button" data-v="mine">내 스킬</button><button type="button" data-v="all">전체</button></span></header>
         <div class="bn-body"><div class="bn-sktools"><span class="bn-seg" id="bnSkAi"><button type="button" data-v="all">전체</button><button type="button" data-v="claude">Claude</button><button type="button" data-v="gpt">GPT</button><button type="button" data-v="gemini">Gemini</button></span>
@@ -167,6 +168,8 @@ window.Brain = (() => {
       if (due.length) lines.push(done === due.length ? "오늘 확인할 루틴을 모두 마쳤어요 👏" : `확인할 루틴 ${due.length - done}개가 남았어요.`);
       const reply = (MAIL?.items || []).filter(m => m.tag === "reply");
       if (reply.length) lines.push(`답장·할 일이 있는 메일 <b>${reply.length}통</b>${reply[0] ? ` (${esc(clip(reply[0].from, 12))} — ${esc(clip(reply[0].summary || reply[0].subject, 28))})` : ""}.`);
+      const acts = (MEET?.items || []).flatMap(m => m.actions.filter(a => !a.done));
+      if (acts.length) lines.push(`회의록에서 나온 할 일 <b>${acts.length}개</b>가 남았어요.`);
       if (D.running) lines.push(`AI 팀이 “${esc(clip(D.shown?.goal || "", 30))}” 업무를 진행 중이에요 (${esc(D.phaseText)}).`);
     }
     const hour = now.getHours(), hi = hour < 11 ? "좋은 아침이에요" : hour < 18 ? "좋은 오후예요" : "오늘도 수고했어요";
@@ -337,8 +340,42 @@ window.Brain = (() => {
         <span class="bn-msum">${m.summary ? esc(m.summary) : `<i class="${MAIL.pending ? "bn-think2" : ""}">${MAIL.pending ? "요약 중…" : esc(m.snippet)}</i>`}</span></a>`;
     }).join("")}</div>`;
   }
+  async function loadMeet(refresh = false) {
+    clearTimeout(meetT);
+    try { MEET = await getJSON(`/api/brain/meetings${refresh ? "?refresh=1" : ""}`); }
+    catch { MEET = MEET || { enabled: false, offline: true }; }
+    drawMeet(); drawBrief();
+    if (MEET?.loading) meetT = setTimeout(() => loadMeet(), 10_000);
+  }
+  // 회의록 (Moxie acordeon: 하나씩 펼치기 · jornada: 할 일 체크)
   function drawMeet() {
-    $b("bnMeet").innerHTML = `<div class="bn-setup">${ico("file")}<b>Notion 회의록 연결 준비 중</b><p>지정한 노션 페이지·데이터베이스(주간회의, 팀별 미팅)의 최근 회의록을 요약해서 보여 주고, 할 일은 체크할 수 있게 해요.</p><p class="bn-need">${document.body.dataset.notion === "on" ? "노션 통합은 이미 연결되어 있어요. 회의록 데이터베이스만 고르면 돼요." : "필요한 것: 노션 내부 통합 토큰(이미 업무 기록에 쓰는 것) + 회의록 데이터베이스 공유"}</p></div>`;
+    const box = $b("bnMeet");
+    $b("bnMeetRefresh").hidden = !MEET?.enabled;
+    if (!MEET) { box.innerHTML = loadingNote; return; }
+    if (MEET.offline) { box.innerHTML = offlineNote("회의록"); return; }
+    if (!MEET.enabled) { box.innerHTML = `<div class="bn-setup">${ico("file")}<b>Notion 회의록</b><p>서버 컴퓨터의 <code>claude</code> CLI 에 claude.ai Notion 커넥터가 연결돼 있으면 회의록을 가져와요.</p></div>`; return; }
+    const items = MEET.items || [];
+    $b("bnMeetSub").textContent = `Notion${MEET.at ? ` · ${MEET.at.slice(11)} 읽음` : ""}${MEET.loading ? " · 읽는 중…" : ""}`;
+    const hint = MEET.custom ? "" : `<p class="bn-note">${ico("info")}'회의'로 찾은 최근 회의록이에요. <button type="button" class="bn-link" data-act="meetings">회의 지정</button>에서 주간회의·팀별 미팅 페이지를 정해 주세요.</p>`;
+    if (MEET.error && !items.length) { box.innerHTML = `${hint}<p class="bn-empty bn-err">${ico("alert")}${esc(MEET.error)}</p>`; return; }
+    if (!items.length) { box.innerHTML = hint + (MEET.loading ? `<p class="bn-empty"><span class="bn-think2">Claude 가 Notion 회의록을 읽고 정리하는 중… (1분쯤)</span></p>` : `<p class="bn-empty">최근 ${14}일 안의 회의록이 없어요.</p>`); return; }
+    meetOpen = Math.min(meetOpen, items.length - 1); // -1 = 모두 접음
+    box.innerHTML = hint + `<div class="bn-meets">${items.map((m, i) => `<section class="bn-mt${i === meetOpen ? " open" : ""}" data-i="${i}">
+      <button type="button" class="bn-mth"><b>${esc(m.title)}</b><span>${[m.source, m.date && m.date.slice(5).replace("-", "/"), m.attendees].filter(Boolean).map(esc).join(" · ")}</span>
+        ${m.actions.length ? `<em>${m.actions.filter(a => !a.done).length}/${m.actions.length}</em>` : ""}</button>
+      <div class="bn-mtb">${m.points.length ? `<ul>${m.points.map(p => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
+        ${m.actions.map((a, j) => `<label class="bn-act${a.done ? " done" : ""}"><input type="checkbox" data-key="${m.id}:${j}"${a.done ? " checked" : ""}><span>${esc(a.text)}${a.owner ? ` <small>· ${esc(a.owner)}</small>` : ""}</span></label>`).join("")}
+        <a class="bn-link" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">노션에서 열기 ↗</a></div></section>`).join("")}</div>`;
+    for (const sec of box.querySelectorAll(".bn-mt")) sec.querySelector(".bn-mth").onclick = () => { // 하나만 펼친다
+      const open = !sec.classList.contains("open");
+      for (const x of box.querySelectorAll(".bn-mt")) x.classList.toggle("open", open && x === sec);
+      meetOpen = open ? +sec.dataset.i : -1;
+    };
+    for (const c of box.querySelectorAll("[data-key]")) c.onchange = async () => {
+      c.closest(".bn-act").classList.toggle("done", c.checked);
+      try { const r = await api("/api/brain/meetings/check", { method: "POST", body: JSON.stringify({ key: c.dataset.key, done: c.checked }) }); if (!r.ok) throw 0; }
+      catch { toast("저장하지 못했어요", "error"); c.checked = !c.checked; c.closest(".bn-act").classList.toggle("done", c.checked); }
+    };
   }
 
   // 스킬 (Moxie hallazgo: 찾기 하이라이트)
@@ -377,6 +414,9 @@ window.Brain = (() => {
     events: { title: "일정 직접 넣기", sub: "연결한 캘린더에 없는 일정", row: x => `${x.title} · ${x.start.replace("T", " ")}`, fields: [
       { k: "title", label: "제목", req: true }, { k: "start", label: "시작", type: "datetime-local", req: true }, { k: "end", label: "끝", type: "datetime-local" },
       { k: "where", label: "장소" }, { k: "star", label: "중요(위에 띄우기)", type: "check" }] },
+    meetings: { title: "회의 지정", sub: "브레인에 보여 줄 노션 회의(주간회의·팀별 미팅)", row: x => `${x.name} · ${x.ref}`, fields: [
+      { k: "name", label: "이름", ph: "예: 주간회의", req: true }, { k: "ref", label: "노션 페이지·데이터베이스 주소 또는 검색어", ph: "https://www.notion.so/… 또는 '디자인팀 미팅'", req: true }],
+      help: `회의록이 모이는 <b>노션 페이지나 데이터베이스 주소</b>(공유 → 링크 복사)를 넣으면 그 안에서, <b>검색어</b>를 넣으면 노션 검색으로 최근 2주 회의록을 찾아요. 이 컴퓨터의 Claude 에 연결된 Notion 으로 <b>읽기만</b> 해요.` },
     calendars: { title: "캘린더 연결", sub: "iCal 주소로 구독 — 주소는 서버에만 저장되고 화면에 다시 보이지 않아요", row: x => `${x.name} · ${SRC[x.kind]?.[0]} · ${x.host || ""}`, fields: [
       { k: "name", label: "이름", ph: "예: 회사 캘린더", req: true }, { k: "kind", label: "어디 캘린더", type: "select", opts: [["google", "Google 캘린더"], ["phone", "휴대폰(iCloud)"], ["notion", "Notion"], ["other", "기타 .ics"]] },
       { k: "url", label: "iCal 주소", type: "url", ph: "https://calendar.google.com/calendar/ical/…/basic.ics", req: "new" }],
@@ -449,6 +489,7 @@ window.Brain = (() => {
       try {
         await save(kind, items.map(x => { const y = { ...x }; if (kind === "calendars" && !y.url) delete y.url; delete y.host; return y; }));
         if (kind === "calendars" || kind === "events") CAL = await getJSON("/api/brain/calendar");
+        if (kind === "meetings") { MEET = null; loadMeet(true); }
         closeModal(); render(); toast(`${spec.title} 저장했어요`, "info", 2500);
       } catch (err) { toast(err.message, "error"); }
       saveBtn.disabled = false;
@@ -459,12 +500,24 @@ window.Brain = (() => {
       el("footer", { class: "sheet-foot" }, el("button", { class: "btn", type: "button", text: "닫기", onclick: closeModal }), saveBtn)]);
   }
 
+  async function importVercel(btn) {
+    btn.disabled = true; const label = btn.textContent; btn.textContent = "가져오는 중…";
+    try {
+      const r = await api("/api/brain/shortcuts/vercel", { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : `가져오지 못했어요 (${r.status})`);
+      CFG = j; drawApps();
+      toast(j.added ? `Vercel 프로젝트 ${j.added}개를 바로가기로 더했어요` : `새로 더할 프로젝트가 없어요 (Vercel ${j.found}개)`, "info", 3500);
+    } catch (e) { toast(e.message, "error", 7000); }
+    btn.disabled = false; btn.textContent = label;
+  }
   ui.addEventListener("click", e => {
     const a = e.target.closest("[data-act]"); if (!a) return;
     if (offline && a.dataset.act !== "board") return toast("서버에 연결되면 설정할 수 있어요", "warn");
     const act = a.dataset.act;
     if (act === "board") return showView("board");
     if (act === "event") return editor("events");
+    if (act === "vercel") return importVercel(a);
     if (act === "cals") return editor("calendars");
     editor(act);
   });
@@ -474,12 +527,14 @@ window.Brain = (() => {
   const baseSetPhase = window.setPhase;
   if (typeof baseSetPhase === "function") window.setPhase = function (...a) { const r = baseSetPhase.apply(this, a); if (loaded) { drawBrief(); drawWork(); } return r; };
   const baseConn = window.setConn;
-  if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || !loaded)) { load(); loadMail(); } return r; };
+  if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || !loaded)) { load(); loadMail(); loadMeet(); } return r; };
   setInterval(() => { if (loaded && !document.hidden) { drawFloats(); drawBrief(); if (V.cal === "day") drawCal(); } }, 60_000);
   setInterval(() => { if (!document.hidden && !offline) getJSON("/api/brain/calendar").then(c => { CAL = c; drawCal(); drawFloats(); drawBrief(); }, () => {}); }, 600_000);
   getJSON("/api/notion").then(n => { document.body.dataset.notion = n.enabled ? "on" : "off"; drawMeet(); }, () => {});
   render();
-  if (NET.mode === "live") { load(); loadMail(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); } }, 2500);
+  if (NET.mode === "live") { load(); loadMail(); loadMeet(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); loadMeet(); } }, 2500);
+  setInterval(() => { if (!document.hidden && MEET?.enabled) loadMeet(); }, 1_800_000);
+  $b("bnMeetRefresh").onclick = () => { $b("bnMeetRefresh").classList.add("spin"); MEET = { ...MEET, loading: true }; drawMeet(); loadMeet(true).finally(() => $b("bnMeetRefresh").classList.remove("spin")); };
   setInterval(() => { if (!document.hidden && MAIL?.enabled) loadMail(); }, 600_000);
   $b("bnMailRefresh").onclick = () => { $b("bnMailRefresh").classList.add("spin"); loadMail(true).finally(() => $b("bnMailRefresh").classList.remove("spin")); };
   return { reload: load, editor };

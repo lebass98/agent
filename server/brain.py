@@ -59,7 +59,7 @@ def _url(v, what: str = "주소") -> str:
     return s
 
 
-EMPTY = {"shortcuts": [], "routines": [], "pins": [], "calendars": [], "events": []}
+EMPTY = {"shortcuts": [], "routines": [], "pins": [], "calendars": [], "events": [], "meetings": []}
 
 
 class Store:
@@ -151,6 +151,14 @@ class Store:
         return {"id": x.get("id") if x.get("id") in old else _id(), "title": _text(x.get("title"), NAME_LIMIT, "일정 제목"),
                 "start": s.isoformat(timespec="minutes"), "end": e.isoformat(timespec="minutes"), "star": bool(x.get("star")),
                 "where": _text(x.get("where"), NAME_LIMIT, "장소", required=False)}
+
+    @staticmethod
+    def _meetings(x: dict, old: dict) -> dict:
+        """회의록 출처: 노션 페이지·데이터베이스 주소 또는 검색어(예: 주간회의)"""
+        ref = _text(x.get("ref"), 300, "노션 주소 또는 검색어")
+        if ref.startswith(("http://", "https://")) and not re.match(r"https://([a-z0-9-]+\.)?notion\.(so|site)/", ref):
+            raise BrainError("노션 주소(notion.so)나 검색어를 넣어 주세요.")
+        return {"id": x.get("id") if x.get("id") in old else _id(), "name": _text(x.get("name"), 40, "이름"), "ref": ref}
 
     def check(self, rid: str, day: str, done: bool) -> dict:
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day or ""):

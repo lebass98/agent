@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import brain, gmail, mcptools, notify, notion, outside, projects, teamcfg
+from . import brain, connectors, gmail, mcptools, meetings, vercel, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -348,6 +348,11 @@ class BrainListIn(BaseModel):
     items: list[dict] = Field(default_factory=list, max_length=brain.MAX_ITEMS)
 
 
+class MeetCheckIn(BaseModel):
+    key: str = Field(max_length=80)
+    done: bool = True
+
+
 class BrainCheckIn(BaseModel):
     day: str
     done: bool = True
@@ -645,7 +650,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         return brain_store.public()
 
     @api.put("/brain/{kind}")
-    def put_brain(kind: Literal["shortcuts", "routines", "pins", "calendars", "events"], body: BrainListIn):
+    def put_brain(kind: Literal["shortcuts", "routines", "pins", "calendars", "events", "meetings"], body: BrainListIn):
         try:
             return brain_store.put(kind, body.items)
         except brain.BrainError as e:
@@ -657,6 +662,23 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             return brain_store.check(rid, body.day, body.done)
         except brain.BrainError as e:
             raise HTTPException(400, str(e))
+
+    @api.post("/brain/shortcuts/vercel")
+    async def import_vercel():
+        """Vercel 프로젝트를 바로가기로 더한다(이미 있는 주소는 건너뛴다)."""
+        try:
+            found = await asyncio.to_thread(vercel.projects)
+        except vercel.VercelError as e:
+            raise HTTPException(400, str(e))
+        cur = brain_store.load()["shortcuts"]
+        have = {x["url"].rstrip("/") for x in cur}
+        new = [{k: v for k, v in p.items() if k != "team"} for p in found if p["url"].rstrip("/") not in have]
+        room = brain.MAX_ITEMS - len(cur)
+        try:
+            out = brain_store.put("shortcuts", cur + new[:max(0, room)])
+        except brain.BrainError as e:
+            raise HTTPException(400, str(e))
+        return out | {"added": min(len(new), max(0, room)), "found": len(found)}
 
     @api.get("/brain/calendar")
     async def brain_calendar(days: int = 14):
@@ -742,6 +764,64 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         return {"enabled": True, "source": mode, "user": gmail.masked(cfg["user"]) if mode == "imap" else "Claude 의 Gmail 연결",
                 "items": items if mode == "claude" else gmail.public(items, cached), "error": mail["error"], "note": note,
                 "pending": pending, "loading": loading, "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes") if mail["at"] else ""}
+
+    meet_file = mail_sums.file.with_name("brain-meet-last.json")    # 마지막 회의록 목록(서버를 다시 켜도 바로)
+    meet_done = mail_sums.file.with_name("brain-meet-done.json")    # 이 앱에서 체크한 할 일
+    meet = {"items": [], "at": 0.0, "key": "", "error": "", "task": None}
+    with contextlib.suppress(OSError, ValueError):
+        last = json.loads(meet_file.read_text(encoding="utf-8"))
+        meet.update(items=list(last["items"]), at=float(last["at"]), key=str(last["key"]))
+
+    def read_done() -> dict:
+        try:
+            d = json.loads(meet_done.read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    async def meet_job(sources: list[dict], key: str) -> None:
+        try:
+            items = await meetings.fetch(sources)
+            meet.update(items=items, key=key, error="")
+            with contextlib.suppress(OSError):
+                meet_file.parent.mkdir(parents=True, exist_ok=True)
+                meet_file.write_text(json.dumps({"items": items, "at": time.time(), "key": key}, ensure_ascii=False), encoding="utf-8")
+        except connectors.ConnectorError as e:
+            meet["error"] = str(e)
+        except Exception as e:
+            log.warning("회의록 가져오기 실패: %s", e)
+            meet["error"] = "Claude 의 Notion 연결로 회의록을 가져오지 못했어요."
+        meet["at"] = time.time()
+
+    @api.get("/brain/meetings")
+    async def brain_meetings(refresh: bool = False):
+        if not connectors.claude_exe():
+            return {"enabled": False}
+        chosen = brain_store.load()["meetings"]
+        sources = chosen or meetings.DEFAULT
+        key = meetings.sources_key(sources)
+        busy = meet["task"] is not None and not meet["task"].done()
+        if not busy and (refresh or key != meet["key"] or time.time() - meet["at"] > 1800):
+            meet["task"] = asyncio.create_task(meet_job(sources, key))
+            busy = True
+        done = read_done()
+        items = [m | {"actions": [a | {"done": a["done"] or bool(done.get(f"{m['id']}:{i}"))} for i, a in enumerate(m["actions"])]}
+                 for m in (meet["items"] if meet["key"] == key else [])]
+        return {"enabled": True, "items": items, "error": meet["error"], "loading": busy, "custom": bool(chosen),
+                "at": datetime.fromtimestamp(meet["at"]).isoformat(timespec="minutes") if meet["at"] else ""}
+
+    @api.post("/brain/meetings/check")
+    def check_meeting(body: MeetCheckIn):
+        if not re.fullmatch(r"[0-9a-f]{32}:\d{1,2}", body.key):
+            raise HTTPException(400, "잘못된 할 일이에요.")
+        d = read_done()
+        if body.done:
+            d[body.key] = True
+        else:
+            d.pop(body.key, None)
+        meet_done.parent.mkdir(parents=True, exist_ok=True)
+        meet_done.write_text(json.dumps(dict(list(d.items())[-500:])), encoding="utf-8")
+        return {"ok": True}
 
     # ── 노션 업무 기록 ──
     @api.get("/notion")

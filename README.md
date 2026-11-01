@@ -503,3 +503,5 @@ pytest -v
 - 브레인 메일 카드(할 일·중요/전체, Gmail 에서 열기)·브리핑·마감 메일 플로팅 반영, .env.example 안내와 테스트 추가
 - 메일 요약에 claude CLI 의 claude.ai Gmail 커넥터 방식 추가(읽기 도구 2개만 허용, 읽기·요약 한 번에), 앱 비밀번호 로그인 실패 시 자동 전환
 - 브레인 메일 카드 가져오는 중·안내 표시, 마지막 목록 보관, 테스트·문서 보강
+- Notion 회의록 연결(server/meetings.py): Claude 의 Notion 연결로 지정한 회의(주소·검색어)의 최근 회의록을 읽어 요점·할 일 정리, 할 일 체크, 회의 지정 창
+- Vercel 프로젝트를 바로가기로 가져오기(server/vercel.py, VERCEL_TOKEN 또는 Vercel CLI 로그인), claude 커넥터 공통 호출(server/connectors.py), 테스트 추가

@@ -120,7 +120,7 @@ def test_skills_scan(tmp_path):
 
 def test_brain_api(make_client):
     c = make_client()
-    assert c.get("/api/brain").json() == {"shortcuts": [], "routines": [], "pins": [], "calendars": [], "events": []}
+    assert c.get("/api/brain").json() == {"shortcuts": [], "routines": [], "pins": [], "calendars": [], "events": [], "meetings": []}
     r = c.put("/api/brain/shortcuts", json={"items": [{"name": "에이전트 오피스", "url": "https://agent.example.app"}]})
     assert r.status_code == 200 and r.json()["shortcuts"][0]["abbr"] == "에이"
     assert c.put("/api/brain/shortcuts", json={"items": [{"name": "x", "url": "javascript:alert(1)"}]}).status_code == 400

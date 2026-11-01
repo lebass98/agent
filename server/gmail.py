@@ -18,7 +18,6 @@ import imaplib
 import json
 import os
 import re
-import tempfile
 import threading
 from datetime import date, datetime, timedelta
 from email.utils import getaddresses, parsedate_to_datetime
@@ -53,8 +52,8 @@ def _env() -> dict:
 
 
 def claude_exe() -> str | None:
-    from agentteam import cli
-    return cli.which("claude")
+    from . import connectors
+    return connectors.claude_exe()
 
 
 def config() -> dict | None:
@@ -225,8 +224,6 @@ def public(mails: list[dict], cached: dict) -> list[dict]:
 
 # ───────── claude CLI 의 Gmail 커넥터 ─────────
 READ_TOOLS = "mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get_thread"   # 읽기만. 보내기·삭제·라벨은 허용하지 않는다
-BLOCK_TOOLS = "Bash,Write,Edit,NotebookEdit,WebFetch,WebSearch,Task"
-CLAUDE_TIMEOUT = 300
 
 
 def claude_prompt(days: int, limit: int) -> str:
@@ -261,27 +258,12 @@ def parse_claude(text: str) -> list[dict]:
 
 
 async def claude_fetch(cfg: dict) -> list[dict]:
-    import asyncio
-    from agentteam import cli
-    exe = claude_exe()
-    if not exe:
-        raise MailError("claude CLI 가 없어요. Claude Code 를 설치하고 로그인하세요.")
-    cmd = [exe, "-p", "--model", cfg["model"], "--allowedTools", READ_TOOLS, "--disallowedTools", BLOCK_TOOLS, "--output-format", "json"]
-    with tempfile.TemporaryDirectory(prefix="agent-mail-") as tmp:   # 빈 폴더: 프로젝트 파일·훅의 영향을 받지 않게
-        proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                                                    stderr=asyncio.subprocess.PIPE, cwd=tmp, env=cli._env("ANTHROPIC_API_KEY"))
-        try:
-            out, _ = await asyncio.wait_for(proc.communicate(claude_prompt(cfg["days"], cfg["max"]).encode()), CLAUDE_TIMEOUT)
-        except asyncio.TimeoutError:
-            proc.kill()
-            raise MailError("Claude 의 Gmail 연결이 응답하지 않아요. 잠시 뒤 다시 시도하세요.")
+    from . import connectors
     try:
-        d = json.loads(out.decode("utf-8", "replace"))
-    except ValueError:
-        raise MailError("Claude 의 Gmail 연결 결과를 읽지 못했어요. 터미널에서 `claude` 로그인 상태를 확인하세요.")
-    if d.get("is_error"):
-        raise MailError("Claude 의 Gmail 연결로 메일을 가져오지 못했어요. claude.ai 설정 → 커넥터에서 Gmail 이 연결돼 있는지 확인하세요.")
-    items = parse_claude(d.get("result", ""))
-    if not items and "[]" not in str(d.get("result", "")):
+        result = await connectors.ask(claude_prompt(cfg["days"], cfg["max"]), READ_TOOLS, cfg["model"], "Gmail")
+    except connectors.ConnectorError as e:
+        raise MailError(str(e))
+    items = parse_claude(result)
+    if not items and "[]" not in result:
         raise MailError("메일 목록을 받지 못했어요. claude.ai 의 Gmail 커넥터 연결을 확인하세요.")
     return items
