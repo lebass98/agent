@@ -407,3 +407,5 @@ body.brain-mode .brain .bn-meet .bn-note .ic { vertical-align: -2px; margin-righ
 
 /* 메일 목록: 아래 요약 줄(…)은 지운다 — 요약은 눌러서 여는 창에서 */
 body.brain-mode .brain .bn-mail .bn-mrow .bn-msum { display: none; }
+/* 통합 캘린더: 출처 칩(● Google 등) 줄은 숨긴다 */
+body.brain-mode .brain .bn-cal #bnSrc { display: none; }
