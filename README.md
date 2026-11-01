@@ -505,3 +505,4 @@ pytest -v
 - 브레인 메일 카드 가져오는 중·안내 표시, 마지막 목록 보관, 테스트·문서 보강
 - Notion 회의록 연결(server/meetings.py): Claude 의 Notion 연결로 지정한 회의(주소·검색어)의 최근 회의록을 읽어 요점·할 일 정리, 할 일 체크, 회의 지정 창
 - Vercel 프로젝트를 바로가기로 가져오기(server/vercel.py, VERCEL_TOKEN 또는 Vercel CLI 로그인), claude 커넥터 공통 호출(server/connectors.py), 테스트 추가
+- Vercel 가져오기: CLI 로그인이 만료되면 vercel whoami 로 갱신한 뒤 한 번 더 시도(테스트 추가)

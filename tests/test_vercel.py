@@ -41,6 +41,33 @@ def test_token_from_cli_login(monkeypatch, tmp_path):
         assert "vercel login" in str(e)
 
 
+def test_cli_login_refreshed_once(monkeypatch, tmp_path):
+    monkeypatch.setattr(gmail, "ENV_FILE", tmp_path / "none.env")
+    monkeypatch.delenv("VERCEL_TOKEN", raising=False)
+    auth = tmp_path / "auth.json"
+    auth.write_text(json.dumps({"token": "old"}))
+    monkeypatch.setattr(vercel, "_cli_auth_files", lambda: [auth])
+
+    def fake_get(path, tok):
+        if tok == "old":
+            raise vercel.VercelError("Vercel 로그인이 만료됐거나 권한이 없어요.")
+        return {"teams": []} if path.startswith("/v2/teams") else {"projects": [{"name": "a"}]}
+    monkeypatch.setattr(vercel, "_get", fake_get)
+
+    def fake_refresh():
+        auth.write_text(json.dumps({"token": "new"}))          # vercel whoami 가 로그인을 새로 받는다
+        return True
+    monkeypatch.setattr(vercel, "refresh_cli_login", fake_refresh)
+    assert [p["name"] for p in vercel.projects()] == ["a"]
+    monkeypatch.setattr(vercel, "refresh_cli_login", lambda: False)
+    auth.write_text(json.dumps({"token": "old"}))
+    try:
+        vercel.projects()
+        raise AssertionError("갱신 실패면 안내")
+    except vercel.VercelError:
+        pass
+
+
 def test_import_api(make_client, monkeypatch):
     monkeypatch.setattr(vercel, "projects", lambda: [{"name": "a", "url": "https://a.vercel.app", "abbr": "A", "color": "#5558e6", "team": ""},
                                                      {"name": "b", "url": "https://b.vercel.app", "abbr": "B", "color": "#5558e6", "team": ""}])
