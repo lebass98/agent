@@ -1,0 +1,98 @@
+/* 브레인 AI 어시스턴트(WnC AI) — brain-ai.js. brain-soft.css(소프트 글래스)의 토큰을 그대로 쓴다:
+   --accent-btn·--grad·--bn-edge(반투명 테두리)·--bn-soft-shadow(바깥 그림자+안쪽 하이라이트)·--bn-shade·--bn-highlight */
+
+/* 오른쪽 아래에 붙은 동그란 단추(아이콘만) */
+.bai-fab { position: fixed; z-index: 40; right: calc(20px + var(--safe-r, 0px)); bottom: calc(20px + var(--safe-b, 0px)); width: 56px; height: 56px; padding: 0;
+  display: grid; place-items: center; border: 1px solid var(--bn-edge, transparent); border-radius: 50%; color: #fff;
+  background: var(--grad, linear-gradient(145deg, #69b7ff, #0879ff));
+  box-shadow: 8px 12px 26px color-mix(in srgb, var(--accent-btn) 34%, transparent), -5px -5px 14px var(--bn-highlight, transparent), inset 0 1px 0 rgba(255, 255, 255, .45);
+  transition: transform .4s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s, opacity .25s; }
+.bai-fab svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.bai-fab:hover { transform: translateY(-3px) scale(1.06); }
+.bai-fab:active { transform: scale(.94); }
+body.bai-open .bai-fab { transform: scale(.88) rotate(-20deg); opacity: .85; }
+
+/* 대화 패널 — 단추 바로 위 */
+.bai { position: fixed; z-index: 41; right: calc(20px + var(--safe-r, 0px)); bottom: calc(88px + var(--safe-b, 0px));
+  width: min(410px, calc(100vw - 32px)); height: min(680px, calc(100vh - 120px)); display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--bn-edge, var(--line)); border-radius: 30px;
+  background: linear-gradient(150deg, var(--panel), color-mix(in srgb, var(--panel-2) 88%, var(--bg)));
+  box-shadow: 20px 30px 65px var(--bn-shade, rgba(15, 23, 42, .18)), -10px -10px 30px var(--bn-highlight, transparent);
+  backdrop-filter: blur(18px); transform-origin: calc(100% - 28px) calc(100% + 40px); }
+.bai[hidden] { display: none; }
+
+.bai-head { display: flex; align-items: center; gap: 12px; padding: 18px 16px 14px 20px; }
+.bai-logo { width: 42px; height: 42px; flex: none; border-radius: 15px; display: grid; place-items: center; color: #fff; background: var(--grad, #0879ff);
+  box-shadow: 4px 6px 14px color-mix(in srgb, var(--accent-btn) 30%, transparent), inset 0 1px 0 rgba(255, 255, 255, .4); }
+.bai-logo svg, .bai-av svg, .bai-note svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.bai-head > div { flex: 1; min-width: 0; }
+.bai-head b { display: block; font-size: 16.5px; letter-spacing: -.3px; color: var(--text); }
+.bai-head small { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11.5px; }
+.bai-head small i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok-dot); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok-dot) 20%, transparent); }
+.bai-icon { width: 36px; height: 36px; border: 1px solid transparent; border-radius: 13px; background: none; color: var(--muted); display: grid; place-items: center; transition: background .2s, color .2s, box-shadow .2s; }
+.bai-icon:hover { color: var(--text); background: var(--panel); border-color: var(--bn-edge, var(--line)); box-shadow: 4px 5px 10px var(--bn-shade, transparent), -3px -3px 9px var(--bn-highlight, transparent); }
+.bai-icon .ic { width: 18px; height: 18px; }
+
+.bai-body { flex: 1; min-height: 0; overflow: auto; padding: 18px 22px 10px; scrollbar-width: none; }
+.bai-body::-webkit-scrollbar { display: none; }
+.bai-eyebrow { margin: 6px 0 10px; color: var(--accent-text); font-size: 10.5px; font-weight: 800; letter-spacing: 1.8px; }
+.bai-hello h2 { margin: 0 0 10px; font-size: 24px; letter-spacing: -.7px; color: var(--text); }
+.bai-lead { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.bai-sugg { display: flex; flex-direction: column; gap: 10px; }
+.bai-sugg button { display: flex; align-items: center; gap: 13px; padding: 15px 16px; border: 1px solid var(--bn-edge, var(--line)); border-radius: 18px;
+  background: linear-gradient(145deg, var(--panel), var(--panel-2)); color: var(--text); font-size: 13px; font-weight: 600; text-align: left;
+  box-shadow: 4px 6px 14px var(--bn-shade, transparent), -4px -4px 11px var(--bn-highlight, transparent);
+  animation: bai-rise .45s cubic-bezier(.34, 1.56, .64, 1) backwards; transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), box-shadow .25s; }
+.bai-sugg button:hover { transform: translateY(-2px); box-shadow: 7px 10px 20px var(--bn-shade, transparent), -4px -4px 11px var(--bn-highlight, transparent); }
+.bai-sugg .ic { width: 18px; height: 18px; flex: none; padding: 7px; box-sizing: content-box; border-radius: 11px; color: var(--accent-text); background: var(--bn-blue, var(--accent-weak)); }
+.bai-sugg span { flex: 1; }
+.bai-sugg em { font-style: normal; color: var(--faint); transition: transform .3s; }
+.bai-sugg button:hover em { transform: translate(2px, -2px); color: var(--accent-text); }
+.bai-note { display: flex; align-items: center; gap: 6px; margin: 20px 0 0; color: var(--muted); font-size: 11.5px; }
+.bai-note svg { width: 14px; height: 14px; color: var(--accent-text); }
+
+.bai-msg { display: flex; gap: 10px; margin: 0 0 14px; animation: bai-rise .4s cubic-bezier(.22, 1, .36, 1) backwards; }
+.bai-msg.me { justify-content: flex-end; }
+.bai-msg.me p { margin: 0; max-width: 82%; padding: 10px 15px; border-radius: 18px 18px 6px 18px; color: #fff; background: var(--grad, var(--accent-btn));
+  font-size: 13.5px; line-height: 1.6; word-break: keep-all; box-shadow: 4px 6px 14px color-mix(in srgb, var(--accent-btn) 25%, transparent); }
+.bai-av { width: 30px; height: 30px; flex: none; border-radius: 11px; display: grid; place-items: center; color: var(--accent-text); background: var(--bn-blue, var(--accent-weak)); }
+.bai-av svg { width: 16px; height: 16px; }
+.bai-text { min-width: 0; flex: 1; padding: 10px 14px; border-radius: 6px 18px 18px 18px; background: var(--panel); border: 1px solid var(--bn-edge, var(--line));
+  box-shadow: 3px 5px 12px var(--bn-shade, transparent); font-size: 13.5px; line-height: 1.7; color: var(--text); word-break: keep-all; }
+.bai-text .md { font-size: 13.5px; }
+.bai-text .md > :first-child { margin-top: 0; } .bai-text .md > :last-child { margin-bottom: 0; }
+.bai-text .md table { font-size: 12px; }
+.bai-msg.err .bai-text { color: var(--err); }
+.bai-msg.wait .bai-text { display: flex; align-items: center; }
+.bai-dots { display: inline-flex; gap: 4px; margin-right: 9px; }
+.bai-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bai-breathe 1.1s cubic-bezier(.34, 1.56, .64, 1) infinite; }
+.bai-dots i:nth-child(2) { animation-delay: .16s; } .bai-dots i:nth-child(3) { animation-delay: .32s; }
+.bai-think { background: linear-gradient(90deg, var(--muted) 0 35%, var(--text) 50%, var(--muted) 65% 100%); background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: bai-shine 1.5s linear infinite; font-size: 12.5px; }
+
+.bai-input { margin: 6px 16px 6px; padding: 12px 12px 10px 16px; border: 1px solid var(--bn-edge, var(--line)); border-radius: 22px; background: var(--panel);
+  box-shadow: inset 3px 4px 9px var(--bn-shade, transparent), inset -3px -3px 8px var(--bn-highlight, transparent); transition: box-shadow .25s, border-color .25s; }
+.bai-input:focus-within { border-color: color-mix(in srgb, var(--accent-btn) 45%, var(--bn-edge, var(--line)));
+  box-shadow: inset 3px 4px 9px var(--bn-shade, transparent), 0 0 0 4px color-mix(in srgb, var(--accent-btn) 12%, transparent); }
+.bai-input textarea { width: 100%; border: 0; outline: 0; resize: none; background: none; color: var(--text); font: inherit; font-size: 14px; line-height: 1.5; max-height: 140px; }
+.bai-input textarea::placeholder { color: var(--faint); }
+.bai-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.bai-row small { color: var(--faint); font-size: 11px; }
+.bai-send { width: 34px; height: 34px; border: 0; border-radius: 50%; color: #fff; background: var(--grad, var(--accent-btn)); display: grid; place-items: center;
+  box-shadow: 3px 5px 10px color-mix(in srgb, var(--accent-btn) 28%, transparent); transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), opacity .2s; }
+.bai-send:hover:not(:disabled) { transform: scale(1.08); }
+.bai-send:disabled { background: var(--chip); color: var(--faint); box-shadow: none; }
+.bai-send .ic { width: 16px; height: 16px; }
+.bai-foot { margin: 0 0 14px; text-align: center; color: var(--faint); font-size: 10.5px; }
+
+@keyframes bai-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes bai-breathe { 0%, 60%, 100% { transform: none; opacity: .45; } 25% { transform: scale(1.45, 1.3); opacity: 1; } }
+@keyframes bai-shine { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+body.reduce-motion .bai *, body.reduce-motion .bai-fab { animation: none !important; transition: none !important; }
+body:has(#modal:not([hidden])) .bai-fab, body.drawer-open .bai-fab { visibility: hidden; }
+
+@media (max-width: 760px) {
+  .bai-fab { width: 50px; height: 50px; right: calc(12px + var(--safe-r, 0px)); bottom: calc(96px + var(--safe-b, 0px)); }   /* 휴대폰: 아래 입력창 위 */
+  .bai { left: 8px; right: 8px; width: auto; top: calc(8px + var(--safe-t, 0px)); bottom: calc(8px + var(--safe-b, 0px)); height: auto; border-radius: 26px; }
+  body.bai-open .bai-fab { display: none; }
+}

@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import brain, calconn, connectors, gmail, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
+from . import assistant, brain, calconn, connectors, gmail, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -361,6 +361,16 @@ class SkillEditIn(SkillIn):
     content: str | None = Field(None, max_length=skills.FILE_LIMIT)
     label: str | None = Field(None, max_length=30)
     input: bool | None = None
+
+
+class AssistantMsg(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=8000)
+
+
+class AssistantIn(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    history: list[AssistantMsg] = Field(default_factory=list, max_length=20)
 
 
 class MeetCheckIn(BaseModel):
@@ -1002,6 +1012,25 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
         meet_done.parent.mkdir(parents=True, exist_ok=True)
         meet_done.write_text(json.dumps(dict(list(d.items())[-500:])), encoding="utf-8")
         return {"ok": True}
+
+    ai_lock = asyncio.Lock()
+
+    @api.post("/brain/assistant")
+    async def brain_assistant(body: AssistantIn):
+        """WnC AI: 브레인 정보(일정·업무 메일·회의록·루틴·바로가기)를 맥락으로 답한다. 한 번에 하나씩."""
+        if not connectors.claude_exe():
+            raise HTTPException(503, "이 컴퓨터에 claude CLI 가 없어 AI 어시스턴트를 쓸 수 없어요.")
+        if ai_lock.locked():
+            raise HTTPException(409, "앞 질문에 답하는 중이에요. 잠시 뒤 다시 물어봐 주세요.")
+        async with ai_lock:
+            cfg = brain_store.load()
+            today = await asyncio.to_thread(brain.calendar, brain_store, 0, 14, cal["items"])
+            ctx = assistant.context(today["events"], mail_store.recent(), meet["items"], cfg["routines"], cfg["shortcuts"])
+            try:
+                text = await assistant.answer(body.message, [h.model_dump() for h in body.history], ctx)
+            except connectors.ConnectorError as e:
+                raise HTTPException(502, str(e))
+            return {"answer": text[:20_000]}
 
     # ── 노션 업무 기록 ──
     @api.get("/notion")

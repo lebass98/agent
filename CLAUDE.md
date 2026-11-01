@@ -45,6 +45,7 @@
   회의록(`server/meetings.py`)도 `claude` + claude.ai Notion 커넥터(읽기 도구만, 공통 호출 `server/connectors.py`). 할 일 체크는 앱에만 저장.
   바로가기 'Vercel 가져오기'(`server/vercel.py`): `.env` 의 `VERCEL_TOKEN` 또는 Vercel CLI 로그인으로 프로젝트 목록만 읽는다.
   스킬(`server/skills.py`): 2×2 카드(한국어 짧은 이름 자동)·▶ 실행(전용 폴더, 셸 없음)·결과/파일·SKILL.md 편집(직접 만든 것만). Vercel 은 CLI 로그인 상태 표시·6시간마다 자동 추가.
+  AI 어시스턴트 WnC AI(`web/brain-ai.js`·`brain-ai.css` + `server/assistant.py`): 오른쪽 아래 단추 → 대화 패널, 브레인 정보 맥락 + 읽기 도구만. 대화는 탭(sessionStorage)에만.
   다음 단계: 자동 실행 루틴 예약. 처음 열 때 한 번 브레인으로 옮긴다(`agentOffice.brainDefault`)
 - 화면 모션(`web/motion.js`·`motion.css`): WnC Motion(Moxie `proposals/agentoffice.html`) '풀' 단계. app.js 를 고치지 않고 전역 함수(toast·renderBoard·log·openReport 등)를 감싸 붙는다.
   `html.mo` 일 때만 동작하고 설정 '움직임 줄이기'·시스템 '동작 줄이기'면 꺼진다. 3D 사무실은 건드리지 않는다
