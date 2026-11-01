@@ -85,10 +85,18 @@ window.Brain = (() => {
   }
 
   /* ───────── 데이터 ───────── */
+  let calT = 0;
+  async function loadCal(refresh = false) {
+    clearTimeout(calT);
+    try { CAL = await getJSON(`/api/brain/calendar${refresh ? "?refresh=1" : ""}`); } catch { return; }
+    drawCal(); drawFloats(); drawBrief();
+    if (CAL.conn?.loading) calT = setTimeout(() => loadCal(), 10_000); // Google·Notion 일정을 받는 동안
+  }
   async function load() {
     try {
       const [cfg, cal] = await Promise.all([getJSON("/api/brain"), getJSON("/api/brain/calendar")]);
       CFG = cfg; CAL = cal; offline = false;
+      if (cal.conn?.loading) calT = setTimeout(() => loadCal(), 10_000);
     } catch { offline = true; }
     loaded = true;
     render();
@@ -196,11 +204,14 @@ window.Brain = (() => {
     }));
     $b("bnSrc").onclick = e => { const b = e.target.closest("[data-src]"); if (!b) return; V.src.has(b.dataset.src) ? V.src.delete(b.dataset.src) : V.src.add(b.dataset.src); drawCal(); };
     const bad = (CAL.status || []).filter(s => !s.ok);
-    $b("bnCalSub").textContent = offline ? "" : CFG.calendars.length ? `캘린더 ${CFG.calendars.length}개${bad.length ? ` · ${bad.length}개 오류` : ""}` : "연결된 캘린더 없음";
+    const conn = CAL.conn || {};
+    const parts = [conn.enabled ? `Google·Notion${conn.loading ? " 가져오는 중…" : conn.error ? " 오류" : ""}` : "", CFG.calendars.length ? `iCal ${CFG.calendars.length}개${bad.length ? ` · ${bad.length}개 오류` : ""}` : ""].filter(Boolean);
+    $b("bnCalSub").textContent = offline ? "" : parts.join(" · ") || "연결된 캘린더 없음";
+    $b("bnCalSub").title = conn.error || (conn.at ? `Claude 의 Notion 캘린더 연결 · ${conn.at.slice(11)} 받음` : "");
     const box = $b("bnCal"), list = all.filter(e => !V.src.has(e.src));
     if (!loaded) { box.innerHTML = loadingNote; return; }
     if (offline) { box.innerHTML = offlineNote("일정"); return; }
-    if (!CFG.calendars.length && !CFG.events.length) {
+    if (!CFG.calendars.length && !CFG.events.length && !conn.enabled) {
       box.innerHTML = `<div class="bn-setup">${ico("calendar")}<b>캘린더를 연결하세요</b><p>Google 캘린더·휴대폰(iCloud) 캘린더의 iCal 주소를 넣으면 한 화면에 모아 보여 줘요. 일정을 직접 넣을 수도 있어요.</p><div><button type="button" class="bn-btn pri" data-act="cals">캘린더 연결</button><button type="button" class="bn-btn" data-act="event">일정 직접 넣기</button></div></div>`;
       return;
     }
@@ -529,7 +540,7 @@ window.Brain = (() => {
   const baseConn = window.setConn;
   if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || !loaded)) { load(); loadMail(); loadMeet(); } return r; };
   setInterval(() => { if (loaded && !document.hidden) { drawFloats(); drawBrief(); if (V.cal === "day") drawCal(); } }, 60_000);
-  setInterval(() => { if (!document.hidden && !offline) getJSON("/api/brain/calendar").then(c => { CAL = c; drawCal(); drawFloats(); drawBrief(); }, () => {}); }, 600_000);
+  setInterval(() => { if (!document.hidden && !offline) loadCal(); }, 600_000);
   getJSON("/api/notion").then(n => { document.body.dataset.notion = n.enabled ? "on" : "off"; drawMeet(); }, () => {});
   render();
   if (NET.mode === "live") { load(); loadMail(); loadMeet(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); loadMeet(); } }, 2500);

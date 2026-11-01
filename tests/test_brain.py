@@ -136,3 +136,27 @@ def test_brain_api_needs_key(make_client):
     c = make_client(access_key="k")
     assert c.get("/api/brain").status_code == 401
     assert c.get("/api/brain", headers={"X-Access-Key": "k"}).status_code == 200
+
+
+def test_calendar_connector(make_client, monkeypatch):
+    """Claude 의 Notion 캘린더 연결로 받은 일정(Google 포함)을 합친다."""
+    import time
+    from server import calconn, connectors
+    monkeypatch.setattr(connectors, "claude_exe", lambda: "/usr/bin/claude")
+    got = calconn.parse(f'[{{"title":"투자사 미팅","start":"{DAY}T14:00:00","end":"{DAY}T15:00","calendar":"회사","provider":"google"}},'
+                        f'{{"title":"x","start":"어제"}},{{"title":"노션 일정","start":"{DAY}T09:00","end":"{DAY}T08:00","provider":"notion"}}]')
+    assert [(e["title"], e["src"], e["end"][11:]) for e in got] == [("투자사 미팅", "google", "15:00"), ("노션 일정", "notion", "09:00")]
+    assert "만들거나 고치거나 취소하지" in calconn.prompt(DAY, DAY) and "create" not in calconn.READ_TOOLS and "cancel" not in calconn.READ_TOOLS
+
+    async def fake_fetch(*a, **k):
+        return got
+    monkeypatch.setattr(calconn, "fetch", fake_fetch)
+    with make_client() as c:
+        first = c.get("/api/brain/calendar").json()
+        assert first["conn"]["enabled"] and first["conn"]["loading"]
+        for _ in range(50):
+            out = c.get("/api/brain/calendar").json()
+            if out["events"]:
+                break
+            time.sleep(.05)
+        assert {e["title"] for e in out["events"]} == {"투자사 미팅", "노션 일정"} and out["conn"]["count"] == 2

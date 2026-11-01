@@ -120,7 +120,7 @@
 | `GET /api/brain` | 설정 전체 `{shortcuts, routines, pins, calendars, events}`. 캘린더는 주소(`url`) 대신 `host` 만 준다 |
 | `PUT /api/brain/{kind}` `{items: [...]}` | 목록 하나를 통째로 바꾼다. kind = `shortcuts`·`routines`·`pins`·`calendars`·`events`. 잘못된 값은 400 + 한국어 사유 |
 | `POST /api/brain/routines/{id}/check` `{day: "YYYY-MM-DD", done}` | 확인 체크 루틴의 그날 체크(최근 100일 보관) |
-| `GET /api/brain/calendar?days=14` | 구독 캘린더(iCal)+직접 넣은 일정을 합친 `{events: [{title,start,end,allDay,where,src,cal,star?}], status: [{id,ok,count|error}]}` |
+| `GET /api/brain/calendar?days=14&refresh=0` | Claude 의 Notion 캘린더 연결(Google 캘린더 포함, server/calconn.py, 15분 재사용·`conn:{enabled,loading,error,count,at}`)+구독 캘린더(iCal)+직접 넣은 일정을 합친 `{events: [{title,start,end,allDay,where,src,cal,star?}], status: [{id,ok,count|error}]}` |
 | `GET /api/brain/mail?refresh=0` | Gmail 요약(server/gmail.py). 설정이 없으면 `{enabled:false}`. 있으면 `{enabled, user(가린 주소), items:[{id,thread,from,addr,subject,date,unread,important,starred,snippet,summary,tag: reply·important·info·ad,due}], error, pending, at}`. 메일은 10분 재사용(`refresh=1` 이면 새로 받기), 요약이 없는 메일은 뒤에서 팀원에게 맡기고 `pending` 으로 알린다 |
 | `GET /api/brain/meetings?refresh=0` | Notion 회의록(server/meetings.py): `claude` CLI 의 Notion 커넥터로 읽기만(검색·페이지 읽기·회의록·DB 조회). 지정(`meetings` 목록 [{name, ref: 노션 주소·검색어}])이 없으면 '회의'로 찾는다. `{enabled, items:[{id,source,title,url,date,attendees,points[],actions[{text,owner,done}]}], loading, custom, error, at}` — 30분 재사용, 지정이 바뀌면 다시 읽음 |
 | `POST /api/brain/meetings/check` `{key: "<페이지ID>:<번호>", done}` | 회의록 할 일 체크(이 앱에만 저장, 노션은 바꾸지 않음) |

@@ -232,8 +232,9 @@ def parse_ics(body: bytes, start: date, end: date) -> list[dict]:
     return out
 
 
-def calendar(store: Store, days_before: int = 1, days_after: int = 14) -> dict:
-    """구독 캘린더 + 직접 넣은 일정을 합친다. 같은 제목·같은 시작은 하나로(여러 캘린더에 겹친 일정)."""
+def calendar(store: Store, days_before: int = 1, days_after: int = 14, extra: list[dict] | None = None) -> dict:
+    """구독 캘린더 + 직접 넣은 일정 + extra(Claude 의 Notion 캘린더 연결로 받은 일정)를 합친다.
+    같은 제목·같은 시작은 하나로(여러 캘린더에 겹친 일정)."""
     today = date.today()
     start, end = today - timedelta(days=days_before), today + timedelta(days=days_after + 1)
     data = store.load()
@@ -249,6 +250,9 @@ def calendar(store: Store, days_before: int = 1, days_after: int = 14) -> dict:
             status.append({"id": c["id"], "ok": False, "error": str(e)})
         except Exception:  # 깨진 .ics 등
             status.append({"id": c["id"], "ok": False, "error": "캘린더 내용을 읽지 못했어요."})
+    for e in extra or []:
+        if start.isoformat() <= e["start"][:10] <= end.isoformat():
+            events.append(e)
     for e in data["events"]:
         if start.isoformat() <= e["start"][:10] <= end.isoformat():
             events.append({**e, "allDay": False, "src": "manual", "cal": "직접 입력"})

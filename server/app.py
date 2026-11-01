@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import brain, connectors, gmail, mcptools, meetings, vercel, notify, notion, outside, projects, teamcfg
+from . import brain, calconn, connectors, gmail, mcptools, meetings, vercel, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -680,9 +680,36 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             raise HTTPException(400, str(e))
         return out | {"added": min(len(new), max(0, room)), "found": len(found)}
 
+    cal = {"items": [], "at": 0.0, "error": "", "task": None}  # Claude 의 Notion 캘린더 연결(Google 캘린더 포함)
+    cal_file = mail_sums.file.with_name("brain-cal-last.json")
+    with contextlib.suppress(OSError, ValueError):
+        last = json.loads(cal_file.read_text(encoding="utf-8"))
+        cal.update(items=list(last["items"]), at=float(last["at"]))
+
+    async def cal_job() -> None:
+        try:
+            items = await calconn.fetch()
+            cal.update(items=items, error="")
+            with contextlib.suppress(OSError):
+                cal_file.parent.mkdir(parents=True, exist_ok=True)
+                cal_file.write_text(json.dumps({"items": items, "at": time.time()}, ensure_ascii=False), encoding="utf-8")
+        except connectors.ConnectorError as e:
+            cal["error"] = str(e)
+        except Exception as e:
+            log.warning("캘린더 연결 실패: %s", e)
+            cal["error"] = "Claude 의 Notion 캘린더 연결로 일정을 가져오지 못했어요."
+        cal["at"] = time.time()
+
     @api.get("/brain/calendar")
-    async def brain_calendar(days: int = 14):
-        return await asyncio.to_thread(brain.calendar, brain_store, 1, max(1, min(60, days)))
+    async def brain_calendar(days: int = 14, refresh: bool = False):
+        on = bool(connectors.claude_exe())
+        busy = cal["task"] is not None and not cal["task"].done()
+        if on and not busy and (refresh or time.time() - cal["at"] > calconn.TTL):
+            cal["task"] = asyncio.create_task(cal_job())
+            busy = True
+        out = await asyncio.to_thread(brain.calendar, brain_store, 1, max(1, min(60, days)), cal["items"] if on else [])
+        return out | {"conn": {"enabled": on, "loading": busy, "error": cal["error"], "count": len(cal["items"]),
+                               "at": datetime.fromtimestamp(cal["at"]).isoformat(timespec="minutes") if cal["at"] else ""}}
 
     @api.get("/brain/skills")
     async def brain_skills():

@@ -506,3 +506,5 @@ pytest -v
 - Notion 회의록 연결(server/meetings.py): Claude 의 Notion 연결로 지정한 회의(주소·검색어)의 최근 회의록을 읽어 요점·할 일 정리, 할 일 체크, 회의 지정 창
 - Vercel 프로젝트를 바로가기로 가져오기(server/vercel.py, VERCEL_TOKEN 또는 Vercel CLI 로그인), claude 커넥터 공통 호출(server/connectors.py), 테스트 추가
 - Vercel 가져오기: CLI 로그인이 만료되면 vercel whoami 로 갱신한 뒤 한 번 더 시도(테스트 추가)
+- 통합 캘린더에 Claude 의 Notion 캘린더 연결 추가(server/calconn.py): Notion 캘린더에 연결된 Google 캘린더·Notion 일정을 읽기 전용으로 가져와 iCal·직접 입력과 합침
+- 테스트가 실제 claude CLI 를 부르지 않도록 기본 차단(conftest)
