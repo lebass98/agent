@@ -170,6 +170,7 @@ window.Brain = (() => {
     drawCal(); drawFloats(); drawBrief();
     if (CAL.conn?.loading) calT = setTimeout(() => loadCal(), 10_000); // Google·Notion 일정을 받는 동안
   }
+  let firstLoad = null; // 처음 불러오는 중이면 연결 신호(setConn)가 같은 요청을 한 번 더 보내지 않게
   async function load() {
     try {
       const [cfg, cal] = await Promise.all([getJSON("/api/brain"), getJSON("/api/brain/calendar")]);
@@ -811,13 +812,13 @@ window.Brain = (() => {
   const baseSetPhase = window.setPhase;
   if (typeof baseSetPhase === "function") window.setPhase = function (...a) { const r = baseSetPhase.apply(this, a); if (loaded) { drawBrief(); drawWork(); } return r; };
   const baseConn = window.setConn;
-  if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || !loaded)) { load(); loadMail(); loadMeet(); } return r; };
+  if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || (!loaded && !firstLoad))) { firstLoad = load(); loadMail(); loadMeet(); } return r; };
   setInterval(() => { if (loaded && !document.hidden) { drawFloats(); drawBrief(); if (V.cal === "day") drawCal(); } }, 60_000);
   setInterval(() => { if (!document.hidden && !offline) loadCal(); }, 600_000);
   getJSON("/api/notion").then(n => { document.body.dataset.notion = n.enabled ? "on" : "off"; drawMeet(); }, () => {});
   render();
   const loadVercel = () => getJSON("/api/brain/vercel?sync=1").then(v => { const added = v.added && (!VERCEL || VERCEL.added !== v.added); VERCEL = v; if (added) load(); else drawApps(); }, () => {});
-  if (NET.mode === "live") { load(); loadMail(); loadMeet(); loadVercel(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); loadMeet(); loadVercel(); } }, 2500);
+  if (NET.mode === "live") { firstLoad = load(); loadMail(); loadMeet(); loadVercel(); } else setTimeout(() => { if (!loaded && !firstLoad) { firstLoad = load(); loadMail(); loadMeet(); } loadVercel(); }, 2500);
   setInterval(() => { if (!document.hidden && VERCEL?.connected) loadVercel(); }, 3_600_000);
   setInterval(() => { if (!document.hidden && MEET?.enabled) loadMeet(); }, 1_800_000);
   $b("bnMeetRefresh").onclick = () => { $b("bnMeetRefresh").classList.add("spin"); MEET = { ...MEET, loading: true }; drawMeet(); loadMeet(true).finally(() => $b("bnMeetRefresh").classList.remove("spin")); };
