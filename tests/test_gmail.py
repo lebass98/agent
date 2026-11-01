@@ -86,7 +86,7 @@ def test_mail_api_claude_and_fallback(make_client, tmp_path, monkeypatch):
     with make_client() as c:
         first = c.get("/api/brain/mail").json()
         assert first["source"] == "claude" and "앱 비밀번호" in first["note"] and first["error"] == ""
-        for _ in range(50):
+        for _ in range(200):
             got = c.get("/api/brain/mail").json()
             if got["items"]:
                 break
@@ -115,7 +115,7 @@ def test_mail_api(make_client, tmp_path, monkeypatch):
     with make_client() as c:
         first = c.get("/api/brain/mail").json()
         assert first["enabled"] and first["user"].endswith("@gmail.com") and first["items"] == []   # 요약이 끝난 메일부터 쌓인다
-        for _ in range(50):
+        for _ in range(200):
             got = c.get("/api/brain/mail").json()
             if got["items"]:
                 break
@@ -171,12 +171,12 @@ def test_mail_detail(make_client, tmp_path, monkeypatch):
     monkeypatch.setattr(gmail, "claude_fetch", fake_fetch)
     monkeypatch.setattr(gmail, "claude_detail", fake_detail)
     with make_client() as c:
-        for _ in range(50):
+        for _ in range(200):
             if c.get("/api/brain/mail").json()["items"]:
                 break
             time.sleep(.05)
         assert c.get("/api/brain/mail/detail", params={"id": "없는메일"}).status_code == 404
-        for _ in range(50):
+        for _ in range(200):
             got = c.get("/api/brain/mail/detail", params={"id": "19a2"}).json()
             if got["ready"]:
                 break

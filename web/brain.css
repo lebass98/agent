@@ -322,3 +322,6 @@ body.brain-mode.bn-side-mini .bn-sidetoggle .ic { transform: none; }
 body.brain-mode.drawer-open .bn-sidetoggle, body.brain-mode:has(#modal:not([hidden])) .bn-sidetoggle { visibility: hidden; }
 @media (max-width: 1000px) { body.brain-mode .bn-sidetoggle { display: none; } }
 body.reduce-motion.brain-mode .left, body.reduce-motion .bn-sidetoggle { transition: none; }
+
+/* 좌우 메뉴가 모두 접히면 가운데 4열(brain.js arrange) */
+body.brain-mode .brain.bn-four .bn-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }

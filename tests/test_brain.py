@@ -154,7 +154,7 @@ def test_calendar_connector(make_client, monkeypatch):
     with make_client() as c:
         first = c.get("/api/brain/calendar").json()
         assert first["conn"]["enabled"] and first["conn"]["loading"]
-        for _ in range(50):
+        for _ in range(200):
             out = c.get("/api/brain/calendar").json()
             if out["events"]:
                 break

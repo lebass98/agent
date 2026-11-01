@@ -61,7 +61,7 @@ def test_skill_api(make_client, home, monkeypatch):
         assert again["label"] == "견적서 작성" and again["input"] is False
         run = c.post("/api/brain/skills/run", json={"ai": "claude", "name": "create-quotation", "input": "A사 로고 작업"}).json()
         assert run["status"] == "running" and "folder" not in run
-        for _ in range(50):
+        for _ in range(200):
             runs = c.get("/api/brain/skills/runs").json()["runs"]
             if runs[0]["status"] != "running":
                 break

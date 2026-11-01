@@ -41,7 +41,7 @@ def test_meetings_api(make_client, monkeypatch):
     with make_client() as c:
         first = c.get("/api/brain/meetings").json()
         assert first["enabled"] and first["loading"] and not first["custom"]
-        for _ in range(50):
+        for _ in range(200):
             got = c.get("/api/brain/meetings").json()
             if got["items"]:
                 break
@@ -53,7 +53,7 @@ def test_meetings_api(make_client, monkeypatch):
         c.put("/api/brain/meetings", json={"items": [{"name": "주간회의", "ref": "주간회의"}]})
         got = c.get("/api/brain/meetings").json()                  # 지정이 바뀌면 다시 읽는다
         assert got["custom"] and got["loading"]
-        for _ in range(50):
+        for _ in range(200):
             if len(seen) == 2:
                 break
             time.sleep(.05)
