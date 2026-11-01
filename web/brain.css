@@ -325,3 +325,8 @@ body.reduce-motion.brain-mode .left, body.reduce-motion .bn-sidetoggle { transit
 
 /* 좌우 메뉴가 모두 접히면 가운데 4열(brain.js arrange) */
 body.brain-mode .brain.bn-four .bn-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* 오늘의 브리핑: 메일 카드 안이 아니라 독립 카드(첫 열 맨 위). brain-soft.css 의 안쪽용 여백·테두리를 카드 모양으로 */
+body.brain-mode .brain .bn-column > .bn-brief { margin: 0; padding: 12px; border: 1px solid var(--bn-edge); border-radius: 27px;
+  background: linear-gradient(145deg, var(--panel), var(--panel-2)); box-shadow: var(--bn-soft-shadow); }
+body.brain-mode .brain .bn-column > .bn-brief .bn-briefin { border-radius: 20px; }

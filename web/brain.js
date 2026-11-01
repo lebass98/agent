@@ -53,8 +53,8 @@ window.Brain = (() => {
   // 승인한 세 열 배치. 원래 카드와 핸들러를 옮기므로 연결된 데이터·업무 흐름은 유지된다.
   const grid = ui.querySelector(".bn-grid");
   // 좌우 메뉴가 모두 접히고 가운데가 넉넉하면 4열, 아니면 승인한 3열(카드를 옮길 뿐이라 데이터·동작은 그대로)
-  const COLS3 = [["mail", "apps"], ["cal", "meet"], ["rt", "skills", "work"]];
-  const COLS4 = [["mail"], ["cal"], ["meet", "rt"], ["skills", "apps", "work"]];
+  const COLS3 = [["brief", "mail", "apps"], ["cal", "meet"], ["rt", "skills", "work"]];
+  const COLS4 = [["brief", "mail"], ["cal"], ["meet", "rt"], ["skills", "apps", "work"]];
   let colsNow = null;
   function arrange() {
     const four = document.body.classList.contains("bn-side-mini") && document.body.classList.contains("team-collapsed")
@@ -74,7 +74,7 @@ window.Brain = (() => {
   arrange();
   new MutationObserver(() => arrange()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   addEventListener("resize", () => arrange());
-  ui.querySelector(".bn-mail > header").after($b("bnBrief"));
+  // 오늘의 브리핑은 독립 카드로 첫 열 맨 위(COLS3·COLS4 의 "brief")
   const bnNav = h(`<nav class="bn-workspace-nav" aria-label="브레인 업무 메뉴"><small>WORKSPACE</small>${[["overview", "house", "오버뷰"], ["cal", "calendar", "통합 캘린더"], ["mail", "mail", "이메일"], ["meet", "file", "회의 노트"], ["skills", "sparkles", "내 스킬"], ["rt", "repeat", "루틴 & 예약"]].map(([key, icon, label]) => `<button type="button" data-focus="${key}"${key === "overview" ? ' aria-current="page"' : ""}>${ico(icon)}<span>${label}</span></button>`).join("")}<small>AGENT OFFICE</small></nav>`);
   document.querySelector("#sidenav").before(bnNav);
   const focusPanel = key => {
