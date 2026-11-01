@@ -307,17 +307,18 @@ body.brain-mode #stage, body.brain-mode #labels { display: none; }
 /* 단추·단축키로 접고 펼 때만 움직인다(처음 열 때 좁은 메뉴에서 자라나며 글자가 세로로 깨지지 않게) */
 body.brain-mode.bn-side-anim .left { transition: width .45s var(--bn-spring), padding .45s var(--bn-spring); }
 body.brain-mode .left .bn-workspace-nav button span, body.brain-mode .left .sidenav button span, body.brain-mode .left .bn-workspace-nav small, body.brain-mode .left .rail-profile span { transition: opacity .25s; }
-body.brain-mode.bn-side-mini { --dash-left: 94px; }
-body.brain-mode.bn-side-mini .left { width: 65px; padding: 15px 6px; overflow-x: hidden; }
-body.brain-mode.bn-side-mini .bn-workspace-nav button, body.brain-mode.bn-side-mini .sidenav button { justify-content: center; padding: 10px 0; min-height: 42px; }
-body.brain-mode.bn-side-mini .bn-workspace-nav button span, body.brain-mode.bn-side-mini .bn-workspace-nav small, body.brain-mode.bn-side-mini .sidenav button span, body.brain-mode.bn-side-mini .rail-profile span { display: none; }
-body.brain-mode.bn-side-mini .rail-profile { justify-content: center; }
+@media (min-width: 1001px) { body.brain-mode.bn-side-mini { --dash-left: 94px; } }
+@media (min-width: 1001px) { body.brain-mode.bn-side-mini .left { width: 65px; padding: 15px 6px; overflow-x: hidden; } }
+@media (min-width: 1001px) { body.brain-mode.bn-side-mini .bn-workspace-nav button, body.brain-mode.bn-side-mini .sidenav button { justify-content: center; padding: 10px 0; min-height: 42px; } }
+@media (min-width: 1001px) { body.brain-mode.bn-side-mini .bn-workspace-nav button span, body.brain-mode.bn-side-mini .bn-workspace-nav small, body.brain-mode.bn-side-mini .sidenav button span, body.brain-mode.bn-side-mini .rail-profile span { display: none; } }
+@media (min-width: 1001px) { body.brain-mode.bn-side-mini .rail-profile { justify-content: center; } }
 .bn-sidetoggle { display: none; }
 body.brain-mode .bn-sidetoggle { position: fixed; z-index: 22; top: 112px; left: calc(16px + 180px - 14px); width: 28px; height: 28px; padding: 0; border-radius: 50%;
   display: grid; place-items: center; border: 1px solid var(--line); background: var(--panel); color: var(--text-2); box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
   transition: left .45s var(--bn-spring), transform .2s, color .2s; }
 body.brain-mode .bn-sidetoggle:hover { color: var(--accent-text); transform: scale(1.08); }
 body.brain-mode .bn-sidetoggle .ic { width: 15px; height: 15px; transform: rotate(180deg); transition: transform .45s var(--bn-spring); }
+/* 접기 상태는 넓은 화면(>1000px)에서만 — 좁은 화면·휴대폰은 원래 규칙(아이콘 메뉴·서랍)대로 */
 body.brain-mode.bn-side-mini .bn-sidetoggle { left: calc(16px + 65px - 14px); }
 body.brain-mode.bn-side-mini .bn-sidetoggle .ic { transform: none; }
 body.brain-mode.drawer-open .bn-sidetoggle, body.brain-mode:has(#modal:not([hidden])) .bn-sidetoggle { visibility: hidden; }
