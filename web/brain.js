@@ -84,6 +84,24 @@ window.Brain = (() => {
   }
   addEventListener("resize", place);
   if (typeof ResizeObserver === "function") { const ro = new ResizeObserver(place); for (const id of ["officeFrame", "taskShelf"]) if ($(id)) ro.observe($(id)); }
+
+  // 왼쪽 메뉴 접기·펴기(Moxie repliegue): 넓은 메뉴 ↔ 아이콘만. 단추 · ⌘B/Ctrl+B · 이 브라우저에 기억. 좁은 화면(≤1000px)은 원래 규칙대로
+  const sideBtn = h(`<button type="button" class="bn-sidetoggle" aria-controls="sidebar">${ico("chev-right")}</button>`);
+  document.body.append(sideBtn);
+  const setSide = (mini, save = true) => {
+    document.body.classList.toggle("bn-side-mini", mini);
+    sideBtn.setAttribute("aria-expanded", String(!mini));
+    sideBtn.title = sideBtn.ariaLabel = `${mini ? "메뉴 펴기" : "메뉴 접기"} (${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+"}B)`;
+    if (save) store.set("agentOffice.brain.sideMini", mini ? "1" : "0");
+    setTimeout(place, 450); // 너비가 바뀌는 애니메이션이 끝난 뒤 업무 화면 자리를 다시 맞춘다
+  };
+  setSide(store.get("agentOffice.brain.sideMini") === "1", false);
+  sideBtn.onclick = () => setSide(!document.body.classList.contains("bn-side-mini"));
+  addEventListener("keydown", e => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "b") return;
+    if (e.target.closest?.("input, textarea, [contenteditable='true']") || matchMedia("(max-width: 1000px)").matches) return;
+    e.preventDefault(); sideBtn.click();
+  });
   // 업무 보드 카드(기존 DOM·클릭 동작 그대로)를 '진행 중인 업무' 칸으로 옮긴다
   const pane = document.querySelector('[data-pane="board"]');
   if (pane) $b("bnWork").append(pane);

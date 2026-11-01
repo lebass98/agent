@@ -302,3 +302,23 @@ body.brain-mode #stage, body.brain-mode #labels { display: none; }
   .bn-wd h5 { width: 100%; justify-content: flex-start; gap: 6px; }
   .bn-wd:not(.today):not(:has(.bn-wev)) { display: none; }
 }
+
+/* ── 왼쪽 메뉴 접기·펴기 (Moxie repliegue) — brain-soft.css 의 넓은 메뉴(180px)를 아이콘만(65px)으로 ── */
+body.brain-mode .left { transition: width .45s var(--bn-spring), padding .45s var(--bn-spring); }
+body.brain-mode .left .bn-workspace-nav button span, body.brain-mode .left .sidenav button span, body.brain-mode .left .bn-workspace-nav small, body.brain-mode .left .rail-profile span { transition: opacity .25s; }
+body.brain-mode.bn-side-mini { --dash-left: 94px; }
+body.brain-mode.bn-side-mini .left { width: 65px; padding: 15px 6px; overflow-x: hidden; }
+body.brain-mode.bn-side-mini .bn-workspace-nav button, body.brain-mode.bn-side-mini .sidenav button { justify-content: center; padding: 10px 0; min-height: 42px; }
+body.brain-mode.bn-side-mini .bn-workspace-nav button span, body.brain-mode.bn-side-mini .bn-workspace-nav small, body.brain-mode.bn-side-mini .sidenav button span, body.brain-mode.bn-side-mini .rail-profile span { display: none; }
+body.brain-mode.bn-side-mini .rail-profile { justify-content: center; }
+.bn-sidetoggle { display: none; }
+body.brain-mode .bn-sidetoggle { position: fixed; z-index: 22; top: 112px; left: calc(16px + 180px - 14px); width: 28px; height: 28px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; border: 1px solid var(--line); background: var(--panel); color: var(--text-2); box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+  transition: left .45s var(--bn-spring), transform .2s, color .2s; }
+body.brain-mode .bn-sidetoggle:hover { color: var(--accent-text); transform: scale(1.08); }
+body.brain-mode .bn-sidetoggle .ic { width: 15px; height: 15px; transform: rotate(180deg); transition: transform .45s var(--bn-spring); }
+body.brain-mode.bn-side-mini .bn-sidetoggle { left: calc(16px + 65px - 14px); }
+body.brain-mode.bn-side-mini .bn-sidetoggle .ic { transform: none; }
+body.brain-mode.drawer-open .bn-sidetoggle, body.brain-mode:has(#modal:not([hidden])) .bn-sidetoggle { visibility: hidden; }
+@media (max-width: 1000px) { body.brain-mode .bn-sidetoggle { display: none; } }
+body.reduce-motion.brain-mode .left, body.reduce-motion .bn-sidetoggle { transition: none; }
