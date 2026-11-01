@@ -28,8 +28,8 @@ window.Brain = (() => {
   /* ───────── 틀 ───────── */
   const ui = h(`<section class="brain" id="brain" aria-label="브레인">
     <header class="bn-welcome"><div><p id="bnDate"></p><h1><span id="bnGreeting">나의 업무 공간</span><span class="bn-welcome-sub"> 당신의 하루를 가볍게.</span></h1></div><button type="button" class="bn-team-toggle" id="bnTeamToggle">${ico("users")}<span>팀 활동</span></button></header>
-    <div class="bn-floats" id="bnFloats" aria-label="중요 일정"></div>
     <div class="bn-grid">
+      <article class="bn-card bn-imp" id="bnImp" hidden><header><h3>${ico("star")}중요 일정</h3></header><div class="bn-floats" id="bnFloats" aria-label="중요 일정"></div></article>
       <article class="bn-card bn-brief" id="bnBrief"></article>
       <article class="bn-card bn-cal"><header><h3>${ico("calendar")}통합 캘린더</h3><small id="bnCalSub"></small>
         <span class="bn-seg" id="bnCalView"><button type="button" data-v="day">월간</button><button type="button" data-v="week">주간</button></span>
@@ -53,8 +53,8 @@ window.Brain = (() => {
   // 승인한 세 열 배치. 원래 카드와 핸들러를 옮기므로 연결된 데이터·업무 흐름은 유지된다.
   const grid = ui.querySelector(".bn-grid");
   // 좌우 메뉴가 모두 접히고 가운데가 넉넉하면 4열, 아니면 승인한 3열(카드를 옮길 뿐이라 데이터·동작은 그대로)
-  const COLS3 = [["brief", "mail", "apps"], ["cal", "meet"], ["rt", "skills", "work"]];
-  const COLS4 = [["brief", "mail"], ["cal"], ["meet", "rt"], ["skills", "apps", "work"]];
+  const COLS3 = [["brief", "mail", "apps"], ["imp", "cal", "meet"], ["rt", "skills", "work"]];
+  const COLS4 = [["brief", "mail"], ["imp", "cal"], ["meet", "rt"], ["skills", "apps", "work"]];
   let colsNow = null;
   function arrange() {
     const four = document.body.classList.contains("bn-side-mini") && document.body.classList.contains("team-collapsed")
@@ -81,7 +81,7 @@ window.Brain = (() => {
     closeView(); setDrawer(false);
     const target = key === "overview" ? ui.querySelector(".bn-welcome") : ui.querySelector(`.bn-${key}`);
     document.querySelectorAll("[data-focus]").forEach(b => key === b.dataset.focus ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
-    if (target) { ui.scrollTo({ top: key === "overview" ? 0 : Math.max(0, target.getBoundingClientRect().top - ui.getBoundingClientRect().top + ui.scrollTop - ($b("bnFloats").hidden ? 16 : $b("bnFloats").offsetHeight + 28)), behavior: reduce() ? "instant" : "smooth" }); }
+    if (target) { ui.scrollTo({ top: key === "overview" ? 0 : Math.max(0, target.getBoundingClientRect().top - ui.getBoundingClientRect().top + ui.scrollTop - 16), behavior: reduce() ? "instant" : "smooth" }); }
   };
   for (const nav of [bnNav, ui.querySelector(".bn-mobile-nav")]) nav.addEventListener("click", e => { const b = e.target.closest("[data-focus]"); if (b) focusPanel(b.dataset.focus); });
   $b("bnTeamToggle").onclick = () => {
@@ -203,7 +203,7 @@ window.Brain = (() => {
   }
   function drawFloats() {
     const box = $b("bnFloats"), list = floatItems();
-    box.hidden = !list.length;
+    $b("bnImp").hidden = !list.length;
     box.replaceChildren(...list.map((f, i) => {
       const [a, b] = whenLabel(f.when);
       const n = h(`<div class="bn-fl${f.urgent ? " urgent" : ""}" style="animation-delay:${i * 70}ms"><span class="bn-when"${f.src ? ` style="--c:${SRC[f.src]?.[1]}"` : ""}>${esc(a)}<small>${esc(b)}</small></span>
@@ -214,7 +214,7 @@ window.Brain = (() => {
         const before = new Map([...box.children].map(c => [c, c.getBoundingClientRect()]));
         n.remove();
         if (!reduce()) for (const c of box.children) { const r0 = before.get(c), r1 = c.getBoundingClientRect(); if (r0 && r0.left !== r1.left) c.animate([{ transform: `translateX(${r0.left - r1.left}px)` }, { transform: "none" }], { duration: 500, easing: "cubic-bezier(.34,1.56,.64,1)" }); }
-        box.hidden = !box.children.length; place();
+        $b("bnImp").hidden = !box.children.length; place();
       };
       return n;
     }));

@@ -342,3 +342,14 @@ body.brain-mode .brain .bn-cal > header .bn-mini { flex-shrink: 0; }
 body.brain-mode .brain .bn-card > header .bn-mini { flex-shrink: 0; }
 body.brain-mode .brain .bn-card > header h3 + .bn-mini,
 body.brain-mode .brain .bn-card > header small + .bn-mini { margin-left: auto; }
+
+/* 중요 일정: 위쪽 큰 띠 대신 열 안의 작은 카드(가운데 열 맨 위), 항목은 세로로 촘촘히 */
+body.brain-mode .brain .bn-imp[hidden] { display: none; }
+body.brain-mode .brain .bn-imp > header { padding-bottom: 6px; }
+body.brain-mode .brain .bn-imp .bn-floats { position: static; flex-direction: column; gap: 6px; padding: 0 12px 12px; background: none; border-radius: 0; overflow: visible; }
+body.brain-mode .brain .bn-imp .bn-fl { min-width: 0; flex: none; padding: 7px 8px; gap: 9px; border-radius: 14px; box-shadow: none; }
+body.brain-mode .brain .bn-imp .bn-when { height: 34px; min-width: 34px; font-size: 10.5px; box-shadow: none; }
+body.brain-mode .brain .bn-imp .bn-when small { font-size: 8.5px; }
+body.brain-mode .brain .bn-imp .bn-flt b { font-size: 11.5px; }
+body.brain-mode .brain .bn-imp .bn-flt span { font-size: 10px; margin-top: 1px; }
+body.brain-mode .brain .bn-imp .bn-x { flex-shrink: 0; }
