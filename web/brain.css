@@ -331,15 +331,14 @@ body.brain-mode .brain .bn-column > .bn-brief { margin: 0; padding: 12px; border
   background: linear-gradient(145deg, var(--panel), var(--panel-2)); box-shadow: var(--bn-soft-shadow); }
 body.brain-mode .brain .bn-column > .bn-brief .bn-briefin { border-radius: 20px; }
 
-/* 통합 캘린더 머리줄: 제목·출처·월간/주간·단추를 한 줄로 */
-body.brain-mode .brain .bn-cal > header { flex-wrap: nowrap; }
-body.brain-mode .brain .bn-cal > header h3 { white-space: nowrap; flex-shrink: 0; }
-body.brain-mode .brain .bn-cal > header #bnCalSub { flex-basis: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 카드 머리줄(캘린더·회의·서비스·루틴·업무): 제목·출처·단추를 한 줄로 */
+body.brain-mode .brain :is(.bn-cal, .bn-meet, .bn-apps, .bn-rt, .bn-work) > header { flex-wrap: nowrap; }
+body.brain-mode .brain :is(.bn-cal, .bn-meet, .bn-apps, .bn-rt, .bn-work) > header h3 { white-space: nowrap; flex-shrink: 0; }
+body.brain-mode .brain :is(.bn-cal, .bn-meet, .bn-rt, .bn-work) > header small { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body.brain-mode .brain .bn-cal > header .bn-seg { margin-left: auto; flex-shrink: 0; }
 body.brain-mode .brain .bn-cal > header .bn-mini { flex-shrink: 0; }
 
-/* 내 서비스 머리줄: 제목 오른쪽에 'Vercel 가져오기 · 편집'을 한 줄로 (연결 상태는 단추 툴팁) */
-body.brain-mode .brain .bn-apps > header { flex-wrap: nowrap; }
-body.brain-mode .brain .bn-apps > header h3 { white-space: nowrap; }
-body.brain-mode .brain .bn-apps > header .bn-more { margin-left: 0; white-space: nowrap; flex-shrink: 0; }
-body.brain-mode .brain .bn-apps > header .bn-more[data-act="vercel"] { margin-left: auto; }
+/* 카드 머리줄 단추는 모두 아이콘(.bn-mini): 첫 단추가 오른쪽으로 밀고, 줄은 바꾸지 않는다 */
+body.brain-mode .brain .bn-card > header .bn-mini { flex-shrink: 0; }
+body.brain-mode .brain .bn-card > header h3 + .bn-mini,
+body.brain-mode .brain .bn-card > header small + .bn-mini { margin-left: auto; }

@@ -35,14 +35,14 @@ window.Brain = (() => {
         <span class="bn-seg" id="bnCalView"><button type="button" data-v="day">월간</button><button type="button" data-v="week">주간</button></span>
         <button type="button" class="bn-mini" data-act="event" title="일정 직접 넣기">${ico("plus")}</button><button type="button" class="bn-mini" data-act="cals" title="캘린더 연결">${ico("gear")}</button></header>
         <div class="bn-chips" id="bnSrc"></div><div class="bn-body" id="bnCal"></div><div class="bn-cal-footer"><button type="button" class="bn-btn" data-act="event">${ico("plus")} 일정 추가</button></div></article>
-      <article class="bn-card bn-work"><header><h3>${ico("kanban")}진행 중인 업무</h3><small id="bnWorkSub"></small><button type="button" class="bn-more" data-act="board">보드 ›</button></header><div class="bn-body" id="bnWork"></div></article>
-      <article class="bn-card bn-rt"><header><h3>${ico("repeat")}나의 루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-more" data-act="routines">+ 추가·편집</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
+      <article class="bn-card bn-work"><header><h3>${ico("kanban")}진행 중인 업무</h3><small id="bnWorkSub"></small><button type="button" class="bn-mini" data-act="board" title="보드로 보기" aria-label="보드로 보기">${ico("kanban")}</button></header><div class="bn-body" id="bnWork"></div></article>
+      <article class="bn-card bn-rt"><header><h3>${ico("repeat")}나의 루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-mini" data-act="routines" title="루틴 추가·편집" aria-label="루틴 추가·편집">${ico("edit")}</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
       <article class="bn-card bn-mail"><header><h3>${ico("mail")}이메일 브리핑</h3><small id="bnMailSub">Gmail</small>
         <span class="bn-seg" id="bnMailView"><button type="button" data-v="key">할 일·중요</button><button type="button" data-v="all">전체</button></span>
-        <button type="button" class="bn-more" id="bnMailRefresh" title="새 업무 메일만 더 가져와 쌓아요">${ico("history", "ic sm")} 다시 불러오기</button></header><div class="bn-body" id="bnMail"></div></article>
+        <button type="button" class="bn-mini" id="bnMailRefresh" title="다시 불러오기 — 새 업무 메일만 더 가져와 쌓아요" aria-label="다시 불러오기">${ico("history")}</button></header><div class="bn-body" id="bnMail"></div></article>
       <article class="bn-card bn-meet"><header><h3>${ico("file")}회의 노트</h3><small id="bnMeetSub">Notion</small>
-        <button type="button" class="bn-more" data-act="meetings">회의 지정</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
-      <article class="bn-card bn-apps"><header><h3>${ico("grid")}내 서비스</h3><button type="button" class="bn-more" id="bnAppsSub" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기">▲ Vercel 가져오기</button><button type="button" class="bn-more" data-act="shortcuts" style="margin-left:6px">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
+        <button type="button" class="bn-mini" data-act="meetings" title="회의 지정" aria-label="회의 지정">${ico("pin")}</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
+      <article class="bn-card bn-apps"><header><h3>${ico("grid")}내 서비스</h3><button type="button" class="bn-mini" id="bnAppsSub" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기" aria-label="Vercel 가져오기">${ico("vercel")}</button><button type="button" class="bn-mini" data-act="shortcuts" title="바로가기 편집" aria-label="바로가기 편집">${ico("edit")}</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
       <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬 라이브러리</h3><small id="bnSkSub"></small>
         <label class="bn-sksearch">${ico("search")}<input id="bnSkQ" placeholder="스킬 검색" aria-label="스킬 검색"></label></header>
         <div class="bn-body"><div class="bn-skpages" id="bnSkills"></div><div class="bn-dots" id="bnSkDots"></div></div></article>
@@ -441,6 +441,7 @@ window.Brain = (() => {
     $b("bnMailSub").textContent = `최근 ${MAIL.days || 30}일 · 업무 메일 ${MAIL.total ?? items.length}통${MAIL.loading ? " · 새 메일 확인 중…" : MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : MAIL.at ? ` · ${MAIL.at.slice(5, 10).replace("-", "/")} ${MAIL.at.slice(11)}` : ""}`;
     $b("bnMailSub").title = `${MAIL.user} · 제목이 영어로만 된 메일·광고·뉴스레터·알림은 빼고 업무 메일만 쌓아요`;
     $b("bnMailRefresh").disabled = !!MAIL.loading;
+    $b("bnMailRefresh").classList.toggle("spin", !!MAIL.loading);
     const note = MAIL.note ? `<p class="bn-note">${ico("info")}${esc(MAIL.note)}</p>` : "";
     if (MAIL.error && !items.length) { box.innerHTML = `${note}<p class="bn-empty bn-err">${ico("alert")}${esc(MAIL.error)}</p>`; return; }
     if (MAIL.loading && !items.length) { box.innerHTML = `${note}<p class="bn-empty"><span class="bn-think2">Claude 가 최근 ${MAIL?.days || 30}일 업무 메일을 읽고 요약하는 중… (1~3분)</span></p>`; return; }
