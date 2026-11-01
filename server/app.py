@@ -843,16 +843,17 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             mail_store.merge(list(json.loads(old_last.read_text(encoding="utf-8"))["items"]))
         with contextlib.suppress(OSError):
             old_last.unlink()
-    mail["at"] = mail_store.at if mail_store.full else 0.0   # 3주 치를 아직 안 받았으면 처음 열 때 받는다
+    mail["at"] = mail_store.at   # 기간만큼 아직 안 받았으면(span 부족) 처음 열 때 받는다 — brain_mail 이 판단
 
     async def claude_mail(cfg: dict) -> None:
-        """새 메일만: 마지막으로 받은 뒤의 날짜만 보고, 이미 쌓인 스레드는 건너뛰게 한다. 처음엔 3주 치."""
+        """새 메일만: 마지막으로 받은 뒤의 날짜만 보고, 이미 쌓인 스레드는 건너뛰게 한다.
+        아직 기간(GMAIL_DAYS, 기본 30일)만큼 거슬러 받지 않았으면 그 기간 전체를 한 번 받는다."""
         try:
-            first = not mail_store.full
-            since = cfg["days"] if first else (time.time() - mail_store.at) / 86400
+            back = mail_store.span < cfg["days"]
+            since = cfg["days"] if back else (time.time() - mail_store.at) / 86400
             days = max(1, min(cfg["days"], int(since) + 1))
             items = await gmail.claude_fetch(cfg, mail_store.ids(), days)
-            mail.update(added=await asyncio.to_thread(mail_store.merge, items, first), error="", via="claude")
+            mail.update(added=await asyncio.to_thread(mail_store.merge, items, cfg["days"] if back else 0), error="", via="claude")
         except gmail.MailError as e:
             mail.update(error=str(e))
         except Exception as e:
@@ -862,13 +863,13 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
 
     @api.get("/brain/mail")
     async def brain_mail(refresh: bool = False):
-        """쌓아 둔 업무 메일(최근 3주). refresh=1(다시 불러오기)이면 바로, 아니면 10분마다 새 메일만 더한다."""
+        """쌓아 둔 업무 메일(최근 GMAIL_DAYS 일, 기본 30일). refresh=1(다시 불러오기)이면 바로, 아니면 10분마다 새 메일만 더한다."""
         cfg = gmail.config()
         if not cfg:
             return {"enabled": False}
         now = time.time()
         busy = mail["task"] is not None and not mail["task"].done()
-        stale = refresh or now - mail["at"] > 600
+        stale = refresh or now - mail["at"] > 600 or (mail_store.span < cfg["days"] and not mail["error"])  # 기간을 늘렸으면 한 번 더 거슬러
         mode, note = cfg["mode"], ""
         # 앱 비밀번호 로그인이 실패하면(같은 값인 동안) Claude 의 Gmail 연결로 대신 가져온다
         failed = mail.get("imap_bad") == (cfg["user"], cfg["pw"])
@@ -894,16 +895,16 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
             cached = mail_sums.load()
             done = [m for m in gmail.public(mail["items"], cached) if m["id"] in cached]
             if done:
-                mail["added"] = await asyncio.to_thread(mail_store.merge, done, True) or mail.get("added", 0)
+                mail["added"] = await asyncio.to_thread(mail_store.merge, done, cfg["days"]) or mail.get("added", 0)
             todo = [m for m in mail["items"] if m["id"] not in cached]
             if todo and not busy and (refresh or now - mail["fail"] > 600):
                 mail["task"] = asyncio.create_task(summarize_mail(todo, cfg))
                 busy = True
             pending = len(todo) if busy else 0
-        items = mail_store.recent()
+        items = mail_store.recent(cfg["days"])
         return {"enabled": True, "source": mode, "user": gmail.masked(cfg["user"]) if mode == "imap" else "Claude 의 Gmail 연결",
                 "items": items, "error": mail["error"], "note": note, "pending": pending, "loading": busy and mode == "claude",
-                "added": mail.get("added", 0), "total": len(items), "days": gmail.WINDOW,
+                "added": mail.get("added", 0), "total": len(items), "days": cfg["days"],
                 "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes") if mail["at"] else ""}
 
     meet_file = mail_sums.file.with_name("brain-meet-last.json")    # 마지막 회의록 목록(서버를 다시 켜도 바로)

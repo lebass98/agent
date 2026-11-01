@@ -344,14 +344,14 @@ window.Brain = (() => {
       return;
     }
     const items = MAIL.items || [], key = items.filter(m => m.tag === "reply" || m.tag === "important" || m.starred || (!m.tag && m.unread));
-    $b("bnMailSub").textContent = `최근 ${MAIL.days || 21}일 · 업무 메일 ${MAIL.total ?? items.length}통${MAIL.loading ? " · 새 메일 확인 중…" : MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : MAIL.at ? ` · ${MAIL.at.slice(5, 10).replace("-", "/")} ${MAIL.at.slice(11)}` : ""}`;
+    $b("bnMailSub").textContent = `최근 ${MAIL.days || 30}일 · 업무 메일 ${MAIL.total ?? items.length}통${MAIL.loading ? " · 새 메일 확인 중…" : MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : MAIL.at ? ` · ${MAIL.at.slice(5, 10).replace("-", "/")} ${MAIL.at.slice(11)}` : ""}`;
     $b("bnMailSub").title = `${MAIL.user} · 제목이 영어로만 된 메일·광고·뉴스레터·알림은 빼고 업무 메일만 쌓아요`;
     $b("bnMailRefresh").disabled = !!MAIL.loading;
     const note = MAIL.note ? `<p class="bn-note">${ico("info")}${esc(MAIL.note)}</p>` : "";
     if (MAIL.error && !items.length) { box.innerHTML = `${note}<p class="bn-empty bn-err">${ico("alert")}${esc(MAIL.error)}</p>`; return; }
-    if (MAIL.loading && !items.length) { box.innerHTML = `${note}<p class="bn-empty"><span class="bn-think2">Claude 가 최근 3주 업무 메일을 읽고 요약하는 중… (1~2분)</span></p>`; return; }
+    if (MAIL.loading && !items.length) { box.innerHTML = `${note}<p class="bn-empty"><span class="bn-think2">Claude 가 최근 ${MAIL?.days || 30}일 업무 메일을 읽고 요약하는 중… (1~3분)</span></p>`; return; }
     const list = V.mail === "key" ? key : items;
-    if (!list.length) { box.innerHTML = `${note}<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : "최근 3주 안의 업무 메일이 없어요."}</p>`; return; }
+    if (!list.length) { box.innerHTML = `${note}<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : `최근 ${MAIL.days || 30}일 안의 업무 메일이 없어요.`}</p>`; return; }
     box.innerHTML = `${note}<div class="bn-mails">${list.map((m, i) => {
       const t = TAG[m.tag];
       return `<a class="bn-mrow${m.unread ? " unread" : ""}" href="https://mail.google.com/mail/u/0/#all/${esc(m.thread)}" target="_blank" rel="noopener noreferrer" style="animation-delay:${i * 40}ms" title="Gmail 에서 열기">

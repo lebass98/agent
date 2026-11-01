@@ -65,7 +65,7 @@ def config() -> dict | None:
         return None
     user, pw = e["GMAIL_USER"], re.sub(r"\s+", "", e["GMAIL_APP_PASSWORD"])  # 구글이 보여 주는 'abcd efgh …' 공백은 뺀다
     clamp = lambda v, a, b, d: max(a, min(b, int(v))) if str(v).isdigit() else d
-    base = {"user": user, "pw": pw, "days": clamp(e["GMAIL_DAYS"], 1, 31, 21), "max": clamp(e["GMAIL_MAX"], 1, 80, 40),
+    base = {"user": user, "pw": pw, "days": clamp(e["GMAIL_DAYS"], 1, 60, 30), "max": clamp(e["GMAIL_MAX"], 1, 120, 60),
             "member": e["GMAIL_SUMMARY_MEMBER"], "model": e["GMAIL_CLAUDE_MODEL"] or "haiku", "claude": src != "imap" and bool(claude_exe())}
     if src != "claude" and user and pw:
         return base | {"mode": "imap"}
@@ -82,7 +82,7 @@ def masked(user: str) -> str:
 # ───────── 걸러내기 · 쌓기 ─────────
 HANGUL = re.compile(r"[가-힣]")
 STORE_LIMIT = 300
-WINDOW = 21   # 화면 목록에 보일 기간(일)
+WINDOW = 30   # 기본 기간(일): 처음 거슬러 가져오고 화면 목록에 보이는 기간(GMAIL_DAYS 로 바꿈)
 
 
 def keep(m: dict) -> bool:
@@ -98,9 +98,10 @@ class Store:
         self.lock = threading.Lock()
         try:
             d = json.loads(self.file.read_text(encoding="utf-8"))
-            self.items, self.at, self.full = list(d.get("items") or []), float(d.get("at") or 0), bool(d.get("full"))
+            self.items, self.at = list(d.get("items") or []), float(d.get("at") or 0)
+            self.span = int(d.get("span") or (21 if d.get("full") else 0))
         except (OSError, ValueError, TypeError):
-            self.items, self.at, self.full = [], 0.0, False   # full: 3주 치를 한 번 받았는지
+            self.items, self.at, self.span = [], 0.0, 0   # span: 며칠 치를 거슬러 받아 두었는지(기간을 늘리면 그만큼 한 번 더 받는다)
 
     def ids(self) -> list[str]:
         return [m["id"] for m in self.items]
@@ -110,16 +111,16 @@ class Store:
         since = (datetime.now() - timedelta(days=days)).isoformat(timespec="minutes")
         return [m for m in self.items if not m.get("date") or m["date"] >= since]
 
-    def merge(self, found: list[dict], full: bool = False) -> int:
+    def merge(self, found: list[dict], span: int = 0) -> int:
         with self.lock:
-            self.full = self.full or full
+            self.span = max(self.span, span)
             have = set(self.ids())
             new = [m for m in found if m["id"] not in have and keep(m)]
             self.items = sorted(self.items + new, key=lambda m: m.get("date", ""), reverse=True)[:STORE_LIMIT]
             self.at = time.time()
             self.file.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.file.with_suffix(".tmp")
-            tmp.write_text(json.dumps({"items": self.items, "at": self.at, "full": self.full}, ensure_ascii=False), encoding="utf-8")
+            tmp.write_text(json.dumps({"items": self.items, "at": self.at, "span": self.span}, ensure_ascii=False), encoding="utf-8")
             os.replace(tmp, self.file)
             return len(new)
 

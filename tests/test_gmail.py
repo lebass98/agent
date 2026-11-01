@@ -31,10 +31,10 @@ def test_config_reads_env_file(tmp_path, monkeypatch):
     monkeypatch.setattr(gmail, "claude_exe", lambda: None)
     assert gmail.config() is None                           # 앱 비밀번호도 claude CLI 도 없으면 꺼짐
     monkeypatch.setattr(gmail, "claude_exe", lambda: "/usr/bin/claude")
-    assert gmail.config()["mode"] == "claude" and gmail.config()["days"] == 21   # 앱 비밀번호가 없으면 claude 의 Gmail 커넥터, 기본 3주
+    assert gmail.config()["mode"] == "claude" and gmail.config()["days"] == 30   # 앱 비밀번호가 없으면 claude 의 Gmail 커넥터, 기본 1달
     env.write_text("GMAIL_USER=me@gmail.com\nGMAIL_APP_PASSWORD=abcd efgh ijkl mnop\nGMAIL_MAX=99\n", encoding="utf-8")
     cfg = gmail.config()                                    # 서버를 다시 켜지 않아도 읽힌다
-    assert cfg["mode"] == "imap" and cfg["pw"] == "abcdefghijklmnop" and cfg["max"] == 80 and cfg["days"] == 21
+    assert cfg["mode"] == "imap" and cfg["pw"] == "abcdefghijklmnop" and cfg["max"] == 99 and cfg["days"] == 30
     env.write_text(env.read_text() + "GMAIL_SOURCE=claude\n", encoding="utf-8")
     assert gmail.config()["mode"] == "claude"
     env.write_text(env.read_text() + "GMAIL_SOURCE=off\n", encoding="utf-8")
@@ -80,7 +80,7 @@ def test_mail_api_claude_and_fallback(make_client, tmp_path, monkeypatch):
 
     async def fake_claude(cfg, skip=None, days=None):
         calls.append(cfg["model"])
-        assert days == 21 or skip                               # 처음엔 3주 치, 그다음엔 쌓인 것은 건너뛴다
+        assert days == 30 or skip                               # 처음엔 한 달 치, 그다음엔 쌓인 것은 건너뛴다
         return gmail.parse_claude('[{"id":"19a2","from":"박지훈","subject":"IR 자료 요청","date":"' + RECENT + '","summary":"요청","tag":"reply","work":true}]')
     monkeypatch.setattr(gmail, "claude_fetch", fake_claude)
     with make_client() as c:
@@ -138,9 +138,16 @@ def test_keep_and_store_accumulate(tmp_path):
     old = {"id": "4", "subject": "지난달 회의 안내", "date": "2020-01-01T09:00", "tag": "info", "work": True}
     assert [gmail.keep(m) for m in (ok, eng, ad, old)] == [True, False, False, True]
     st = gmail.Store(tmp_path / "s.json")
-    assert st.merge([ok, eng, ad, old], full=True) == 2 and st.full
+    assert st.merge([ok, eng, ad, old], span=30) == 2 and st.span == 30
     assert st.merge([ok, {**ok, "id": "5", "subject": "새 계약서 검토"}]) == 1       # 새 것만 더한다
     again = gmail.Store(tmp_path / "s.json")                                          # 다시 켜도 그대로
-    assert again.ids() == st.ids() and again.full
-    assert {m["id"] for m in again.recent()} == {"1", "5"}                            # 목록은 최근 3주만
-    assert "영어로만 된" in gmail.claude_prompt(21, 40, ["19a2"]) and "19a2" in gmail.claude_prompt(21, 40, ["19a2"])
+    assert again.ids() == st.ids() and again.span == 30
+    assert {m["id"] for m in again.recent()} == {"1", "5"}                            # 목록은 최근 한 달만
+    assert "영어로만 된" in gmail.claude_prompt(30, 60, ["19a2"]) and "19a2" in gmail.claude_prompt(30, 60, ["19a2"])
+
+
+def test_store_reads_old_full_flag(tmp_path):
+    import json as _j
+    f = tmp_path / "s.json"
+    f.write_text(_j.dumps({"items": [], "at": 1, "full": True}))
+    assert gmail.Store(f).span == 21          # 예전(3주) 저장 → 기간을 30일로 늘리면 한 번 더 거슬러 받는다
