@@ -362,6 +362,33 @@ window.Brain = (() => {
     }
   }
   const ago = iso => { if (!iso) return ""; const d = new Date(iso), t = new Date(); return ymd(d) === ymd(t) ? hm(d) : `${d.getMonth() + 1}/${d.getDate()}`; };
+  // 메일 모달: 정보 + 요약 + (Claude 가 그 스레드만 읽어 만든) 요점·할 일 + Gmail 에서 열기
+  const gmailLink = m => `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(m.thread || m.id)}`;
+  function mailDialog(m) {
+    if (!m) return;
+    const t = TAG[m.tag], when = m.date ? `${m.date.slice(0, 10).replace(/-/g, ".")} ${m.date.slice(11)}` : "";
+    const info = h(`<dl class="bn-minfo">
+      <dt>보낸 사람</dt><dd><b>${esc(m.from)}</b>${m.addr ? ` <span>&lt;${esc(m.addr)}&gt;</span>` : ""}</dd>
+      <dt>받은 시각</dt><dd>${esc(when) || "—"}${m.unread ? ' <em class="bn-tag info">안 읽음</em>' : ""}</dd>
+      <dt>분류</dt><dd>${t ? `<em class="bn-tag ${t[1]}">${t[0]}</em>` : "—"}${m.due ? ` <em class="bn-tag due">마감 ${esc(m.due.replace(/-/g, "."))}</em>` : ""}</dd></dl>`);
+    const detail = h(`<div class="bn-mdetail"><h3 class="sec">자세히</h3><p class="bn-empty"><span class="bn-think2">Claude 가 이 메일을 읽고 정리하는 중… (30초쯤)</span></p></div>`);
+    openModal([sheetHead(m.subject, `${m.from}${when ? ` · ${when}` : ""}`), el("div", { class: "sheet-body bn-mailmodal" },
+      info, h(`<div class="bn-msummary"><h3 class="sec">요약</h3><p>${esc(m.summary || m.snippet || "요약이 아직 없어요.")}</p></div>`), detail),
+      el("footer", { class: "sheet-foot" }, el("button", { class: "btn", type: "button", text: "닫기", onclick: closeModal }),
+        el("a", { class: "btn primary", href: gmailLink(m), target: "_blank", rel: "noopener noreferrer", text: "Gmail 에서 열기 ↗" }))]);
+    let tries = 0;
+    const poll = async () => {
+      if (!detail.isConnected) return;
+      let d;
+      try { d = await getJSON(`/api/brain/mail/detail?id=${encodeURIComponent(m.id)}`); } catch (e) { d = { ready: true, error: e.message }; }
+      if (!detail.isConnected) return;
+      if (!d.ready && ++tries < 40) return setTimeout(poll, 3000);
+      detail.innerHTML = `<h3 class="sec">자세히${d.messages > 1 ? ` <small>· 메일 ${d.messages}통 스레드</small>` : ""}</h3>` + (d.error && !d.points?.length ? `<p class="bn-empty bn-err">${ico("alert")}${esc(d.error || "정리하지 못했어요")}</p>` :
+        `${d.people ? `<p class="bn-mpeople">${ico("users")}${esc(d.people)}</p>` : ""}<ul>${(d.points || []).map(p => `<li>${esc(p)}</li>`).join("")}</ul>` +
+        (d.actions?.length ? `<h3 class="sec">할 일</h3><ul class="bn-macts">${d.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""));
+    };
+    poll();
+  }
   function drawMail() {
     const box = $b("bnMail");
     seg($b("bnMailView"), V.mail, v => { V.mail = v; store.set("agentOffice.brain.mail", v); drawMail(); });
@@ -387,12 +414,13 @@ window.Brain = (() => {
     if (!list.length) { box.innerHTML = `${note}<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : `최근 ${MAIL.days || 30}일 안의 업무 메일이 없어요.`}</p>`; return; }
     box.innerHTML = `${note}<div class="bn-mails">${list.map((m, i) => {
       const t = TAG[m.tag];
-      return `<a class="bn-mrow${m.unread ? " unread" : ""}" href="https://mail.google.com/mail/u/0/#all/${esc(m.thread)}" target="_blank" rel="noopener noreferrer" style="animation-delay:${i * 40}ms" title="Gmail 에서 열기">
+      return `<button type="button" class="bn-mrow${m.unread ? " unread" : ""}" data-mail="${esc(m.id)}" style="animation-delay:${i * 40}ms" title="눌러서 요약 보기">
         <span class="bn-mav" style="--h:${[...m.from].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}">${esc(m.from.slice(0, 1))}</span>
         <span class="bn-mwho"><b>${esc(m.from)}</b>${t ? `<em class="bn-tag ${t[1]}">${t[0]}</em>` : ""}${m.due ? `<em class="bn-tag due">~${esc(m.due.slice(5).replace("-", "/"))}</em>` : ""}</span><time>${esc(ago(m.date))}</time>
         <span class="bn-msub">${esc(m.subject)}</span>
-        <span class="bn-msum">${m.summary ? esc(m.summary) : `<i class="${MAIL.pending ? "bn-think2" : ""}">${MAIL.pending ? "요약 중…" : esc(m.snippet)}</i>`}</span></a>`;
+        <span class="bn-msum">${m.summary ? esc(m.summary) : `<i class="${MAIL.pending ? "bn-think2" : ""}">${MAIL.pending ? "요약 중…" : esc(m.snippet)}</i>`}</span></button>`;
     }).join("")}</div>`;
+    box.querySelector(".bn-mails").onclick = e => { const b = e.target.closest("[data-mail]"); if (b) mailDialog(items.find(m => m.id === b.dataset.mail)); };
   }
   async function loadMeet(refresh = false) {
     clearTimeout(meetT);

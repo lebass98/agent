@@ -907,6 +907,44 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
                 "added": mail.get("added", 0), "total": len(items), "days": cfg["days"],
                 "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes") if mail["at"] else ""}
 
+    mail_detail = mail_sums.file.with_name("brain-mail-detail.json")   # 메일 하나 자세히(만든 것은 남겨 다시 쓰지 않는다)
+    detail_busy: dict[str, asyncio.Task] = {}
+
+    @api.get("/brain/mail/detail")
+    async def brain_mail_detail(id: str):
+        """모달용: 쌓아 둔 메일 하나의 요점·할 일. 처음엔 Claude 가 그 스레드만 읽어 정리하고(30초 안팎) 결과를 남긴다."""
+        m = next((x for x in mail_store.items if x["id"] == id), None)
+        if not m:
+            raise HTTPException(404, "메일을 찾을 수 없어요.")
+        try:
+            saved = json.loads(mail_detail.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            saved = {}
+        if id in saved:
+            return {"ready": True, **saved[id]}
+        cfg = gmail.config()
+        if not cfg or not cfg["claude"]:
+            return {"ready": True, "points": [], "actions": [], "people": "", "messages": 0, "error": "자세한 요약은 Claude 의 Gmail 연결이 있을 때만 만들 수 있어요."}
+        task = detail_busy.get(id)
+        if task is None:
+            async def job():
+                try:
+                    out = await gmail.claude_detail(m.get("thread") or id, cfg["model"])
+                except gmail.MailError as e:
+                    return {"error": str(e)}
+                with contextlib.suppress(OSError, ValueError):
+                    cur = json.loads(mail_detail.read_text(encoding="utf-8")) if mail_detail.exists() else {}
+                    cur[id] = out
+                    mail_detail.parent.mkdir(parents=True, exist_ok=True)
+                    mail_detail.write_text(json.dumps(dict(list(cur.items())[-300:]), ensure_ascii=False), encoding="utf-8")
+                return out
+            task = detail_busy[id] = asyncio.create_task(job())
+        if not task.done():
+            return {"ready": False}
+        detail_busy.pop(id, None)
+        res = task.result()
+        return {"ready": True, "points": [], "actions": [], "people": "", "messages": 0, **res}
+
     meet_file = mail_sums.file.with_name("brain-meet-last.json")    # 마지막 회의록 목록(서버를 다시 켜도 바로)
     meet_done = mail_sums.file.with_name("brain-meet-done.json")    # 이 앱에서 체크한 할 일
     meet = {"items": [], "at": 0.0, "key": "", "error": "", "task": None}

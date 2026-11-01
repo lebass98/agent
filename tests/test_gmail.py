@@ -151,3 +151,35 @@ def test_store_reads_old_full_flag(tmp_path):
     f = tmp_path / "s.json"
     f.write_text(_j.dumps({"items": [], "at": 1, "full": True}))
     assert gmail.Store(f).span == 21          # 예전(3주) 저장 → 기간을 30일로 늘리면 한 번 더 거슬러 받는다
+
+
+def test_mail_detail(make_client, tmp_path, monkeypatch):
+    d = gmail.parse_detail('정리: {"points":["14시 전 IR 자료 요청"," "],"actions":["IR 자료 보내기"],"people":"박지훈(투자사)","messages":3}')
+    assert d == {"points": ["14시 전 IR 자료 요청"], "actions": ["IR 자료 보내기"], "people": "박지훈(투자사)", "messages": 3}
+    assert gmail.parse_detail("없음")["points"] == [] and "get_thread" in gmail.DETAIL_TOOLS and "send" not in gmail.DETAIL_TOOLS
+    monkeypatch.setattr(gmail, "ENV_FILE", tmp_path / "none.env")
+    monkeypatch.setattr(gmail, "claude_exe", lambda: "/usr/bin/claude")
+    monkeypatch.delenv("GMAIL_USER", raising=False)
+
+    async def fake_fetch(cfg, skip=None, days=None):
+        return gmail.parse_claude('[{"id":"19a2","from":"박지훈","subject":"IR 자료 요청","date":"' + RECENT + '","summary":"요청","tag":"reply","work":true}]')
+    asked = []
+
+    async def fake_detail(tid, model="haiku"):
+        asked.append(tid)
+        return d
+    monkeypatch.setattr(gmail, "claude_fetch", fake_fetch)
+    monkeypatch.setattr(gmail, "claude_detail", fake_detail)
+    with make_client() as c:
+        for _ in range(50):
+            if c.get("/api/brain/mail").json()["items"]:
+                break
+            time.sleep(.05)
+        assert c.get("/api/brain/mail/detail", params={"id": "없는메일"}).status_code == 404
+        for _ in range(50):
+            got = c.get("/api/brain/mail/detail", params={"id": "19a2"}).json()
+            if got["ready"]:
+                break
+            time.sleep(.05)
+        assert got["points"] == ["14시 전 IR 자료 요청"] and got["actions"] == ["IR 자료 보내기"]
+        assert c.get("/api/brain/mail/detail", params={"id": "19a2"}).json()["ready"] and asked == ["19a2"]   # 한 번 만든 것은 다시 묻지 않는다

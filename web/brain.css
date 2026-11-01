@@ -204,6 +204,7 @@ body.brain-mode #stage, body.brain-mode #labels { display: none; }
 
 /* ── 메일 요약 (Moxie bandeja) ── */
 .bn-mails { display: flex; flex-direction: column; max-height: 330px; overflow: auto; scrollbar-width: thin; }
+.bn-mrow { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
 .bn-mrow { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 1px 9px; padding: 8px 4px 8px 8px; border-radius: 9px; text-decoration: none; color: inherit; animation: bn-rise .4s var(--bn-out) backwards; }
 .bn-mrow + .bn-mrow { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
 .bn-mrow:hover { background: var(--panel-2); }
@@ -230,6 +231,19 @@ body.brain-mode #stage, body.brain-mode #labels { display: none; }
 .bn-mini.spin .ic { animation: bn-spin .8s linear infinite; }
 @keyframes bn-spin { to { transform: rotate(-360deg); } }
 .bn-mail .bn-body { min-height: 0; }
+
+/* 메일 모달 */
+.bn-mailmodal { font-size: 13.5px; }
+.bn-minfo { display: grid; grid-template-columns: 76px 1fr; gap: 7px 12px; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); }
+.bn-minfo dt { color: var(--muted); font-size: 12.5px; }
+.bn-minfo dd { margin: 0; word-break: break-all; }
+.bn-minfo dd span { color: var(--muted); font-size: 12px; }
+.bn-msummary p { margin: 0 0 6px; line-height: 1.65; word-break: keep-all; }
+.bn-mdetail ul { margin: 0; padding-left: 18px; line-height: 1.7; word-break: keep-all; }
+.bn-mdetail .sec small { font-weight: 500; color: var(--muted); font-size: 12px; }
+.bn-macts li::marker { content: "☐  "; }
+.bn-mpeople { display: flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 12.5px; margin: 0 0 6px; }
+.bn-mpeople .ic { width: 14px; height: 14px; }
 
 /* ── 회의록 (Moxie acordeon · jornada) ── */
 .bn-meets { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow: auto; scrollbar-width: thin; }
