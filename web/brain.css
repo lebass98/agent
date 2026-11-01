@@ -397,8 +397,15 @@ body.brain-mode .brain .bn-mg + .bn-mg { margin-top: 14px; }
 body.brain-mode .brain .bn-mgh { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
 body.brain-mode .brain .bn-mgh b { font-size: 12.5px; font-weight: 700; color: var(--text); }
 body.brain-mode .brain .bn-mgh small { font-size: 10.5px; color: var(--accent-text); background: var(--accent-weak); border-radius: 999px; padding: 1px 7px; }
-body.brain-mode .brain .bn-mwrite { margin-left: auto; width: auto; padding: 0 9px; gap: 4px; display: inline-flex; align-items: center; text-decoration: none; font-size: 11px; font-weight: 600; color: var(--accent-text); }
-body.brain-mode .brain .bn-mwrite .ic { width: 12px; height: 12px; }
+/* ✎ 쓰기: 파란 옅은 알약(노션 앱으로) — 휴대폰의 큰 터치 규칙(.bn-mini 44px)과 상관없이 같은 모양 */
+body.brain-mode .brain .bn-mgh .bn-mwrite { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box;
+  width: auto; min-width: 0; height: 30px; min-height: 30px; padding: 0 12px 0 10px; border-radius: 999px; aspect-ratio: auto;
+  border: 1px solid color-mix(in srgb, var(--accent-btn) 22%, transparent); background: var(--accent-weak); color: var(--accent-text);
+  box-shadow: none; text-decoration: none; font-size: 11.5px; font-weight: 600; letter-spacing: -.2px; transition: background .15s, color .15s, transform .15s; }
+body.brain-mode .brain .bn-mgh .bn-mwrite .ic { width: 13px; height: 13px; }
+body.brain-mode .brain .bn-mgh .bn-mwrite:hover { background: var(--accent-btn); color: #fff; }
+body.brain-mode .brain .bn-mgh .bn-mwrite:active { transform: scale(.96); }
+@media (max-width: 760px) { body.brain-mode .brain .bn-mgh .bn-mwrite { height: 36px; min-height: 36px; padding: 0 14px 0 12px; } }
 body.brain-mode .brain .bn-mg .bn-meets { max-height: none; overflow: visible; }
 body.brain-mode .brain .bn-mg .bn-mth { padding: 10px 0; }
 body.brain-mode .brain .bn-mtsum { grid-column: 1; grid-row: 3; font-style: normal; font-size: 11.5px; line-height: 1.5; color: var(--text-2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
