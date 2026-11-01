@@ -55,11 +55,15 @@ window.Brain = (() => {
   // 좌우 메뉴가 모두 접히고 가운데가 넉넉하면 4열, 아니면 승인한 3열(카드를 옮길 뿐이라 데이터·동작은 그대로)
   const COLS3 = [["brief", "mail", "apps"], ["imp", "cal", "meet"], ["work", "rt", "skills"]];
   const COLS4 = [["brief", "mail"], ["imp", "cal"], ["meet", "rt"], ["work", "skills", "apps"]];
+  // 좁아지면(브레인 안쪽 너비 기준, brain-soft.css 의 @container 와 같은 경계) 2열·1열 순서로 다시 놓는다 — 진행 중인 업무가 늘 위에
+  const COLS2 = [["work", "brief", "mail", "rt", "apps"], ["imp", "cal", "meet", "skills"]];
+  const COLS1 = [["work", "brief", "imp", "cal", "mail", "meet", "rt", "skills", "apps"]];
   let colsNow = null;
   function arrange() {
+    const cs = getComputedStyle(ui), inner = ui.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const four = document.body.classList.contains("bn-side-mini") && document.body.classList.contains("team-collapsed")
       && matchMedia("(min-width: 1001px)").matches && ui.clientWidth >= 1040;
-    const want = four ? COLS4 : COLS3;
+    const want = !inner ? COLS3 : inner <= 590 ? COLS1 : inner <= 920 ? COLS2 : four ? COLS4 : COLS3;
     if (want === colsNow) return;
     colsNow = want;
     const cards = Object.fromEntries([...new Set(COLS3.flat())].map(n => [n, ui.querySelector(`.bn-${n}`)]));
@@ -69,11 +73,13 @@ window.Brain = (() => {
       for (const name of names) if (cards[name]) col.append(cards[name]);
       grid.append(col);
     }
-    ui.classList.toggle("bn-four", four);
+    ui.classList.toggle("bn-four", want === COLS4);
+    ui.classList.toggle("bn-narrow", want === COLS2 || want === COLS1);
   }
   arrange();
   new MutationObserver(() => arrange()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   addEventListener("resize", () => arrange());
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => arrange()).observe(ui);
   // 오늘의 브리핑은 독립 카드로 첫 열 맨 위(COLS3·COLS4 의 "brief")
   const bnNav = h(`<nav class="bn-workspace-nav" aria-label="브레인 업무 메뉴"><small>WORKSPACE</small>${[["overview", "house", "오버뷰"], ["cal", "calendar", "통합 캘린더"], ["mail", "mail", "이메일"], ["meet", "file", "회의 노트"], ["skills", "sparkles", "내 스킬"], ["rt", "repeat", "루틴 & 예약"]].map(([key, icon, label]) => `<button type="button" data-focus="${key}"${key === "overview" ? ' aria-current="page"' : ""}>${ico(icon)}<span>${label}</span></button>`).join("")}<small>AGENT OFFICE</small></nav>`);
   document.querySelector("#sidenav").before(bnNav);
@@ -105,7 +111,9 @@ window.Brain = (() => {
   // 왼쪽 메뉴 접기·펴기(Moxie repliegue): 넓은 메뉴 ↔ 아이콘만. 단추 · ⌘B/Ctrl+B · 이 브라우저에 기억. 좁은 화면(≤1000px)은 원래 규칙대로
   const sideBtn = h(`<button type="button" class="bn-sidetoggle" aria-controls="sidebar">${ico("chev-right")}</button>`);
   document.body.append(sideBtn);
+  let sideAnim = 0;
   const setSide = (mini, save = true) => {
+    if (save) { document.body.classList.add("bn-side-anim"); clearTimeout(sideAnim); sideAnim = setTimeout(() => document.body.classList.remove("bn-side-anim"), 600); }
     document.body.classList.toggle("bn-side-mini", mini);
     sideBtn.setAttribute("aria-expanded", String(!mini));
     sideBtn.title = sideBtn.ariaLabel = `${mini ? "메뉴 펴기" : "메뉴 접기"} (${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+"}B)`;
