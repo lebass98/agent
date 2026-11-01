@@ -489,3 +489,7 @@ pytest -v
 - 전체 글꼴 Pretendard GOV(web/vendor 고정 사본, 캔버스 글자 포함)
 - 폴드7 펼친 화면(761~1100px 세로)에서 팀 활동 패널이 사무실을 가리던 문제 수정
 - 업무 완료 시 노션 DB 기록(server/notion.py, NOTION_TOKEN 넣으면 켜짐)
+
+### 2026-11-01
+- 휴대폰 앱 0.3: Android 16(targetSdk 36)에서 뒤로 가기 메뉴가 안 뜨던 문제 수정(OnBackInvokedCallback)
+- 서버가 15초 동안 응답 없으면 검은 화면 대신 서버 주소 창 표시, debug 빌드 WebView 디버깅 켬
