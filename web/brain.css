@@ -421,8 +421,14 @@ body.brain-mode .brain .bn-column > * { min-width: 0; max-width: 100%; }
 body:not(.brain-mode) .bn-tb-team { display: none; }
 @media (max-width: 760px) {
   body.brain-mode .brain .bn-welcome { display: none; }
-  body.brain-mode .bn-tb-team { display: grid; place-items: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; margin-right: 6px; }
-  body.brain-mode .bn-tb-team span { display: none; }
+  /* 상단 바: 메뉴·팀 활동은 40px 동그라미, 서버 연결은 같은 높이의 알약 */
+  body.brain-mode .topbar #menuBtn, body.brain-mode .topbar .bn-team-toggle.bn-tb-team { display: grid; place-items: center; flex: none; box-sizing: border-box;
+    width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border-radius: 50%; aspect-ratio: 1; }
+  body.brain-mode .topbar .bn-team-toggle.bn-tb-team { margin-right: 6px; }
+  body.brain-mode .topbar .bn-team-toggle.bn-tb-team .ic { width: 18px; height: 18px; }
+  body.brain-mode .topbar .bn-tb-team span { display: none; }
+  body.brain-mode .brain .bn-card > header .bn-mini { width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border-radius: 50%; aspect-ratio: 1; }
+  body.brain-mode .topbar #conn { height: 40px; min-height: 40px; padding: 0 12px 0 10px; gap: 6px; flex: none; white-space: nowrap; }
   body.brain-mode .brain .bn-work .run-strip { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto; align-items: center; gap: 8px; padding: 9px 10px; margin-bottom: 8px; }
   body.brain-mode .brain .bn-work .run-symbol, body.brain-mode .brain .bn-work .run-steps, body.brain-mode .brain .bn-work #activePhase, body.brain-mode .brain .bn-work .run-completion progress { display: none; }
   body.brain-mode .brain .bn-work .run-info { grid-column: 1; grid-row: 1; }
