@@ -234,17 +234,19 @@ window.Brain = (() => {
     const done = due.filter(r => r.checks?.[today]).length;
     const tasks = D.shown ? [...D.shown.tasks.values()] : [], fin = tasks.filter(isFin).length;
     const lines = [];
+    let hero = "";
     if (offline) lines.push("서버에 연결되면 일정·루틴을 모아 보여 드려요.");
     else {
       lines.push(evs.length ? `오늘 일정 ${evs.length}개${next ? `, 다음은 <b>${hm(next.s)} ${esc(next.title)}</b>` : left ? "" : " — 모두 지났어요"}.` : CFG.calendars.length ? "오늘은 잡힌 일정이 없어요." : "캘린더를 연결하면 오늘 일정을 모아 보여 드려요.");
       if (due.length) lines.push(done === due.length ? "오늘 확인할 루틴을 모두 마쳤어요 👏" : `확인할 루틴 ${due.length - done}개가 남았어요.`);
       const reply = (MAIL?.items || []).filter(m => m.tag === "reply");
+      hero = next ? `<em>${hm(next.s)}</em> ${esc(clip(next.title, 26))}` : reply.length ? `답장할 메일 <em>${reply.length}</em>통` : `오늘 일정 <em>${evs.length}</em>개`;
       if (reply.length) lines.push(`답장·할 일이 있는 메일 <b>${reply.length}통</b>${reply[0] ? ` (${esc(clip(reply[0].from, 12))} — ${esc(clip(reply[0].summary || reply[0].subject, 28))})` : ""}.`);
       const acts = (MEET?.items || []).flatMap(m => m.actions.filter(a => !a.done));
       if (acts.length) lines.push(`회의록에서 나온 할 일 <b>${acts.length}개</b>가 남았어요.`);
       if (D.running) lines.push(`AI 팀이 “${esc(clip(D.shown?.goal || "", 30))}” 업무를 진행 중이에요 (${esc(D.phaseText)}).`);
     }
-    box.innerHTML = `<div class="bn-briefin"><span class="bn-orb" aria-hidden="true"></span><h2>${ico("sparkles")} 오늘의 업무 브리핑</h2><p>${lines.join(" ")}</p>
+    box.innerHTML = `<div class="bn-briefin"><span class="bn-orb" aria-hidden="true"></span><h2>${ico("sparkles")} 오늘의 업무 브리핑</h2>${hero ? `<strong class="bn-hero">${hero}</strong>` : ""}<p>${lines.join(" ")}</p>
       <div class="bn-kpis"><div><b data-n="${left}">${left}</b><span>남은 일정</span></div><div><b data-n="${done}" data-of="${due.length}">${done}/${due.length}</b><span>루틴 확인</span></div><div><b data-n="${fin}" data-of="${tasks.length}">${tasks.length ? `${fin}/${tasks.length}` : "—"}</b><span>업무</span></div></div></div>`;
     if (!briefDone && !reduce()) { // 처음 한 번만 숫자가 올라간다 (cifras)
       briefDone = true;

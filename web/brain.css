@@ -359,3 +359,33 @@ body.brain-mode .brain .bn-imp .bn-x { flex-shrink: 0; }
 body.brain-mode .brain .bn-welcome > div { display: none; }
 body.brain-mode .brain .bn-welcome { justify-content: flex-end; }
 @media (min-width: 761px) { body.brain-mode .brain .bn-welcome { display: none; } }
+
+/* 임팩트: 오늘의 브리핑 = 파란 그라데이션 히어로(큰 한 줄 + 큰 숫자), 중요 일정 = 따뜻한 경고색·첫 항목 크게 */
+body.brain-mode .brain .bn-column > .bn-brief { padding: 0; border: 0; background: none; overflow: hidden; box-shadow: 0 14px 34px color-mix(in srgb, var(--accent-btn) 28%, transparent); }
+body.brain-mode .brain .bn-brief .bn-briefin { color: #fff; border: 0; border-radius: 27px; padding: 20px 20px 18px;
+  background: radial-gradient(120% 90% at 100% 0%, #8fd0ff 0, transparent 55%), radial-gradient(80% 70% at 0% 100%, #2fd6c3 0, transparent 60%), linear-gradient(150deg, #3d9bff, #0a6cf0 55%, #1747c9); }
+body.brain-mode .brain .bn-brief .bn-orb { display: block; opacity: .7; }
+body.brain-mode .brain .bn-brief .bn-briefin h2 { color: rgba(255, 255, 255, .85); font-size: 11.5px; font-weight: 600; letter-spacing: .2px; }
+body.brain-mode .brain .bn-brief .bn-hero { position: relative; display: block; margin-top: 10px; font-size: 21px; font-weight: 700; line-height: 1.3; letter-spacing: -.6px; word-break: keep-all; }
+body.brain-mode .brain .bn-brief .bn-hero em { font-style: normal; color: #bff3ff; }
+body.brain-mode .brain .bn-brief .bn-briefin p { color: rgba(255, 255, 255, .88); font-size: 12px; line-height: 1.75; margin-top: 8px; }
+body.brain-mode .brain .bn-brief .bn-briefin p b { color: #fff; }
+body.brain-mode .brain .bn-brief .bn-think { color: rgba(255, 255, 255, .8); }
+body.brain-mode .brain .bn-brief .bn-kpis div { background: rgba(255, 255, 255, .15); border: 1px solid rgba(255, 255, 255, .25); border-radius: 16px; padding: 10px 11px; backdrop-filter: blur(6px); }
+body.brain-mode .brain .bn-brief .bn-kpis b { color: #fff; font-size: 26px; font-weight: 700; letter-spacing: -.8px; line-height: 1.1; }
+body.brain-mode .brain .bn-brief .bn-kpis span { color: rgba(255, 255, 255, .8); font-size: 10.5px; }
+
+body.brain-mode .brain .bn-imp { background: linear-gradient(160deg, color-mix(in srgb, var(--err) 13%, var(--panel)), var(--panel) 62%);
+  border-color: color-mix(in srgb, var(--err) 28%, var(--bn-edge)); box-shadow: 0 12px 28px color-mix(in srgb, var(--err) 14%, transparent); }
+body.brain-mode .brain .bn-imp > header h3 .ic { color: var(--err); }
+body.brain-mode .brain .bn-imp .bn-fl { background: var(--panel); border-color: var(--bn-edge); }
+body.brain-mode .brain .bn-imp .bn-when { color: #fff; background: linear-gradient(145deg, #ffb36b, #ff6a3d); border: 0; }
+body.brain-mode .brain .bn-imp .bn-fl.urgent .bn-when { background: linear-gradient(145deg, #ff7a7a, var(--err)); animation: bn-imp-ring 1.8s ease-out infinite; }
+@keyframes bn-imp-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--err) 45%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
+/* 첫 항목(가장 가까운 일정)은 크게 */
+body.brain-mode .brain .bn-imp .bn-fl:first-child { padding: 12px; gap: 12px; border-radius: 18px; }
+body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-when { height: 54px; min-width: 54px; font-size: 15px; font-weight: 800; }
+body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-when small { font-size: 9.5px; }
+body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-flt b { font-size: 14px; font-weight: 700; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+body.brain-mode .brain .bn-imp .bn-fl:first-child .bn-flt span { font-size: 11px; margin-top: 3px; }
+@media (prefers-reduced-motion: reduce) { body.brain-mode .brain .bn-imp .bn-fl.urgent .bn-when { animation: none; } body.brain-mode .brain .bn-brief .bn-orb { animation: none; } }
