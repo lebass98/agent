@@ -68,7 +68,7 @@ window.BrainAI = (() => {
   }
   const fit = () => { input.style.height = "auto"; input.style.height = `${Math.min(140, input.scrollHeight)}px`; send.disabled = !input.value.trim() || busy; };
 
-  function open(on) {
+  let open = function (on) {
     const show = on ?? panel.hidden;
     fab.setAttribute("aria-expanded", String(show));
     if (show) {
@@ -79,8 +79,7 @@ window.BrainAI = (() => {
       setTimeout(() => input.focus({ preventScroll: true }), 60);
     } else panel.hidden = true;
     document.body.classList.toggle("bai-open", show);
-  }
-  fab.onclick = () => open();
+  };
   panel.addEventListener("click", e => {
     const a = e.target.closest("[data-act]"), s = e.target.closest("[data-q]");
     if (a?.dataset.act === "close") open(false);
@@ -91,5 +90,63 @@ window.BrainAI = (() => {
   input.addEventListener("input", fit);
   input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(input.value); } });
   addEventListener("keydown", e => { if (e.key === "Escape" && !panel.hidden && $("modal")?.hidden !== false) open(false); });
-  return { open, ask };
+
+  /* ───────── 팀 업무 지시: 아래 긴 입력창 대신 단추 → 검색창형 모달(기존 #command 폼을 그대로 옮겨 넣는다) ─────────
+     데스크톱(761px 이상)만. 오른쪽 사이드바 아래 가운데 줄: 맨 아래 어시스턴트, 바로 위 업무 지시. 휴대폰은 원래 배치 */
+  const mqDesk = matchMedia("(min-width: 761px)");
+  const form = $("command"), formHome = form?.parentElement, formNext = form?.nextSibling;
+  const taskBtn = h(`<button type="button" class="bai-task" aria-haspopup="dialog" aria-label="팀에 업무 지시" title="팀에 업무 지시 (/)">${ico("send")}<i class="bai-ring" aria-hidden="true"></i></button>`);
+  const cmd = h(`<div class="bcmd" hidden><div class="bcmd-box" role="dialog" aria-label="팀에 업무 지시">
+    <div class="bcmd-head"><b>${ico("users")}팀에 업무 지시</b><small id="bcmdState"></small><button type="button" class="bai-icon" data-close title="닫기 (Esc)">${ico("x")}</button></div>
+    <div class="bcmd-slot"></div><div class="bcmd-recent"></div>
+    <p class="bcmd-hint">Enter 로 보내기 · Shift+Enter 줄바꿈 · 팀장이 계획을 세워 팀원에게 나눠 맡겨요</p></div></div>`);
+  document.body.append(cmd, taskBtn);
+  const slot = cmd.querySelector(".bcmd-slot"), recent = cmd.querySelector(".bcmd-recent");
+  function drawRecent() {
+    const goals = [...new Set((typeof allRuns === "function" ? allRuns() : []).map(r => String(r.goal || "").split("\n")[0].trim()).filter(Boolean))].slice(0, 5);
+    recent.innerHTML = goals.length ? `<p>최근 지시</p>${goals.map(g => `<button type="button" data-goal="${esc(g)}">${ico("history")}<span>${esc(g)}</span></button>`).join("")}` : "";
+  }
+  recent.addEventListener("click", e => { const b = e.target.closest("[data-goal]"); if (!b) return; const g = $("goal"); g.value = b.dataset.goal; g.dispatchEvent(new Event("input", { bubbles: true })); g.focus(); });
+  function openCmd(on) {
+    if (on) {
+      if (bai_open()) open(false);
+      cmd.hidden = false; drawRecent();
+      $("bcmdState").textContent = D.running ? `진행 중: ${D.phaseText}` : "";
+      if (!(PREF.reduce || matchMedia("(prefers-reduced-motion: reduce)").matches)) cmd.firstElementChild.animate([{ opacity: 0, transform: "translateY(-14px) scale(.97)" }, { opacity: 1, transform: "none" }], { duration: 360, easing: "cubic-bezier(.34,1.56,.64,1)" });
+      setTimeout(() => $("goal")?.focus(), 30);
+    } else cmd.hidden = true;
+    document.body.classList.toggle("bcmd-open", !!on);
+  }
+  const bai_open = () => !panel.hidden;
+  taskBtn.onclick = () => openCmd(cmd.hidden);
+  cmd.addEventListener("click", e => { if (e.target === cmd || e.target.closest("[data-close]")) openCmd(false); });
+  form?.addEventListener("submit", () => setTimeout(() => { if (UI.submitting || D.running) openCmd(false); }, 250)); // 보냈으면 닫는다
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && !cmd.hidden) { openCmd(false); return; }
+    if (e.key === "/" && cmd.hidden && mqDesk.matches && !e.target.closest?.("input, textarea, select, [contenteditable='true']") && $("modal")?.hidden !== false) { e.preventDefault(); openCmd(true); }
+  });
+  const fabOpen = open;
+  open = on => { if ((on ?? panel.hidden) && !cmd.hidden) openCmd(false); fabOpen(on); };
+
+  // 데스크톱이면 입력창을 모달로, 휴대폰이면 제자리로. 단추·패널은 오른쪽 사이드바 가운데 줄에 맞춘다
+  function layout() {
+    const desk = mqDesk.matches;
+    document.body.classList.toggle("bai-dock", desk);
+    if (form) {
+      if (desk && form.parentElement !== slot) slot.append(form);
+      if (!desk && form.parentElement === slot) { formHome.insertBefore(form, formNext); openCmd(false); }
+    }
+    const r = $("rightcol")?.getBoundingClientRect();
+    if (desk && r?.width) {
+      document.body.style.setProperty("--bai-x", `${Math.round(r.left + r.width / 2)}px`);
+      document.body.style.setProperty("--bai-right", `${Math.round(innerWidth - r.left + 12)}px`);
+    }
+  }
+  layout();
+  addEventListener("resize", layout);
+  mqDesk.addEventListener?.("change", layout);
+  if (typeof ResizeObserver === "function" && $("rightcol")) new ResizeObserver(layout).observe($("rightcol"));
+  setInterval(() => taskBtn.classList.toggle("busy", !!D.running), 1000);  // 팀이 일하는 중이면 단추 둘레가 돈다
+  fab.onclick = () => open();
+  return { open: on => open(on), ask, task: openCmd };
 })();
