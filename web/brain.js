@@ -19,7 +19,8 @@ window.Brain = (() => {
 
   let CFG = { shortcuts: [], routines: [], pins: [], calendars: [], events: [] }, CAL = { events: [], status: [] }, SKILLS = null;
   let loaded = false, offline = false;
-  const V = { cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), skAi: "all", skMine: "mine", skQ: "", edit: false };
+  let MAIL = null, mailT = 0; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
+  const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), skAi: "all", skMine: "mine", skQ: "", edit: false };
   let hiddenFloats = new Set();
   try { hiddenFloats = new Set(JSON.parse(sessionStorage.getItem("agentOffice.brain.hide") || "[]")); } catch {}
 
@@ -34,7 +35,9 @@ window.Brain = (() => {
         <div class="bn-chips" id="bnSrc"></div><div class="bn-body" id="bnCal"></div></article>
       <article class="bn-card bn-work"><header><h3>${ico("kanban")}진행 중인 업무</h3><small id="bnWorkSub"></small><button type="button" class="bn-more" data-act="board">보드 ›</button></header><div class="bn-body" id="bnWork"></div></article>
       <article class="bn-card bn-rt"><header><h3>${ico("repeat")}루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-more" data-act="routines">+ 추가·편집</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
-      <article class="bn-card bn-mail"><header><h3>${ico("mail")}메일 요약</h3><small>Gmail</small></header><div class="bn-body" id="bnMail"></div></article>
+      <article class="bn-card bn-mail"><header><h3>${ico("mail")}메일 요약</h3><small id="bnMailSub">Gmail</small>
+        <span class="bn-seg" id="bnMailView"><button type="button" data-v="key">할 일·중요</button><button type="button" data-v="all">전체</button></span>
+        <button type="button" class="bn-mini" id="bnMailRefresh" title="지금 새로 받기">${ico("history")}</button></header><div class="bn-body" id="bnMail"></div></article>
       <article class="bn-card bn-meet"><header><h3>${ico("file")}회의록</h3><small>Notion</small></header><div class="bn-body" id="bnMeet"></div></article>
       <article class="bn-card bn-apps"><header><h3>${ico("grid")}바로가기</h3><small id="bnAppsSub"></small><button type="button" class="bn-more" data-act="shortcuts">편집</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
       <article class="bn-card bn-skills"><header><h3>${ico("sparkles")}스킬</h3><small id="bnSkSub"></small>
@@ -115,6 +118,11 @@ window.Brain = (() => {
       if (e.allDay || e.e < now) continue;
       if (e.s <= soon || (e.star && e.s <= until)) out.push({ key: `e:${e.title}:${e.start}`, title: e.title, when: e.s, note: [SRC[e.src]?.[0], e.where].filter(Boolean).join(" · "), urgent: e.s <= soon, src: e.src });
     }
+    for (const m of MAIL?.items || []) {
+      if (m.tag !== "reply" || !m.due) continue;
+      const w = new Date(`${m.due}T18:00`);
+      if (w > now && w <= until) out.push({ key: `m:${m.id}`, title: `${m.from} · ${m.summary || m.subject}`, when: w, note: "메일 · 마감", src: "google" });
+    }
     const seen = new Set();
     return out.filter(f => !hiddenFloats.has(f.key) && !seen.has(f.title + +f.when) && seen.add(f.title + +f.when)).sort((a, b) => a.when - b.when).slice(0, 4);
   }
@@ -157,6 +165,8 @@ window.Brain = (() => {
     else {
       lines.push(evs.length ? `오늘 일정 ${evs.length}개${next ? `, 다음은 <b>${hm(next.s)} ${esc(next.title)}</b>` : left ? "" : " — 모두 지났어요"}.` : CFG.calendars.length ? "오늘은 잡힌 일정이 없어요." : "캘린더를 연결하면 오늘 일정을 모아 보여 드려요.");
       if (due.length) lines.push(done === due.length ? "오늘 확인할 루틴을 모두 마쳤어요 👏" : `확인할 루틴 ${due.length - done}개가 남았어요.`);
+      const reply = (MAIL?.items || []).filter(m => m.tag === "reply");
+      if (reply.length) lines.push(`답장·할 일이 있는 메일 <b>${reply.length}통</b>${reply[0] ? ` (${esc(clip(reply[0].from, 12))} — ${esc(clip(reply[0].summary || reply[0].subject, 28))})` : ""}.`);
       if (D.running) lines.push(`AI 팀이 “${esc(clip(D.shown?.goal || "", 30))}” 업무를 진행 중이에요 (${esc(D.phaseText)}).`);
     }
     const hour = now.getHours(), hi = hour < 11 ? "좋은 아침이에요" : hour < 18 ? "좋은 오후예요" : "오늘도 수고했어요";
@@ -288,8 +298,42 @@ window.Brain = (() => {
   }
 
   // 메일·회의록: 다음 단계에서 연결(무엇이 필요한지 안내)
+  const TAG = { reply: ["답장·할 일", "reply"], important: ["중요", "imp"], info: ["참고", "info"], ad: ["광고·알림", "ad"] };
+  async function loadMail(refresh = false) {
+    clearTimeout(mailT);
+    try { MAIL = await getJSON(`/api/brain/mail${refresh ? "?refresh=1" : ""}`); }
+    catch { MAIL = MAIL || { enabled: false, offline: true }; }
+    drawMail(); drawBrief(); drawFloats();
+    if (MAIL?.pending) mailT = setTimeout(() => loadMail(), 15_000); // 요약이 끝날 때까지 가끔 다시 본다
+  }
+  const ago = iso => { if (!iso) return ""; const d = new Date(iso), t = new Date(); return ymd(d) === ymd(t) ? hm(d) : `${d.getMonth() + 1}/${d.getDate()}`; };
   function drawMail() {
-    $b("bnMail").innerHTML = `<div class="bn-setup">${ico("mail")}<b>Gmail 연결 준비 중</b><p>다음 단계에서 Gmail 을 연결해 받은 메일을 AI 가 요약하고, 답장이 필요한 메일·중요 메일을 골라 보여 줘요. 브리핑과 중요 일정에도 반영돼요.</p><p class="bn-need">필요한 것: Gmail 2단계 인증 + <b>앱 비밀번호</b>(서버 .env 에만 저장)</p></div>`;
+    const box = $b("bnMail");
+    seg($b("bnMailView"), V.mail, v => { V.mail = v; store.set("agentOffice.brain.mail", v); drawMail(); });
+    $b("bnMailView").hidden = $b("bnMailRefresh").hidden = !MAIL?.enabled;
+    if (!MAIL) { box.innerHTML = loadingNote; return; }
+    if (MAIL.offline) { box.innerHTML = offlineNote("메일"); return; }
+    if (!MAIL.enabled) {
+      $b("bnMailSub").textContent = "연결 안 됨";
+      box.innerHTML = `<div class="bn-setup">${ico("mail")}<b>Gmail 을 연결하세요</b><p>컴퓨터의 <code>.env</code> 파일에 Gmail 주소와 <b>앱 비밀번호</b>를 넣으면 받은 메일을 AI 가 요약해서 답장할 메일·중요 메일을 골라 줘요. 메일함은 읽기만 해요.</p>
+        <pre class="bn-code">GMAIL_USER=내주소@gmail.com\nGMAIL_APP_PASSWORD=abcd efgh ijkl mnop</pre><p class="bn-need">앱 비밀번호: Google 계정 → 보안 → 2단계 인증 켜기 → '앱 비밀번호'에서 만들기. 저장하면 서버를 다시 켜지 않아도 돼요.</p>
+        <div><button type="button" class="bn-btn pri" id="bnMailRetry">연결 확인</button></div></div>`;
+      box.querySelector("#bnMailRetry").onclick = () => { MAIL = null; drawMail(); loadMail(true); };
+      return;
+    }
+    const items = MAIL.items || [], key = items.filter(m => m.tag === "reply" || m.tag === "important" || m.starred || (!m.tag && m.unread));
+    $b("bnMailSub").textContent = `${MAIL.user} · ${MAIL.at ? MAIL.at.slice(11) + " 받음" : ""}${MAIL.pending ? ` · ${MAIL.pending}통 요약 중` : ""}`;
+    if (MAIL.error) { box.innerHTML = `<p class="bn-empty bn-err">${ico("alert")}${esc(MAIL.error)}</p>`; return; }
+    const list = V.mail === "key" ? key : items;
+    if (!list.length) { box.innerHTML = `<p class="bn-empty">${items.length ? "답장할 메일이나 중요한 메일이 없어요. '전체'에서 모두 볼 수 있어요." : "최근 받은 메일이 없어요."}</p>`; return; }
+    box.innerHTML = `<div class="bn-mails">${list.map((m, i) => {
+      const t = TAG[m.tag];
+      return `<a class="bn-mrow${m.unread ? " unread" : ""}" href="https://mail.google.com/mail/u/0/#all/${esc(m.thread)}" target="_blank" rel="noopener noreferrer" style="animation-delay:${i * 40}ms" title="Gmail 에서 열기">
+        <span class="bn-mav" style="--h:${[...m.from].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}">${esc(m.from.slice(0, 1))}</span>
+        <span class="bn-mwho"><b>${esc(m.from)}</b>${t ? `<em class="bn-tag ${t[1]}">${t[0]}</em>` : ""}${m.due ? `<em class="bn-tag due">~${esc(m.due.slice(5).replace("-", "/"))}</em>` : ""}</span><time>${esc(ago(m.date))}</time>
+        <span class="bn-msub">${esc(m.subject)}</span>
+        <span class="bn-msum">${m.summary ? esc(m.summary) : `<i class="${MAIL.pending ? "bn-think2" : ""}">${MAIL.pending ? "요약 중…" : esc(m.snippet)}</i>`}</span></a>`;
+    }).join("")}</div>`;
   }
   function drawMeet() {
     $b("bnMeet").innerHTML = `<div class="bn-setup">${ico("file")}<b>Notion 회의록 연결 준비 중</b><p>지정한 노션 페이지·데이터베이스(주간회의, 팀별 미팅)의 최근 회의록을 요약해서 보여 주고, 할 일은 체크할 수 있게 해요.</p><p class="bn-need">${document.body.dataset.notion === "on" ? "노션 통합은 이미 연결되어 있어요. 회의록 데이터베이스만 고르면 돼요." : "필요한 것: 노션 내부 통합 토큰(이미 업무 기록에 쓰는 것) + 회의록 데이터베이스 공유"}</p></div>`;
@@ -428,11 +472,13 @@ window.Brain = (() => {
   const baseSetPhase = window.setPhase;
   if (typeof baseSetPhase === "function") window.setPhase = function (...a) { const r = baseSetPhase.apply(this, a); if (loaded) { drawBrief(); drawWork(); } return r; };
   const baseConn = window.setConn;
-  if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || !loaded)) load(); return r; };
+  if (typeof baseConn === "function") window.setConn = function (mode) { const r = baseConn.apply(this, arguments); if (mode === "live" && (offline || !loaded)) { load(); loadMail(); } return r; };
   setInterval(() => { if (loaded && !document.hidden) { drawFloats(); drawBrief(); if (V.cal === "day") drawCal(); } }, 60_000);
   setInterval(() => { if (!document.hidden && !offline) getJSON("/api/brain/calendar").then(c => { CAL = c; drawCal(); drawFloats(); drawBrief(); }, () => {}); }, 600_000);
   getJSON("/api/notion").then(n => { document.body.dataset.notion = n.enabled ? "on" : "off"; drawMeet(); }, () => {});
   render();
-  if (NET.mode === "live") load(); else setTimeout(() => { if (!loaded) load(); }, 2500);
+  if (NET.mode === "live") { load(); loadMail(); } else setTimeout(() => { if (!loaded) { load(); loadMail(); } }, 2500);
+  setInterval(() => { if (!document.hidden && MAIL?.enabled) loadMail(); }, 600_000);
+  $b("bnMailRefresh").onclick = () => { $b("bnMailRefresh").classList.add("spin"); loadMail(true).finally(() => $b("bnMailRefresh").classList.remove("spin")); };
   return { reload: load, editor };
 })();

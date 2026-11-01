@@ -121,13 +121,15 @@
 | `PUT /api/brain/{kind}` `{items: [...]}` | 목록 하나를 통째로 바꾼다. kind = `shortcuts`·`routines`·`pins`·`calendars`·`events`. 잘못된 값은 400 + 한국어 사유 |
 | `POST /api/brain/routines/{id}/check` `{day: "YYYY-MM-DD", done}` | 확인 체크 루틴의 그날 체크(최근 100일 보관) |
 | `GET /api/brain/calendar?days=14` | 구독 캘린더(iCal)+직접 넣은 일정을 합친 `{events: [{title,start,end,allDay,where,src,cal,star?}], status: [{id,ok,count|error}]}` |
+| `GET /api/brain/mail?refresh=0` | Gmail 요약(server/gmail.py). 설정이 없으면 `{enabled:false}`. 있으면 `{enabled, user(가린 주소), items:[{id,thread,from,addr,subject,date,unread,important,starred,snippet,summary,tag: reply·important·info·ad,due}], error, pending, at}`. 메일은 10분 재사용(`refresh=1` 이면 새로 받기), 요약이 없는 메일은 뒤에서 팀원에게 맡기고 `pending` 으로 알린다 |
 | `GET /api/brain/skills` | `{skills: [{ai: claude|gpt|gemini, name, desc, mine, path}]}` — 직접 만든 것(mine)이 먼저 |
 
 - 항목 모양: 바로가기 `{name,url,abbr,color}` · 루틴 `{name,kind: check|auto,at:"HH:MM",days:[mon..sun],on,goal(auto 일 때 필수),checks}` ·
   중요 일정 `{title,when(ISO),note}` · 캘린더 `{name,kind: google|phone|notion|other,url,on}`(이미 있는 캘린더는 `url` 을 빼고 보내면 기존 주소 유지) ·
   일정 `{title,start,end,where,star}`. `id` 를 그대로 보내면 같은 항목으로 본다.
 - 캘린더 주소는 `http(s)`·`webcal`(→https)만, 받은 것은 10분 동안 재사용. 같은 제목·같은 시작 시각 일정은 하나로 합친다.
-- 자동 실행 루틴(`kind: auto`)의 예약 실행, Gmail 요약, Notion 회의록은 다음 단계(아직 API 없음).
+- Gmail: `.env` 의 `GMAIL_USER`·`GMAIL_APP_PASSWORD`(앱 비밀번호)로 IMAP 읽기 전용 접속. `.env` 는 요청마다 다시 읽는다. 요약은 `cache/brain-mail.json` 에 메일 ID 별로 남긴다.
+- 자동 실행 루틴(`kind: auto`)의 예약 실행, Notion 회의록은 다음 단계(아직 API 없음).
 
 ## WebSocket 종료 코드
 

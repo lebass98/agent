@@ -9,6 +9,7 @@ import json
 import logging
 import re
 import secrets
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import brain, mcptools, notify, notion, outside, projects, teamcfg
+from . import brain, gmail, mcptools, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -421,6 +422,8 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     tools_store = mcptools.Store(Path(tools_file) if tools_file else runs_dir.parent / "mcp-servers.json")
     recorder = notion.Notion()
     brain_store = brain.Store(Path(brain_file) if brain_file else runs_dir.parent / "cache" / "brain.json")
+    mail_sums = gmail.Summaries((Path(brain_file).parent if brain_file else runs_dir.parent / "cache") / "brain-mail.json")
+    mail = {"items": [], "at": 0.0, "error": "", "task": None, "fail": 0.0}  # 받은 메일(10분 재사용)·요약 작업
     dist_dir = runs_dir.parent / "dist"  # 휴대폰 앱 릴리즈(scripts/release.py, Git 제외)
     _mark_interrupted(runs_dir)
     background: set[asyncio.Task] = set()
@@ -662,6 +665,42 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
     @api.get("/brain/skills")
     async def brain_skills():
         return {"skills": await asyncio.to_thread(brain.skills, runs_dir.parent)}
+
+    async def summarize_mail(todo: list[dict], cfg: dict) -> None:
+        """요약이 없는 메일을 팀원 한 명에게 한 번에 맡긴다(실패하면 10분 뒤 다시)."""
+        name = cfg["member"] if cfg["member"] in team.members else "gemini" if "gemini" in team.members else team.leader.name
+        try:
+            for i in range(0, len(todo), 20):
+                part = todo[i:i + 20]
+                answer = await asyncio.wait_for(team.ask(name, gmail.prompt(part)), timeout=240)
+                found = gmail.parse_answer(answer, {m["id"] for m in part})
+                if not found:
+                    raise ValueError("요약 형식이 맞지 않음")
+                await asyncio.to_thread(mail_sums.add, found)
+        except Exception as e:
+            log.warning("메일 요약 실패: %s", e)
+            mail["fail"] = time.time()
+
+    @api.get("/brain/mail")
+    async def brain_mail(refresh: bool = False):
+        cfg = gmail.config()
+        if not cfg:
+            return {"enabled": False}
+        now = time.time()
+        if refresh or now - mail["at"] > 600:
+            try:
+                mail["items"], mail["error"] = await asyncio.to_thread(gmail.fetch, cfg), ""
+            except gmail.MailError as e:
+                mail["items"], mail["error"] = [], str(e)
+            mail["at"] = now
+        cached = mail_sums.load()
+        todo = [m for m in mail["items"] if m["id"] not in cached]
+        busy = mail["task"] is not None and not mail["task"].done()
+        if todo and not busy and (refresh or now - mail["fail"] > 600):
+            mail["task"] = asyncio.create_task(summarize_mail(todo, cfg))
+            busy = True
+        return {"enabled": True, "user": gmail.masked(cfg["user"]), "items": gmail.public(mail["items"], cached), "error": mail["error"],
+                "pending": len(todo) if busy else 0, "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes")}
 
     # ── 노션 업무 기록 ──
     @api.get("/notion")

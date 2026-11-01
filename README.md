@@ -499,3 +499,5 @@ pytest -v
 - Moxie 리소스 기법 20여 종을 위젯 동작으로 적용하고 카드마다 쓴 리소스 표시(예시 데이터)
 - 브레인 모드를 기본 공간으로 추가: 3D 없이 업무 화면(중요 일정 플로팅·브리핑·통합 캘린더·진행 중인 업무·루틴·바로가기·스킬)
 - 서버 /api/brain*: 설정 저장(cache/brain.json)·iCal 캘린더 구독(반복 일정)·스킬 목록, 테스트 추가. Gmail·Notion 회의록·루틴 예약 실행은 다음 단계
+- Gmail 메일 요약(server/gmail.py, /api/brain/mail): .env 의 GMAIL_USER·GMAIL_APP_PASSWORD 로 읽기 전용 접속, 팀원(기본 Gemini)이 한 번에 요약·분류(답장·중요·참고·광고)
+- 브레인 메일 카드(할 일·중요/전체, Gmail 에서 열기)·브리핑·마감 메일 플로팅 반영, .env.example 안내와 테스트 추가
