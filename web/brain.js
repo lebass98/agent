@@ -132,7 +132,16 @@ window.Brain = (() => {
   if (pane) $b("bnWork").append(pane);
   // 현재 업무 카드(목표·단계·완료율·새 업무)는 모든 화면에서 업무 칸 안으로.
   const strip = document.querySelector(".run-strip"), mqDesk = matchMedia("(min-width: 761px)");
+  // 휴대폰: 인사말 줄을 없애고 '팀 활동' 단추는 상단 바(서버 연결 왼쪽)로 — 업무 화면 공간을 아낀다
+  const teamBtn = $b("bnTeamToggle"), welcome = ui.querySelector(".bn-welcome"), tbRight = document.querySelector(".tb-right");
+  const placeTeam = () => {
+    const phone = !mqDesk.matches && tbRight;
+    if (phone && teamBtn.parentElement !== tbRight) tbRight.prepend(teamBtn);
+    if (!phone && teamBtn.parentElement !== welcome) welcome.append(teamBtn);
+    teamBtn.classList.toggle("bn-tb-team", !!phone);
+  };
   const placeStrip = () => {
+    placeTeam();
     if (!strip) return;
     $b("bnWork").prepend(strip);
     place();
