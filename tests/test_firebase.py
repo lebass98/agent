@@ -77,7 +77,7 @@ def test_conflict_newer_wins_and_loser_kept(tmp_path, monkeypatch):
     o.sync()
     assert h.sync()["pulled"] == ["brain.json"]
     assert json.loads((h.dir / "brain.json").read_text()) == {"v": "office"}
-    kept = list((h.dir / "firebase-conflicts").glob("brain.*.json"))
+    kept = list((h.dir / "firebase-conflicts").glob("brain.local.*.json"))
     assert len(kept) == 1 and json.loads(kept[0].read_text()) == {"v": "home"}   # 진 쪽은 지우지 않고 남긴다
 
 
@@ -102,3 +102,33 @@ def test_api_status(make_client):
     with make_client() as c:
         assert c.get("/api/brain/firebase").json()["enabled"] is False
         assert c.post("/api/brain/firebase/sync").status_code == 400
+
+
+def test_accumulating_files_are_merged(tmp_path, monkeypatch):
+    monkeypatch.setattr(firebase, "project", lambda: "demo-project")
+    fs = FakeFirestore()
+    h, o = machine(fs, tmp_path / "home", "home"), machine(fs, tmp_path / "office", "office")
+    write(h.dir / "brain-mail-store.json", {"items": [{"id": "a", "date": "2026-11-01"}], "at": 1, "span": 30}, ago=300)
+    write(h.dir / "brain-meet-done.json", {"p:0": True}, ago=300)
+    h.sync(), o.sync()
+    write(h.dir / "brain-mail-store.json", {"items": [{"id": "a", "date": "2026-11-01"}, {"id": "h", "date": "2026-11-02"}], "at": 5, "span": 30}, ago=60)
+    write(o.dir / "brain-mail-store.json", {"items": [{"id": "a", "date": "2026-11-01"}, {"id": "o", "date": "2026-11-03"}], "at": 9, "span": 30}, ago=5)
+    write(h.dir / "brain-meet-done.json", {"p:0": True, "p:1": True}, ago=60)
+    write(o.dir / "brain-meet-done.json", {"p:0": True, "q:2": True}, ago=5)
+    o.sync(), h.sync(), o.sync()                                              # 양쪽 다 바뀐 쌓이는 파일은 합친다
+    for d in (h.dir, o.dir):
+        assert [m["id"] for m in json.loads((d / "brain-mail-store.json").read_text())["items"]] == ["o", "h", "a"]
+        assert json.loads((d / "brain-meet-done.json").read_text()) == {"p:0": True, "p:1": True, "q:2": True}
+
+
+def test_first_sync_keeps_overwritten_remote(tmp_path, monkeypatch):
+    monkeypatch.setattr(firebase, "project", lambda: "demo-project")
+    fs = FakeFirestore()
+    h = machine(fs, tmp_path / "home", "home")
+    write(h.dir / "brain.json", {"v": "home"}, ago=500)
+    h.sync()
+    o = machine(fs, tmp_path / "office", "office")
+    write(o.dir / "brain.json", {"v": "office"}, ago=5)                        # 처음 맞출 때 이쪽이 더 최근이면 올리되
+    o.sync()
+    kept = list((o.dir / "firebase-conflicts").glob("brain.remote.*.json"))
+    assert len(kept) == 1 and json.loads(kept[0].read_text()) == {"v": "home"}   # 덮어쓴 Firestore 쪽을 남긴다

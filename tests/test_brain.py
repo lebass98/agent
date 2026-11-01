@@ -160,3 +160,15 @@ def test_calendar_connector(make_client, monkeypatch):
                 break
             time.sleep(.05)
         assert {e["title"] for e in out["events"]} == {"투자사 미팅", "노션 일정"} and out["conn"]["count"] == 2
+
+
+def test_synced_calendar_without_url_is_editable(tmp_path):
+    """다른 컴퓨터에서 Firebase 로 온 캘린더(비공개 주소 없음)도 이름·켜기를 고칠 수 있다"""
+    from server import brain as b
+    s = b.Store(tmp_path / "brain.json")
+    s._write({"calendars": [{"id": "c1", "name": "회사", "kind": "google", "on": True}]})
+    out = s.put("calendars", [{"id": "c1", "name": "회사 일정", "kind": "google", "on": False}])
+    assert out["calendars"][0]["name"] == "회사 일정"
+    assert b.calendar(s)["status"] == []                                     # 꺼 둔 캘린더는 읽지 않는다
+    s.put("calendars", [{"id": "c1", "name": "회사 일정", "kind": "google", "on": True}])
+    assert "주소" in b.calendar(s)["status"][0]["error"]                     # 주소 없으면 오류 대신 안내

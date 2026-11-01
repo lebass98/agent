@@ -28,7 +28,7 @@ async def ask(prompt: str, tools: str, model: str = "haiku", what: str = "커넥
     if not exe:
         raise ConnectorError("claude CLI 가 없어요. Claude Code 를 설치하고 로그인하세요.")
     cmd = [exe, "-p", "--model", model, "--disallowedTools", BLOCK_TOOLS, "--output-format", "json"]
-    cmd += ["--allowedTools", tools] if tools else ["--tools", "", "--max-turns", "1"]   # 도구 없이 글만
+    cmd += ["--allowedTools", tools, "--permission-mode", "dontAsk"] if tools else ["--tools", "", "--max-turns", "1"]   # 허락한 읽기 도구만(나머지는 거절) / 도구 없이 글만
     with tempfile.TemporaryDirectory(prefix="agent-conn-") as tmp:
         proc = await asyncio.create_subprocess_exec(*cmd, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                                                     stderr=asyncio.subprocess.PIPE, cwd=tmp, env=cli._env("ANTHROPIC_API_KEY"))

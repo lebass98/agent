@@ -997,6 +997,7 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
                 last = json.loads(cal_file.read_text(encoding="utf-8"))
                 cal.update(items=list(last["items"]), at=float(last["at"]))
     fb_sync.on_pull = fb_reload
+    fb_sync.locks = {brain_store.file.name: brain_store.lock, mail_store.file.name: mail_store.lock}   # 받아 쓰는 동안 저장과 겹치지 않게
 
     def read_done() -> dict:
         try:

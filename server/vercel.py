@@ -8,7 +8,6 @@
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import urllib.error
@@ -79,12 +78,12 @@ def _abbr(name: str) -> str:
 
 
 def refresh_cli_login() -> bool:
-    """Vercel CLI 를 한 번 실행해 저장된 로그인을 갱신한다(설치돼 있지 않으면 npx). 성공하면 True"""
+    """설치된 Vercel CLI 를 한 번 실행해 저장된 로그인을 갱신한다(없으면 아무것도 받지 않고 False). 성공하면 True"""
     from agentteam import cli
     exe = cli.which("vercel")
-    cmd = [exe, "whoami"] if exe else ([shutil.which("npx"), "--yes", "vercel@latest", "whoami"] if shutil.which("npx") else None)
-    if not cmd:
+    if not exe:
         return False
+    cmd = [exe, "whoami"]
     try:
         return subprocess.run(cmd, capture_output=True, timeout=120, env=cli._env(), stdin=subprocess.DEVNULL).returncode == 0
     except (OSError, subprocess.TimeoutExpired):

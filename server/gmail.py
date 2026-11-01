@@ -103,10 +103,17 @@ class Store:
         except (OSError, ValueError, TypeError):
             self.items, self.at, self.span = [], 0.0, 0   # span: 며칠 치를 거슬러 받아 두었는지(기간을 늘리면 그만큼 한 번 더 받는다)
 
+    def _read(self) -> tuple[list, float, int]:
+        try:
+            d = json.loads(self.file.read_text(encoding="utf-8"))
+            return list(d.get("items") or []), float(d.get("at") or 0), int(d.get("span") or (21 if d.get("full") else 0))
+        except (OSError, ValueError, TypeError):
+            return [], 0.0, 0
+
     def reload(self) -> None:
         """다른 컴퓨터에서 받은 파일로 다시 읽기(Firebase 동기화)"""
         with self.lock:
-            self.__init__(self.file)
+            self.items, self.at, self.span = self._read()
 
     def ids(self) -> list[str]:
         return [m["id"] for m in self.items]
@@ -118,7 +125,10 @@ class Store:
 
     def merge(self, found: list[dict], span: int = 0) -> int:
         with self.lock:
-            self.span = max(self.span, span)
+            disk, at, sp = self._read()            # 다른 서버·다른 컴퓨터(Firebase)가 그사이 더한 것도 살린다
+            mine = set(self.ids())
+            self.items += [m for m in disk if m.get("id") not in mine]
+            self.at, self.span = max(self.at, at), max(self.span, sp, span)
             have = set(self.ids())
             new = [m for m in found if m["id"] not in have and keep(m)]
             self.items = sorted(self.items + new, key=lambda m: m.get("date", ""), reverse=True)[:STORE_LIMIT]

@@ -138,7 +138,8 @@ class Store:
     @staticmethod
     def _calendars(x: dict, old: dict) -> dict:
         prev = old.get(x.get("id"))
-        url = prev["url"] if prev and not x.get("url") else _url(x.get("url"), "캘린더 주소")
+        # 다른 컴퓨터에서 동기화로 온 캘린더는 비공개 주소가 없다(Firebase 에 올리지 않음) — 이름·켜기만 고칠 수 있다
+        url = prev.get("url", "") if prev and not x.get("url") else _url(x.get("url"), "캘린더 주소")
         kind = x.get("kind") if x.get("kind") in CAL_KINDS else "other"
         return {"id": prev["id"] if prev else _id(), "name": _text(x.get("name"), 40, "캘린더 이름"), "kind": kind, "url": url, "on": bool(x.get("on", True))}
 
@@ -260,6 +261,9 @@ def calendar(store: Store, days_before: int = 1, days_after: int = 14, extra: li
     events, status = [], []
     for c in data["calendars"]:
         if not c.get("on", True):
+            continue
+        if not c.get("url"):
+            status.append({"id": c["id"], "ok": False, "error": "이 컴퓨터에는 캘린더 주소가 없어요. 주소를 다시 넣어 주세요."})
             continue
         try:
             got = parse_ics(_fetch(c["url"]), start, end)

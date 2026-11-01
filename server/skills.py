@@ -10,6 +10,7 @@ import asyncio
 import json
 import os
 import re
+import secrets
 import time
 from datetime import datetime
 from pathlib import Path
@@ -96,7 +97,7 @@ class Runs:
         if skill["ai"] == "gemini":
             raise SkillError("Gemini 스킬 실행은 아직 지원하지 않아요.")
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        rid = f"{stamp}-{re.sub(r'[^a-z0-9-]', '-', skill['name'].lower())[:40]}"
+        rid = f"{stamp}-{re.sub(r'[^a-z0-9-]', '-', skill['name'].lower())[:36]}-{secrets.token_hex(2)}"
         folder = self.root / rid
         folder.mkdir(parents=True, exist_ok=True)
         run = {"id": rid, "ai": skill["ai"], "name": skill["name"], "input": text[:2000], "status": "running",

@@ -5,14 +5,14 @@
   토큰은 화면·로그로 보내지 않는다. (서비스 계정 키 파일을 쓰려면 다음 단계에서)
 - 자료: `cache/brain*.json` 파일마다 Firestore 문서 하나(`agent-brain/<파일 이름>`)에 gzip 으로 올린다.
 - 양방향(집·회사 컴퓨터): 1분마다 마지막 동기화(`cache/.firebase-sync.json`) 이후 이쪽에서 바뀐 파일은 올리고, 저쪽에서 바뀐 파일은 받는다.
-  양쪽 다 바뀌었으면 더 최근에 고친 쪽이 이기고, 진 이 컴퓨터 파일은 `cache/firebase-conflicts/` 에 남긴다.
+  양쪽 다 바뀌었을 때: 쌓이는 파일(메일 목록·메일 요약·회의 할 일 체크)은 둘을 합치고, 나머지는 더 최근에 고친 쪽이 이긴다.
+  덮어써지는 쪽(이 컴퓨터 파일이든 Firestore 쪽이든)은 `cache/firebase-conflicts/` 에 남긴다(최근 KEEP_CONFLICTS 개).
   컴퓨터마다 `agent-brain-hosts/<이름>` 에 1분마다 신호를 남겨, 다른 컴퓨터 서버가 같이 켜져 있으면 상태에 알린다.
 - 스킬 실행 기록(brain-skill-runs.json)은 결과 파일이 그 컴퓨터에만 있어 동기화하지 않는다.
 - 비밀: 캘린더 iCal 비공개 주소(`brain.json` 의 calendars[].url)는 올리지 않는다. notify.json·.env 도 올리지 않는다.
 - Firestore 규칙은 닫혀 있어(브라우저 접근 불가) 이 서버의 로그인으로만 읽고 쓴다.
 """
 import base64
-import shutil
 import socket
 import gzip
 import json
@@ -29,6 +29,27 @@ PATTERN = "brain*.json"
 SKIP = {"brain-skill-runs.json"}
 HOSTS = "agent-brain-hosts"
 ALIVE = 180  # 이 시간 안에 신호가 있으면 켜져 있는 서버
+KEEP_CONFLICTS = 30
+
+
+def _merge_mail(a: dict, b: dict) -> dict:
+    """메일 목록: 두 쪽 메일을 id 로 합친다(이쪽 요약이 먼저)"""
+    items, seen = [], set()
+    for m in (a.get("items") or []) + (b.get("items") or []):
+        if isinstance(m, dict) and m.get("id") not in seen:
+            seen.add(m.get("id"))
+            items.append(m)
+    items.sort(key=lambda m: m.get("date", ""), reverse=True)
+    return {"items": items[:300], "at": max(float(a.get("at") or 0), float(b.get("at") or 0)),
+            "span": max(int(a.get("span") or 0), int(b.get("span") or 0))}
+
+
+def _merge_dict(a: dict, b: dict) -> dict:
+    """메일 요약·할 일 체크처럼 키마다 쌓이는 파일: 둘을 합친다(이쪽이 먼저)"""
+    return (b if isinstance(b, dict) else {}) | (a if isinstance(a, dict) else {})
+
+
+MERGE = {"brain-mail-store.json": _merge_mail, "brain-mail-detail.json": _merge_dict, "brain-meet-done.json": _merge_dict}
 TIMEOUT = 20
 CLI_CONFIG = Path.home() / ".config/configstore/firebase-tools.json"
 
@@ -124,6 +145,7 @@ class Sync:
     def __init__(self, cache_dir: Path, auth: Auth | None = None, host: str | None = None, on_pull=None):
         self.dir, self.auth, self.host = cache_dir, auth or Auth(), host or host_name()
         self.on_pull = on_pull                      # 받은 파일 이름으로 불러 메모리 속 자료를 다시 읽게
+        self.locks: dict = {}                       # 파일 이름 → 그 파일을 쓰는 저장소의 잠금(받아 쓰는 동안 같이 잡는다)
         self.state_file = cache_dir / ".firebase-sync.json"
         try:
             self.base: dict = json.loads(self.state_file.read_text(encoding="utf-8"))
@@ -176,23 +198,63 @@ class Sync:
         self.base[f.name] = {"local": mt, "remote": at}
         self.pushed.append(f.name)
 
-    def _pull(self, name: str, r: dict, backup: bool = False) -> bool:
+    def _keep(self, name: str, raw: bytes, side: str) -> None:
+        """덮어써지기 전 내용을 cache/firebase-conflicts/ 에 남긴다(오래된 것부터 정리)"""
+        keep = self.dir / "firebase-conflicts"
+        keep.mkdir(parents=True, exist_ok=True)
+        (keep / f"{Path(name).stem}.{side}.{time.strftime('%Y%m%d-%H%M%S')}.json").write_bytes(raw)
+        for old in sorted(keep.glob("*.json"), key=lambda p: p.stat().st_mtime)[:-KEEP_CONFLICTS]:
+            old.unlink(missing_ok=True)
+
+    @staticmethod
+    def _raw(r: dict) -> bytes | None:
         try:
             raw = gzip.decompress(base64.b64decode(r["data"]))
             json.loads(raw)
-        except (ValueError, OSError):
+            return raw
+        except (ValueError, OSError, KeyError):
+            return None
+
+    def _write_local(self, f: Path, raw: bytes) -> None:
+        lock = self.locks.get(f.name)
+        if lock:
+            lock.acquire()
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+            tmp = f.with_suffix(".fbtmp")
+            tmp.write_bytes(raw)
+            os.replace(tmp, f)
+        finally:
+            if lock:
+                lock.release()
+
+    def _merge(self, proj: str, f: Path, r: dict) -> bool:
+        """쌓이는 파일: 이쪽과 Firestore 쪽을 합쳐 양쪽에 쓴다"""
+        raw = self._raw(r)
+        try:
+            mine = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        if raw is None:
+            return False
+        merged = json.dumps(MERGE[f.name](mine, json.loads(raw)), ensure_ascii=False).encode()
+        self._write_local(f, merged)
+        self.pulled.append(f.name)
+        if self.on_pull:
+            self.on_pull(f.name)
+        self._push(proj, f)
+        return True
+
+    def _pull(self, name: str, r: dict, backup: bool = False) -> bool:
+        raw = self._raw(r)
+        if raw is None:
             return False
         f = self.dir / name
         if backup and f.exists():
-            keep = self.dir / "firebase-conflicts"
-            keep.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, keep / f"{f.stem}.{time.strftime('%Y%m%d-%H%M%S')}.json")
+            self._keep(name, f.read_bytes(), "local")
         if name == "brain.json" and f.exists():
             raw = _keep_calendar_urls(raw, f)
-        self.dir.mkdir(parents=True, exist_ok=True)
-        tmp = f.with_suffix(".fbtmp")
-        tmp.write_bytes(raw)
-        os.replace(tmp, f)
+        self._write_local(f, raw)
         self.base[name] = {"local": f.stat().st_mtime, "remote": r["at"]}
         self.pulled.append(name)
         if self.on_pull:
@@ -218,21 +280,21 @@ class Sync:
                 self._push(proj, f)
             elif r and not f:
                 self._pull(name, r)
-            elif b is None:                                          # 처음 맞춰 볼 때: 더 최근에 고친 쪽
-                if r["mtime"] > lm + 1:
-                    self._pull(name, r, backup=True)
-                elif lm > r["mtime"] + 1:
-                    self._push(proj, f)
-                else:
+            elif b is None or (lm != b.get("local") and r["at"] != b.get("remote")):
+                # 처음 맞춰 보거나 양쪽 다 바뀜: 쌓이는 파일은 합치고, 나머지는 최근 것이 이기며 진 쪽은 남긴다
+                if b is None and abs(r["mtime"] - lm) <= 1:
                     self.base[name] = {"local": lm, "remote": r["at"]}
+                elif name in MERGE:
+                    self._merge(proj, f, r)
+                elif r["mtime"] > lm:
+                    self._pull(name, r, backup=True)
+                else:
+                    if (raw := self._raw(r)) is not None:
+                        self._keep(name, raw, "remote")
+                    self._push(proj, f)
             else:
                 mine, theirs = lm != b.get("local"), r["at"] != b.get("remote")
-                if mine and theirs:                                  # 양쪽 다 바뀜: 최근 것이 이기고 진 쪽은 남긴다
-                    if r["mtime"] > lm:
-                        self._pull(name, r, backup=True)
-                    else:
-                        self._push(proj, f)
-                elif theirs:
+                if theirs:
                     self._pull(name, r)
                 elif mine:
                     self._push(proj, f)

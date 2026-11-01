@@ -88,7 +88,7 @@ def test_mail_api_claude_and_fallback(make_client, tmp_path, monkeypatch):
         assert first["source"] == "claude" and "앱 비밀번호" in first["note"] and first["error"] == ""
         for _ in range(200):
             got = c.get("/api/brain/mail").json()
-            if got["items"]:
+            if got["items"] and not got["loading"]:     # 목록이 먼저 채워지고 '불러오는 중'이 조금 뒤에 꺼진다
                 break
             time.sleep(.05)
         assert got["items"][0]["summary"] == "요청" and not got["loading"] and calls == ["haiku"]
