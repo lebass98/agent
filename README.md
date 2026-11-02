@@ -565,3 +565,4 @@ pytest -v
 - Vercel CLI 가 없을 때 npx 로 내려받아 실행하지 않음, 스킬 실행 id 겹침 방지, 가끔 실패하던 메일 테스트 정리
 - Claude 스킬 실행에서 Gmail·노션 읽기 연결을 빼 웹 접근과 함께 쓰이지 않게(메일 속 지시로 내용이 밖으로 새는 길 차단)
 - Codex 스킬은 workspace-write 샌드박스에 네트워크를 명시적으로 끄고, 작업 폴더 밖 파일을 읽지 말라고 안내
+- Firebase 동기화: firebase-tools 가 nvm·직접 받은 node 경로에 깔린 컴퓨터에서도 찾도록 수정

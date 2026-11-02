@@ -18,6 +18,7 @@ import gzip
 import json
 import os
 import re
+import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -73,7 +74,12 @@ def project() -> str:
 
 def _cli_client() -> tuple[str, str]:
     """Firebase CLI 의 OAuth 클라이언트(설치된 firebase-tools 에서 읽는다)"""
-    for base in (Path.home() / ".npm-global/lib/node_modules", Path("/usr/local/lib/node_modules"), Path("/opt/homebrew/lib/node_modules")):
+    bases = [Path.home() / ".npm-global/lib/node_modules", Path("/usr/local/lib/node_modules"), Path("/opt/homebrew/lib/node_modules")]
+    exe = shutil.which("firebase") or next((str(p) for p in Path.home().glob(".local/share/node/*/bin/firebase")), None)
+    if exe:  # nvm·직접 받은 node 처럼 다른 곳에 깔린 경우: 실행 파일의 실제 위치에서 node_modules 를 찾는다
+        real = Path(os.path.realpath(exe))
+        bases += [p for p in real.parents if p.name == "node_modules"][:1]
+    for base in bases:
         f = base / "firebase-tools/lib/api.js"
         try:
             src = f.read_text(encoding="utf-8")
