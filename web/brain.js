@@ -20,6 +20,7 @@ window.Brain = (() => {
   let CFG = { shortcuts: [], routines: [], pins: [], calendars: [], events: [] }, CAL = { events: [], status: [] }, SKILLS = null;
   let loaded = false, offline = false;
   let MAIL = null, mailT = 0, MEET = null, meetT = 0, meetOpen = -1; // /api/brain/mail 결과 {enabled, user, items, error, pending, at}
+  let MCAL = null, mcalT = 0, mcalKnown = null; // 메일에서 찾은 일정 제안(/api/brain/mailcal) — 승인해야 캘린더에 들어간다
   let RUNS = [], runsT = 0, VERCEL = null; // Vercel CLI 연결 상태 // 스킬 실행 기록(/api/brain/skills/runs)
   const V = { mail: store.get("agentOffice.brain.mail") === "all" ? "all" : "key", cal: store.get("agentOffice.brain.cal") === "week" ? "week" : "day", src: new Set(), date: ymd(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1), skAi: "all", skMine: "mine", skQ: "", edit: false };
   let hiddenFloats = new Set();
@@ -39,7 +40,7 @@ window.Brain = (() => {
       <article class="bn-card bn-rt"><header><h3>${ico("repeat")}나의 루틴</h3><small id="bnRtSub"></small><button type="button" class="bn-mini" data-act="routines" title="루틴 추가·편집" aria-label="루틴 추가·편집">${ico("edit")}</button></header><div class="bn-body"><div id="bnRt"></div><div class="bn-streak" id="bnStreak"></div></div></article>
       <article class="bn-card bn-mail"><header><h3>${ico("mail")}이메일 브리핑</h3><small id="bnMailSub">Gmail</small>
         <span class="bn-seg" id="bnMailView"><button type="button" data-v="key">할 일·중요</button><button type="button" data-v="all">전체</button></span>
-        <button type="button" class="bn-mini" id="bnMailRefresh" title="다시 불러오기 — 새 업무 메일만 더 가져와 쌓아요" aria-label="다시 불러오기">${ico("history")}</button></header><div class="bn-body" id="bnMail"></div></article>
+        <button type="button" class="bn-mini" id="bnMailRefresh" title="다시 불러오기 — 새 업무 메일만 더 가져와 쌓아요" aria-label="다시 불러오기">${ico("history")}</button></header><div class="bn-mcal" id="bnMcal" hidden aria-live="polite"></div><div class="bn-body" id="bnMail"></div></article>
       <article class="bn-card bn-meet"><header><h3>${ico("file")}회의 노트</h3><small id="bnMeetSub">Notion</small>
         <button type="button" class="bn-mini" data-act="meetings" title="회의 지정" aria-label="회의 지정">${ico("pin")}</button><button type="button" class="bn-mini" id="bnMeetRefresh" title="지금 새로 읽기">${ico("history")}</button></header><div class="bn-body" id="bnMeet"></div></article>
       <article class="bn-card bn-apps"><header><h3>${ico("grid")}내 서비스</h3><button type="button" class="bn-mini" id="bnAppsSub" data-act="vercel" title="Vercel 프로젝트를 바로가기로 가져오기" aria-label="Vercel 가져오기">${ico("vercel")}</button><button type="button" class="bn-mini" data-act="shortcuts" title="바로가기 편집" aria-label="바로가기 편집">${ico("edit")}</button></header><div class="bn-body"><div class="bn-tiles" id="bnApps"></div></div></article>
@@ -410,6 +411,7 @@ window.Brain = (() => {
     catch { MAIL = MAIL || { enabled: false, offline: true }; }
     drawMail(); drawBrief(); drawFloats();
     if (MAIL?.pending || MAIL?.loading) { mailT = setTimeout(() => loadMail(), 10_000); return; } // 가져오기·요약이 끝날 때까지
+    if (MAIL?.enabled) loadMcal();
     if (mailAsked && (wasLoading || refresh) && MAIL?.enabled) {
       mailAsked = false;
       toast(MAIL.error ? MAIL.error : MAIL.added ? `새 업무 메일 ${MAIL.added}통을 더했어요` : "새로 온 업무 메일이 없어요", MAIL.error ? "error" : "info", 3500);
@@ -442,6 +444,91 @@ window.Brain = (() => {
         (d.actions?.length ? `<h3 class="sec">할 일</h3><ul class="bn-macts">${d.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""));
     };
     poll();
+  }
+  /* ───────── 메일 → 일정 제안(승인해야 등록) ───────── */
+  const KIND = { meeting: "일정", deadline: "마감", period: "기간" };
+  const mdLabel = x => {
+    const s = new Date(x.start), e = new Date(x.end || x.start), wd = d => "일월화수목금토"[d.getDay()];
+    const day = d => `${d.getMonth() + 1}/${d.getDate()}(${wd(d)})`;
+    if (x.allDay) return ymd(s) === ymd(e) ? day(s) : `${day(s)}~${day(e)}`;
+    return `${day(s)} ${hm(s)}${ymd(s) === ymd(e) ? `–${hm(e)}` : ` ~ ${day(e)} ${hm(e)}`}`;
+  };
+  async function loadMcal(refresh = false) {
+    clearTimeout(mcalT);
+    try { MCAL = await getJSON(`/api/brain/mailcal${refresh ? "?refresh=1" : ""}`); } catch { return; }
+    const ids = new Set((MCAL.items || []).map(x => x.id));
+    if (mcalKnown && !MCAL.loading) {   // 새로 찾은 제안이 있으면 알린다(처음 열 때는 조용히)
+      const fresh = [...ids].filter(i => !mcalKnown.has(i)).length;
+      if (fresh) toast(`메일에서 일정 ${fresh}건을 찾았어요 — 이메일 브리핑에서 등록하거나 취소하세요`, "info", 6000);
+    }
+    if (!MCAL.loading) mcalKnown = ids;
+    drawMcal();
+    if (MCAL.loading) mcalT = setTimeout(() => loadMcal(), 8000);
+  }
+  function drawMcal() {
+    const box = $b("bnMcal"), items = MCAL?.items || [];
+    box.hidden = !MCAL || (!items.length && !MCAL.loading);
+    if (box.hidden) return;
+    box.innerHTML = `<div class="bn-mcal-head">${ico("calendar")}<b>메일에서 찾은 일정</b>${items.length ? `<em>${items.length}</em>` : ""}<small>${MCAL.loading ? `<span class="bn-think2">메일 ${MCAL.looking}통에서 일정을 찾는 중…</span>` : "등록해야 캘린더에 들어가요"}</small></div>
+      <div class="bn-mcal-list">${items.map(x => `<div class="bn-mcal-row" data-id="${esc(x.id)}">
+        <span class="bn-mcal-when"><em class="bn-tag ${x.kind === "deadline" ? "due" : "info"}">${KIND[x.kind] || "일정"}</em>${esc(mdLabel(x))}</span>
+        <button type="button" class="bn-mcal-title" data-mail="${esc(x.mail)}" title="원래 메일 보기">${esc(x.title)}<small>${esc([x.where, x.from].filter(Boolean).join(" · "))}</small></button>
+        <span class="bn-mcal-acts"><button type="button" class="bn-btn pri" data-ok="${esc(x.id)}">등록</button><button type="button" class="bn-btn" data-no="${esc(x.id)}">취소</button></span></div>`).join("")}</div>`;
+    box.onclick = async e => {
+      const ok = e.target.closest("[data-ok]"), no = e.target.closest("[data-no]"), m = e.target.closest("[data-mail]");
+      if (ok) return mcalDialog(items.find(x => x.id === ok.dataset.ok));
+      if (m) return mailDialog((MAIL?.items || []).find(x => x.id === m.dataset.mail));
+      if (no) {
+        no.disabled = true;
+        try { await decideMcal(no.dataset.no, { action: "dismiss" }); toast("이 일정은 등록하지 않았어요", "info", 2500); }
+        catch (err) { toast(err.message, "error"); no.disabled = false; }
+      }
+    };
+  }
+  async function decideMcal(id, body) {
+    const r = await api(`/api/brain/mailcal/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : `처리하지 못했어요 (${r.status})`);
+    if (MCAL) MCAL.items = (MCAL.items || []).filter(x => x.id !== id);
+    if (mcalKnown) mcalKnown.delete(id);
+    drawMcal();
+    if (j.brain) { CFG = j.brain; loadCal(); }
+    return j;
+  }
+  // [등록] → 고칠 수 있는 창(제목·종일·시작·끝·장소·중요). [이대로 등록]을 눌러야 캘린더에 들어간다
+  function mcalDialog(x) {
+    if (!x) return;
+    const f = { title: el("input", { type: "text", value: x.title, maxlength: 80, required: true }),
+      allDay: el("input", { type: "checkbox", checked: !!x.allDay }),
+      sd: el("input", { type: "date", value: x.start.slice(0, 10) }), st: el("input", { type: "time", value: x.allDay ? "09:00" : x.start.slice(11, 16) }),
+      ed: el("input", { type: "date", value: (x.end || x.start).slice(0, 10) }), et: el("input", { type: "time", value: x.allDay ? "10:00" : (x.end || x.start).slice(11, 16) }),
+      where: el("input", { type: "text", value: x.where || "", placeholder: "장소(선택)" }), star: el("input", { type: "checkbox", checked: x.kind === "deadline" }) };
+    const sync = () => { f.st.hidden = f.et.hidden = f.allDay.checked; };
+    f.allDay.onchange = sync; sync();
+    f.sd.onchange = () => { if (f.ed.value < f.sd.value) f.ed.value = f.sd.value; };
+    const row = (label, ...kids) => el("label", { class: "bn-field" }, el("span", { text: label }), el("span", { class: "bn-mcal-pair" }, ...kids));
+    const form = el("form", { class: "bn-form", autocomplete: "off" },
+      row("제목", f.title), el("label", { class: "bn-field row" }, el("span", { text: "종일(시간 없이 날짜만)" }), f.allDay),
+      row("시작", f.sd, f.st), row("끝", f.ed, f.et), row("장소", f.where),
+      el("label", { class: "bn-field row" }, el("span", { text: "중요(위에 띄우기)" }), f.star));
+    const why = h(`<div class="bn-msummary"><h3 class="sec">메일에서 찾은 내용</h3><p>${esc(x.why || x.subject)}</p><p class="muted small">${esc(x.from)} · ${esc(x.subject)}</p></div>`);
+    const okBtn = el("button", { type: "button", class: "btn primary", text: "이대로 등록", onclick: () => form.requestSubmit() });
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const title = f.title.value.trim();
+      if (!title || !f.sd.value) return toast("제목과 시작 날짜를 넣어 주세요", "warn");
+      const all = f.allDay.checked, ed = f.ed.value || f.sd.value;
+      const start = `${f.sd.value}T${all ? "00:00" : f.st.value || "09:00"}`, end = `${ed}T${all ? "00:00" : f.et.value || f.st.value || "10:00"}`;
+      if (end < start) return toast("끝이 시작보다 빨라요", "warn");
+      okBtn.disabled = true;
+      try { await decideMcal(x.id, { action: "add", title, start, end, allDay: all, where: f.where.value.trim(), star: f.star.checked }); closeModal(); toast(`'${title}' 을(를) 캘린더에 등록했어요`, "info", 3000); }
+      catch (err) { toast(err.message, "error"); okBtn.disabled = false; }
+    };
+    openModal([sheetHead("일정 등록", "메일에서 찾은 일정 — 고친 뒤 등록하세요"), el("div", { class: "sheet-body bn-editor" }, why, form),
+      el("footer", { class: "sheet-foot" }, el("button", { class: "btn", type: "button", text: "닫기", onclick: closeModal }),
+        el("button", { class: "btn", type: "button", text: "등록 안 함", onclick: async () => { try { await decideMcal(x.id, { action: "dismiss" }); closeModal(); toast("이 일정은 등록하지 않았어요", "info", 2500); } catch (err) { toast(err.message, "error"); } } }),
+        okBtn)]);
+    f.title.focus();
   }
   function drawMail() {
     const box = $b("bnMail");

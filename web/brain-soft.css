@@ -464,3 +464,22 @@ body.brain-mode ::-webkit-scrollbar-track,body.brain-mode ::-webkit-scrollbar-co
 body.brain-mode ::-webkit-scrollbar-thumb { background:transparent;border:0;border-radius:20px; }
 body.brain-mode .bn-scrolling::-webkit-scrollbar-thumb { background:color-mix(in srgb,var(--muted) 36%,transparent); }
 body.brain-mode ::-webkit-scrollbar-button { display:none; }
+
+/* 메일에서 찾은 일정(승인해야 등록) — 이메일 브리핑 위 */
+body.brain-mode .bn-mcal { margin:0 0 10px;padding:10px 12px;border-radius:16px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--bn-edge));background:color-mix(in srgb,var(--accent) 7%,var(--panel)); }
+body.brain-mode .bn-mcal-head { display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px; }
+body.brain-mode .bn-mcal-head .ic { width:15px;height:15px;color:var(--accent); }
+body.brain-mode .bn-mcal-head em { font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent-btn);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center; }
+body.brain-mode .bn-mcal-head small { margin-left:auto;color:var(--text-3);font-size:11px; }
+body.brain-mode .bn-mcal-list { display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:260px;overflow:auto; }
+body.brain-mode .bn-mcal-row { display:grid;grid-template-columns:1fr auto;grid-template-areas:"when acts" "title acts";gap:2px 8px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--bn-edge); }
+body.brain-mode .bn-mcal-when { grid-area:when;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums; }
+body.brain-mode .bn-mcal-title { grid-area:title;all:unset;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);line-height:1.35;min-width:0; }
+body.brain-mode .bn-mcal-title small { display:block;font-weight:400;font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+body.brain-mode .bn-mcal-title:hover { text-decoration:underline; }
+body.brain-mode .bn-mcal-title:focus-visible { outline:2px solid var(--accent);outline-offset:2px;border-radius:4px; }
+body.brain-mode .bn-mcal-acts { grid-area:acts;display:flex;gap:6px; }
+.bn-mcal-pair { display:flex;gap:6px; }
+.bn-mcal-pair > input { flex:1;min-width:0; }
+.bn-mcal-pair > input[type=time] { flex:0 0 110px; }
+.bn-mcal-pair > input[hidden] { display:none; }

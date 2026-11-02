@@ -566,3 +566,6 @@ pytest -v
 - Claude 스킬 실행에서 Gmail·노션 읽기 연결을 빼 웹 접근과 함께 쓰이지 않게(메일 속 지시로 내용이 밖으로 새는 길 차단)
 - Codex 스킬은 workspace-write 샌드박스에 네트워크를 명시적으로 끄고, 작업 폴더 밖 파일을 읽지 말라고 안내
 - Firebase 동기화: firebase-tools 가 nvm·직접 받은 node 경로에 깔린 컴퓨터에서도 찾도록 수정
+- 메일 → 일정 제안: Claude(haiku)가 업무 메일 제목·요약에서 일정·마감을 뽑아 이메일 브리핑 위에 띄움(server/mailcal.py, /api/brain/mailcal)
+- [등록] 누르면 제목·종일·시작·끝·장소·중요를 고치는 창 → '이대로 등록' 해야 캘린더('메일에서')에 들어감, [취소]는 다시 제안 안 함
+- 직접 입력 일정에 종일(allDay) 지원, 제안 상태는 Firebase 로 두 컴퓨터 병합

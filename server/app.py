@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from agentteam.team import summarize
 
-from . import assistant, brain, calconn, connectors, firebase, gmail, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
+from . import assistant, brain, calconn, connectors, firebase, gmail, mailcal, mcptools, meetings, skills, vercel, notify, notion, outside, projects, teamcfg
 
 log = logging.getLogger("server")
 
@@ -938,6 +938,61 @@ def create_app(team, access_key: str | None, runs_dir: Path, web_dir: Path, dev:
                 "items": items, "error": mail["error"], "note": note, "pending": pending, "loading": busy and mode == "claude",
                 "added": mail.get("added", 0), "total": len(items), "days": cfg["days"],
                 "at": datetime.fromtimestamp(mail["at"]).isoformat(timespec="minutes") if mail["at"] else ""}
+
+    # 메일 → 일정 제안(server/mailcal.py). 사용자가 화면에서 [등록](고쳐서)·[취소] 해야 일정이 된다
+    mcal = mailcal.Store(mail_sums.file.with_name("brain-mail-events.json"))
+    mcal_job: dict = {"task": None, "error": "", "fail": 0.0}
+
+    async def find_mail_events(todo: list[dict]) -> None:
+        try:
+            for i in range(0, len(todo), mailcal.BATCH):
+                part = todo[i:i + mailcal.BATCH]
+                answer = await connectors.ask(mailcal.prompt(part), "", "haiku", "일정 찾기")
+                await asyncio.to_thread(mcal.add, mailcal.parse(answer, part), [m["id"] for m in part])
+            mcal_job["error"] = ""
+        except Exception as e:
+            log.warning("메일 일정 찾기 실패: %s", e)
+            mcal_job.update(error="메일에서 일정을 찾지 못했어요. 잠시 뒤 다시 시도해요.", fail=time.time())
+
+    @api.get("/brain/mailcal")
+    async def brain_mailcal(refresh: bool = False):
+        """승인을 기다리는 일정 제안. 아직 살펴보지 않은 메일(요약이 있는 것)이 있으면 뒤에서 찾는다."""
+        busy = mcal_job["task"] is not None and not mcal_job["task"].done()
+        todo = mcal.unseen([m for m in mail_store.items if m.get("summary") or m.get("due")])
+        if todo and not busy and (refresh or time.time() - mcal_job["fail"] > 600) and connectors.claude_exe():
+            mcal_job["task"] = asyncio.create_task(find_mail_events(todo))
+            busy = True
+        return {"items": mcal.pending(), "loading": busy, "looking": len(todo) if busy else 0, "error": mcal_job["error"]}
+
+    class MailCalIn(BaseModel):
+        action: Literal["add", "dismiss"]
+        title: str | None = None
+        start: str | None = None
+        end: str | None = None
+        allDay: bool | None = None
+        where: str | None = None
+        star: bool | None = None
+
+    @api.post("/brain/mailcal/{sid}")
+    async def brain_mailcal_decide(sid: str, body: MailCalIn):
+        """[등록]: 사용자가 고친 값으로 '직접 입력' 일정에 넣는다 · [취소]: 다시 제안하지 않는다"""
+        x = next((x for x in mcal.load()["items"] if x["id"] == sid), None)
+        if not x:
+            raise HTTPException(404, "일정 제안을 찾을 수 없어요.")
+        if x.get("status") != "pending":
+            raise HTTPException(409, "이미 처리한 제안이에요.")
+        if body.action == "dismiss":
+            return {"ok": True, "item": await asyncio.to_thread(mcal.decide, sid, "dismissed")}
+        edit = {k: v for k, v in body.model_dump().items() if k != "action" and v is not None}
+        try:
+            ev = mailcal.to_event({**x, **edit})
+            before = {e["id"] for e in brain_store.load()["events"]}
+            cfg = brain_store.put("events", [*brain_store.load()["events"], ev])
+        except (brain.BrainError, ValueError) as e:
+            raise HTTPException(400, str(e) or "일정 시간이 올바르지 않아요.")
+        new_id = next((e["id"] for e in brain_store.load()["events"] if e["id"] not in before), "")
+        item = await asyncio.to_thread(mcal.decide, sid, "added", new_id)
+        return {"ok": True, "item": item, "brain": cfg}
 
     mail_detail = mail_sums.file.with_name("brain-mail-detail.json")   # 메일 하나 자세히(만든 것은 남겨 다시 쓰지 않는다)
     detail_busy: dict[str, asyncio.Task] = {}

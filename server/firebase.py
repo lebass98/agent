@@ -50,7 +50,21 @@ def _merge_dict(a: dict, b: dict) -> dict:
     return (b if isinstance(b, dict) else {}) | (a if isinstance(a, dict) else {})
 
 
-MERGE = {"brain-mail-store.json": _merge_mail, "brain-mail-detail.json": _merge_dict, "brain-meet-done.json": _merge_dict}
+def _merge_mailcal(a: dict, b: dict) -> dict:
+    """메일 일정 제안: id 로 합치고, 한쪽에서 등록·취소했으면 그 결정이 대기보다 이긴다. 살펴본 메일은 합친다."""
+    rank = {"pending": 0, "dismissed": 1, "added": 2}
+    by: dict = {}
+    for x in (b.get("items") or []) + (a.get("items") or []):
+        if isinstance(x, dict) and x.get("id"):
+            old = by.get(x["id"])
+            if not old or rank.get(x.get("status"), 0) >= rank.get(old.get("status"), 0):
+                by[x["id"]] = x
+    seen = list(dict.fromkeys(list(a.get("seen") or []) + list(b.get("seen") or [])))
+    return {"items": sorted(by.values(), key=lambda x: x.get("start", ""))[-300:], "seen": seen[-1000:]}
+
+
+MERGE = {"brain-mail-store.json": _merge_mail, "brain-mail-detail.json": _merge_dict, "brain-meet-done.json": _merge_dict,
+         "brain-mail-events.json": _merge_mailcal}
 TIMEOUT = 20
 CLI_CONFIG = Path.home() / ".config/configstore/firebase-tools.json"
 

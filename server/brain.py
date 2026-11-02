@@ -153,7 +153,8 @@ class Store:
             raise BrainError("끝 시간이 시작보다 빨라요.")
         return {"id": x.get("id") if x.get("id") in old else _id(), "title": _text(x.get("title"), NAME_LIMIT, "일정 제목"),
                 "start": s.isoformat(timespec="minutes"), "end": e.isoformat(timespec="minutes"), "star": bool(x.get("star")),
-                "where": _text(x.get("where"), NAME_LIMIT, "장소", required=False)}
+                "where": _text(x.get("where"), NAME_LIMIT, "장소", required=False), "allDay": bool(x.get("allDay")),
+                **({"from_mail": str(x["from_mail"])[:40]} if x.get("from_mail") else {})}
 
     @staticmethod
     def _meetings(x: dict, old: dict) -> dict:
@@ -277,8 +278,8 @@ def calendar(store: Store, days_before: int = 1, days_after: int = 14, extra: li
         if start.isoformat() <= e["start"][:10] <= end.isoformat():
             events.append(e)
     for e in data["events"]:
-        if start.isoformat() <= e["start"][:10] <= end.isoformat():
-            events.append({**e, "allDay": False, "src": "manual", "cal": "직접 입력"})
+        if e["start"][:10] <= end.isoformat() and (e.get("end") or e["start"])[:10] >= start.isoformat():
+            events.append({**e, "allDay": bool(e.get("allDay")), "src": "manual", "cal": "메일에서" if e.get("from_mail") else "직접 입력"})
     seen, merged = set(), []
     for e in sorted(events, key=lambda e: e["start"]):
         k = (e["title"].strip().lower(), e["start"])
